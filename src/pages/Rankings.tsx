@@ -53,23 +53,23 @@ export function Rankings() {
   return (
     <div className="space-y-8">
       {/* Hero — breaks out of the container so the field spans the viewport */}
-      <section ref={heroRef} className="relative -mx-6 flex min-h-[clamp(440px,62vh,660px)] items-center overflow-hidden xl:-mr-[17rem]">
+      <section ref={heroRef} className="relative -mx-6 flex min-h-[var(--hero-h)] items-center overflow-hidden max-[899px]:min-h-[720px] max-[899px]:items-end xl:-mr-[17.5rem]">
         <ArcField className="absolute inset-0" />
         {/* Readability veil under the copy */}
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(11,24,44,0.88)_0%,rgba(11,24,44,0.7)_45%,rgba(11,24,44,0.42)_100%)] lg:bg-[linear-gradient(100deg,#0b182c_8%,rgba(11,24,44,0.86)_34%,rgba(11,24,44,0.1)_62%,transparent_78%)]" />
+        <div className="pointer-events-none absolute inset-0 z-[5] bg-[linear-gradient(180deg,transparent_0%,transparent_34%,rgba(11,24,44,0.9)_46%,#0b182c_100%)] min-[900px]:bg-[linear-gradient(98deg,#0b182c_0%,rgba(11,24,44,0.92)_30%,rgba(11,24,44,0.35)_48%,transparent_60%)]" />
 
-        <div ref={copyRef} className="relative max-w-[780px] px-6 py-16 will-change-transform">
+        <div ref={copyRef} className="relative z-40 max-w-[700px] px-6 py-16 will-change-transform max-[899px]:pb-10 max-[899px]:pt-[300px]">
           <Reveal>
             <p className="arc-eyebrow mb-6">Pulsarc · Arc Testnet</p>
           </Reveal>
           <SplitLines
             as="h1"
             delay={0.1}
-            className="arc-display text-[clamp(36px,5vw,70px)] text-white"
+            className="arc-display text-[clamp(34px,4.3vw,60px)] text-white"
             lines={[{ text: 'The pulse of Arc,' }, { text: 'measured on-chain.', className: 'text-[var(--periwinkle)]' }]}
           />
           <Reveal delay={0.16}>
-            <p className="mt-6 max-w-[560px] text-[19px] font-light leading-relaxed text-[var(--muted)]">
+            <p className="mt-6 max-w-[520px] text-[18px] font-light leading-relaxed text-[var(--muted)]">
               Live rankings of the apps building on Arc, scored on verified activity: transactions, wallets and USDC moved. Every figure is read from the chain and traces back to a real contract.
             </p>
           </Reveal>

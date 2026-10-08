@@ -19,6 +19,7 @@
   --periwinkle-hi: #c3d6f2;
   --usdc: #2775ca;
   --arc-blue: #3b7bff;
+  --hero-h: clamp(500px, 68vh, 720px);
   --positive: #5ee6a8;
   --negative: #ff7a8a;
   --warn: #f5c26b;
@@ -137,6 +138,22 @@ body {
 @keyframes arc-orbit { to { transform: rotate(360deg); } }
 @keyframes arc-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 @keyframes arc-pulse-ring { 0% { opacity: .5; transform: scale(.96); } 100% { opacity: 0; transform: scale(1.08); } }
+
+
+/* ---------- Pulsarc mark ---------- */
+.pm-beat { stroke-dasharray: 9 91; stroke-dashoffset: 9; opacity: 0; animation: pm-beat 2.6s cubic-bezier(.45,.05,.3,1) infinite; filter: drop-shadow(0 0 2px rgba(169,196,234,.9)); }
+@keyframes pm-beat {
+  0% { stroke-dashoffset: 9; opacity: 0; }
+  8% { opacity: 1; }
+  62% { stroke-dashoffset: -91; opacity: 1; }
+  70%, 100% { stroke-dashoffset: -91; opacity: 0; }
+}
+.pm-breathe { animation: pm-breathe 2.6s ease-in-out infinite; }
+@keyframes pm-breathe { 0%, 100% { opacity: .82; } 30% { opacity: 1; } }
+.pm-wave { animation: pm-wave 2.4s ease-out infinite; }
+.pm-wave-2 { animation-delay: .22s; }
+.pm-wave-3 { animation-delay: .44s; }
+@keyframes pm-wave { 0% { opacity: .12; } 22% { opacity: 1; } 70%, 100% { opacity: .22; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

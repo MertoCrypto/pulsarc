@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { NetworkBar } from '@/components/layout/NetworkBar'
 import { startSmoothScroll } from '@/lib/smoothScroll'
@@ -20,9 +20,12 @@ import { Agents } from '@/pages/Agents'
 import { LeaderboardV2 } from '@/pages/LeaderboardV2'
 import { WalletProfile } from '@/pages/WalletProfile'
 import { Method } from '@/pages/Method'
+import { Brand } from '@/pages/Brand'
 
 function Layout() {
   useEffect(() => startSmoothScroll(), [])
+  // the home hero runs edge to edge, so the sidebar starts underneath it
+  const home = useLocation().pathname === '/'
 
   return (
     <div className="min-h-dvh">
@@ -48,13 +51,14 @@ function Layout() {
                 <Route path="/leaderboard" element={<LeaderboardV2 />} />
                 <Route path="/wallet/:address" element={<WalletProfile />} />
                 <Route path="/method" element={<Method />} />
+                <Route path="/brand" element={<Brand />} />
               </Routes>
               )}
             </PageTransition>
           </div>
 
           {/* Sidebar — hidden on mobile/tablet */}
-          <aside className="hidden xl:block w-64 shrink-0">
+          <aside className="hidden xl:block w-64 shrink-0" style={home ? { paddingTop: 'calc(var(--hero-h) + 2rem)' } : undefined}>
             <div className="sticky top-[92px] space-y-4">
               <GmButton variant="hero" />
               <EcosystemDominance />

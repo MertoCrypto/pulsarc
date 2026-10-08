@@ -6,6 +6,7 @@ import { ConnectKitButton } from 'connectkit'
 import { ChevronDown, Radio } from 'lucide-react'
 import { ArcPulse } from '@/components/pulse/ArcPulse'
 import { GlobalSearch } from '@/components/shared/GlobalSearch'
+import { PulsarcMark, PulsarcWordmark } from '@/components/brand/PulsarcMark'
 
 interface NavItem {
   to: string
@@ -31,16 +32,6 @@ const MORE: NavItem[] = [
 ]
 
 const ALL_NAV = [...NAV, ...MORE]
-
-function ArcMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 32 32" className={className} fill="none" aria-hidden>
-      {/* The arch is Arc; the beat running through it is the pulse. */}
-      <path d="M4 28 C 4 14, 10 4, 16 4 C 22 4, 28 14, 28 28" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-      <path d="M9.5 21 H13 L15.5 12.5 L18.5 25 L20.5 21 H22.5" stroke="var(--periwinkle)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
 
 function MoreMenu({ pathname }: { pathname: string }) {
   const [open, setOpen] = useState(false)
@@ -96,10 +87,8 @@ export function NetworkBar() {
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-[var(--line)] bg-[#0b182c]/80 backdrop-blur-xl">
       <div className="mx-auto flex h-[64px] max-w-[1400px] items-center gap-3 px-4 sm:px-6">
         <Link to="/" className="flex items-center gap-2.5 text-white shrink-0">
-          <ArcMark className="w-7 h-7" />
-          <span className="text-[19px] font-light tracking-tight sm:text-[22px]">
-            Puls<span className="font-normal text-[var(--periwinkle)]">arc</span>
-          </span>
+          <PulsarcMark className="h-8 w-8" animated title="Pulsarc" />
+          <PulsarcWordmark className="text-[19px] sm:text-[22px]" />
         </Link>
 
         <nav className="hidden lg:flex flex-1 items-center justify-center gap-1">
