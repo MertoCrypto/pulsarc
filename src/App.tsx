@@ -72,7 +72,7 @@ function Layout() {
       <footer className="border-t border-[var(--line)]">
         <div className="mx-auto flex max-w-[1400px] flex-col gap-4 px-6 py-8 text-[13px] leading-relaxed text-[var(--faint)] md:flex-row md:items-start md:justify-between">
           <p className="max-w-[640px]">
-            Pulsarc is an independent project built on Arc Network. It is not affiliated with, endorsed by or sponsored by Circle Internet Group, Inc. Arc is a trademark of Circle Internet Group, Inc. and/or its affiliates.
+            Pulsarc is an independent project built on Arc Network. It is not affiliated with, endorsed by or sponsored by Circle Internet Group, Inc. Arc is a trademark of Circle Internet Group, Inc. and/or its affiliates. Other names and logos shown, such as those of apps and assets listed on Arc Portal, belong to their respective owners and imply no affiliation or endorsement.
           </p>
           <nav className="flex shrink-0 gap-5">
             <Link to="/method" className="transition-colors hover:text-white">Method</Link>
