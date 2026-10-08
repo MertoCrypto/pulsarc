@@ -151,7 +151,7 @@ export function GlobalSearch() {
                   onClick={() => goToApp(app.id)}
                   className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.05] transition-colors"
                 >
-                  <AppLogoBadge initials={app.logoInitials} color={app.logoColor} size="sm" />
+                  <AppLogoBadge initials={app.logoInitials} color={app.logoColor} logo={app.logo} logoIcon={app.logoIcon} size="sm" />
                   <div className="min-w-0 text-left flex-1">
                     <p className="text-sm font-medium text-white truncate">{app.name}</p>
                     <p className="text-[10px] text-[var(--faint)] truncate">{app.description}</p>

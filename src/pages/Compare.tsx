@@ -89,7 +89,7 @@ export function Compare() {
           <div className="mt-3 flex flex-wrap gap-2 border-t border-[var(--line)] pt-3">
             {candidates.map(app => (
               <button key={app.id} onClick={() => add(app.id)} className="arc-chip inline-flex items-center gap-2">
-                <AppLogoBadge initials={app.logoInitials} color={app.logoColor} size="sm" /> {app.name}
+                <AppLogoBadge initials={app.logoInitials} color={app.logoColor} logo={app.logo} logoIcon={app.logoIcon} size="sm" /> {app.name}
               </button>
             ))}
           </div>

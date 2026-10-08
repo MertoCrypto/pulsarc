@@ -10,6 +10,7 @@ import { SplitLines } from '@/components/shared/SplitLines'
 import { gsap, ScrollTrigger } from '@/lib/smoothScroll'
 import { LiveBadge } from '@/components/layout/LiveBadge'
 import { LeaderboardTable } from '@/components/rankings/LeaderboardTable'
+import { PortalApps } from '@/components/shared/PortalApps'
 import { useAllMetrics, type SortKey } from '@/hooks/useAllMetrics'
 import { type TimeRange } from '@/hooks/useAppMetrics'
 
@@ -152,6 +153,8 @@ export function Rankings() {
         </p>
       </div>
       </Reveal>
+
+      <PortalApps />
     </div>
   )
 }

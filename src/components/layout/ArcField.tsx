@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { TokenBTC, TokenEURC, TokenUSDC } from '@web3icons/react'
 import { ArcLogo } from '@/components/brand/ArcLogo'
+import { portalLogo } from '@/data/portal'
 
 /**
  * The Arc ecosystem drawn as a galaxy: a tilted spiral of dust around the Arc mark, with the
@@ -38,8 +39,7 @@ interface Dust {
   phase: number
 }
 
-const PORTAL = 'https://portal.arc.io/assets'
-const logo = (path: string) => `${PORTAL}/${path}`
+const logo = portalLogo
 
 interface Planet {
   key: string
@@ -368,9 +368,9 @@ export function ArcField({ className = '' }: { className?: string }) {
               style={{ animation: `arc-core-ring 2.6s cubic-bezier(.2,.6,.3,1) ${i * 0.32}s infinite` }}
             />
           ))}
-          <div className="relative flex h-[116px] w-[116px] items-center justify-center overflow-hidden rounded-full border border-white/15 bg-[radial-gradient(circle_at_35%_30%,#4a8cf0,#14407f_62%,#0c2a57)] shadow-[0_0_60px_rgba(59,123,255,0.65),inset_0_1px_0_rgba(255,255,255,0.25)]">
+          <div className="relative flex h-[100px] w-[100px] items-center justify-center overflow-hidden rounded-full border border-white/15 bg-[radial-gradient(circle_at_35%_30%,#4a8cf0,#14407f_62%,#0c2a57)] shadow-[0_0_60px_rgba(59,123,255,0.65),inset_0_1px_0_rgba(255,255,255,0.25)]">
             <span className="arc-core-beat absolute inset-0" />
-            <ArcLogo className="relative h-[46px] w-auto" />
+            <ArcLogo className="relative h-[37px] w-auto" />
           </div>
         </div>
       </div>

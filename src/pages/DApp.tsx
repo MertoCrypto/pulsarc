@@ -82,7 +82,7 @@ export function DApp() {
       <Reveal>
         <section className="arc-card p-6 sm:p-8">
           <div className="flex items-start gap-4">
-            <AppLogoBadge initials={app.logoInitials} color={app.logoColor} size="lg" />
+            <AppLogoBadge initials={app.logoInitials} color={app.logoColor} logo={app.logo} logoIcon={app.logoIcon} size="lg" />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                 <h1 className="text-[28px] font-light leading-tight tracking-tight text-white">{app.name}</h1>

@@ -9,6 +9,8 @@
  * `official` means the address is listed in Circle's Arc docs (docs.arc.io/arc/references/contract-addresses).
  * `usd` marks anchors whose token amount is a dollar amount, so volume can be summed in USD.
  */
+import { APP_LOGOS } from './portal'
+
 export type AppCategory = 'Stablecoin' | 'DeFi' | 'RWA' | 'Payments' | 'Agents' | 'Infra'
 
 export interface Anchor {
@@ -27,6 +29,8 @@ export interface ArcApp {
   anchors: Anchor[]
   verified: boolean       // official Circle / Arc infrastructure
   logoInitials: string
+  logo?: string
+  logoIcon?: 'usdc' | 'eurc' | 'btc'
   logoColor: string       // kept for the badge API; badges are neutral now
 }
 
@@ -41,6 +45,8 @@ function app(
     contractAddress: anchors[0].address,
     verified: official,
     logoInitials: name.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase(),
+    logo: APP_LOGOS[id]?.img,
+    logoIcon: APP_LOGOS[id]?.icon,
     logoColor: NEUTRAL,
   }
 }
