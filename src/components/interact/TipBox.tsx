@@ -9,8 +9,9 @@ import { parseUsdc } from '@/onchain-money'
 import { CHAIN_ID } from '@/lib/chain'
 // parseUsdc returns bigint directly
 
-// Platform treasury address
-const PLATFORM_ADDRESS = '0x5B12Ce46C7194aD57d143bC22847224047b1Ef42' as const
+import { TIP_ADDRESS } from '@/lib/tip'
+
+const PLATFORM_ADDRESS = TIP_ADDRESS
 const TIP_PRESETS = [0.01, 0.10, 1.00]
 
 export function TipBox() {

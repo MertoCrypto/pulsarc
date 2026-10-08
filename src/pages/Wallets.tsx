@@ -1,3 +1,4 @@
+import { TIP_ADDRESS } from '@/lib/tip'
 import { useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Activity, ArrowRight, ArrowUpRight, Plus, Receipt, Wallet, X } from 'lucide-react'
@@ -11,7 +12,7 @@ const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
 const EXAMPLES = [
   { label: 'Memo contract', address: '0x5294E9927c3306DcBaDb03fe70b92e01cCede505' },
-  { label: 'Pulsarc tip wallet', address: '0x5B12Ce46C7194aD57d143bC22847224047b1Ef42' },
+  { label: 'Pulsarc tip wallet', address: TIP_ADDRESS },
 ]
 
 const MESSAGES: Record<string, string> = {
