@@ -1,6 +1,6 @@
 import { useId } from 'react'
 
-export type MarkVariant = 'ring' | 'arch' | 'beacon'
+export type MarkVariant = 'ring' | 'beacon'
 
 interface Props {
   variant?: MarkVariant
@@ -13,7 +13,6 @@ interface Props {
 
 const PULSE = {
   ring: 'M3 24 H15.5 L19.5 14 L26 34 L30 24 H45',
-  arch: 'M14.5 31 H19.5 L23 19 L27.5 37 L30.5 31 H33.5',
 }
 
 /**
@@ -45,14 +44,6 @@ export function PulsarcMark({ variant = 'ring', className, animated = false, tit
         </>
       )}
 
-      {variant === 'arch' && (
-        <>
-          <path d="M8 41 C 8 20, 16 7, 24 7 C 32 7, 40 20, 40 41" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-          <path d={PULSE.arch} stroke="#a9c4ea" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-          {animated && <path d={PULSE.arch} pathLength={100} stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" className="pm-beat" />}
-        </>
-      )}
-
       {variant === 'beacon' && (
         <>
           <circle cx="13" cy="35" r="3.2" fill="currentColor" />
@@ -70,8 +61,8 @@ export function PulsarcMark({ variant = 'ring', className, animated = false, tit
 /** Wordmark set in the display face; `arc` carries the accent. */
 export function PulsarcWordmark({ className = '' }: { className?: string }) {
   return (
-    <span className={`font-light tracking-[-0.02em] ${className}`}>
-      Puls<span className="font-normal text-[var(--periwinkle)]">arc</span>
+    <span className={`font-light tracking-[-0.02em] text-white ${className}`}>
+      Pulsarc
     </span>
   )
 }

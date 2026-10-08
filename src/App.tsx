@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { NetworkBar } from '@/components/layout/NetworkBar'
 import { startSmoothScroll } from '@/lib/smoothScroll'
@@ -68,6 +68,18 @@ function Layout() {
           </aside>
         </div>
       </main>
+
+      <footer className="border-t border-[var(--line)]">
+        <div className="mx-auto flex max-w-[1400px] flex-col gap-4 px-6 py-8 text-[13px] leading-relaxed text-[var(--faint)] md:flex-row md:items-start md:justify-between">
+          <p className="max-w-[640px]">
+            Pulsarc is an independent project built on Arc Network. It is not affiliated with, endorsed by or sponsored by Circle Internet Group, Inc. Arc is a trademark of Circle Internet Group, Inc. and/or its affiliates.
+          </p>
+          <nav className="flex shrink-0 gap-5">
+            <Link to="/method" className="transition-colors hover:text-white">Method</Link>
+            <a href="https://github.com/MertoCrypto/pulsarc" target="_blank" rel="noreferrer" className="transition-colors hover:text-white">GitHub</a>
+          </nav>
+        </div>
+      </footer>
     </div>
   )
 }

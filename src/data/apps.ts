@@ -51,7 +51,7 @@ const contract = (address: string, label: string): Anchor => ({ address, kind: '
 export const ARC_APPS: ArcApp[] = [
   // ── Circle / Arc native ────────────────────────────────────────────────
   app('usdc', 'USDC', 'Stablecoin',
-    "Circle's dollar stablecoin and Arc's native gas token, with an ERC-20 interface.",
+    "Circle's dollar stablecoin and the native gas token on Arc, with an ERC-20 interface.",
     [token('0x3600000000000000000000000000000000000000', 'USDC', true)], true),
   app('eurc', 'EURC', 'Stablecoin',
     "Circle's euro stablecoin.",

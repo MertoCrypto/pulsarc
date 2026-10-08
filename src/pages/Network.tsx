@@ -315,7 +315,7 @@ export function Network() {
         )}
         <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Base fee" value={net.baseFeeGwei ?? 0} format={n => `${num(n, 0)} Gwei`}
-            subValue="Arc's floor is 20 Gwei" icon={Zap} isLoading={loading} />
+            subValue="the Arc floor is 20 Gwei" icon={Zap} isLoading={loading} />
           <StatCard label="Cost of a transfer" value={net.transferCostUsdc ?? 0} format={n => `$${n.toFixed(5)}`}
             subValue="21,000 gas, paid in USDC" icon={Receipt} isLoading={loading} />
           <StatCard label="Blocks at the floor" value={(net.atFloorShare ?? 0) * 100} format={n => `${num(n, 0)}%`}
@@ -342,7 +342,7 @@ export function Network() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            <p className="arc-eyebrow mt-3 !text-[10px]">Base fee per block · dashed line is Arc's 20 Gwei floor</p>
+            <p className="arc-eyebrow mt-3 !text-[10px]">Base fee per block · dashed line is the Arc 20 Gwei floor</p>
           </Reveal>
         )}
 

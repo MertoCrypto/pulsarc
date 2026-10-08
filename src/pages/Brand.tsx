@@ -5,7 +5,6 @@ import { PulsarcMark, type MarkVariant } from '@/components/brand/PulsarcMark'
 const OPTIONS: { variant: MarkVariant; name: string; idea: string }[] = [
   { variant: 'ring', name: 'A · Orbit', idea: 'An orbit broken by a single beat. The ring is the ecosystem, the line is its pulse.' },
   { variant: 'beacon', name: 'B · Beacon', idea: 'A pulsar sending out arcs. The name drawn literally: pulses made of arcs.' },
-  { variant: 'arch', name: 'C · Arch', idea: 'The Arc arch with a heartbeat inside. Closest to the current logo, refined.' },
 ]
 
 const NAVY = '#0b182c'
@@ -62,19 +61,14 @@ async function exportBanner(svg: SVGSVGElement, variant: string) {
   backdrop(ctx, 1500, 500, 900, 250)
   const img = await svgToImage(svg, 150)
   ctx.font = '300 124px "Inter Tight", sans-serif'
-  const puls = ctx.measureText('Puls').width
-  ctx.font = '400 124px "Inter Tight", sans-serif'
-  const arc = ctx.measureText('arc').width
-  const total = 150 + 36 + puls + arc
+  const word = ctx.measureText('Pulsarc').width
+  const total = 150 + 36 + word
   const x = (1500 - total) / 2 + 60
   ctx.drawImage(img, x, 150)
   ctx.textBaseline = 'middle'
   ctx.font = '300 124px "Inter Tight", sans-serif'
   ctx.fillStyle = '#ffffff'
-  ctx.fillText('Puls', x + 186, 228)
-  ctx.font = '400 124px "Inter Tight", sans-serif'
-  ctx.fillStyle = '#a9c4ea'
-  ctx.fillText('arc', x + 186 + puls, 228)
+  ctx.fillText('Pulsarc', x + 186, 228)
   ctx.font = '400 21px "Geist Mono", monospace'
   ctx.fillStyle = '#7f95b4'
   ;(ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = '7px'
@@ -112,7 +106,7 @@ function Option({ variant, name, idea }: (typeof OPTIONS)[number]) {
           <div>
             <div className="flex items-center gap-5">
               <PulsarcMark variant={variant} className="h-[72px] w-[72px] text-white" animated />
-              <span className="text-[64px] font-light leading-none tracking-[-0.02em] text-white">Puls<span className="font-normal text-[var(--periwinkle)]">arc</span></span>
+              <span className="text-[64px] font-light leading-none tracking-[-0.02em] text-white">Pulsarc</span>
             </div>
             <p className="mt-5 pl-[92px] font-['Geist_Mono'] text-[11px] uppercase tracking-[0.34em] text-[var(--muted)]">The pulse of Arc</p>
           </div>
@@ -123,7 +117,7 @@ function Option({ variant, name, idea }: (typeof OPTIONS)[number]) {
       <div className="flex flex-wrap items-center gap-10 border-t border-[var(--line)] px-6 py-5">
         <div className="flex items-center gap-2.5 text-white">
           <PulsarcMark variant={variant} className="h-8 w-8" animated />
-          <span className="text-[22px] font-light tracking-[-0.02em]">Puls<span className="font-normal text-[var(--periwinkle)]">arc</span></span>
+          <span className="text-[22px] font-light tracking-[-0.02em]">Pulsarc</span>
         </div>
         <div className="flex items-center gap-4 text-white">
           {[32, 24, 16].map(s => <PulsarcMark key={s} variant={variant} className="shrink-0" title={`${s}px`} style={{ width: s, height: s }} />)}
@@ -143,7 +137,7 @@ export function Brand() {
     <div className="mx-auto max-w-[1040px] space-y-8 pt-4">
       <div>
         <p className="arc-eyebrow mb-4">Brand</p>
-        <h1 className="arc-display text-[clamp(32px,4.4vw,56px)] text-white">Three marks, one pulse.</h1>
+        <h1 className="arc-display text-[clamp(32px,4.4vw,56px)] text-white">Two marks, one pulse.</h1>
         <p className="mt-4 max-w-[600px] text-[17px] font-light leading-relaxed text-[var(--muted)]">
           Each option is shown as the round profile picture, the banner, the header lockup and at favicon sizes. The download buttons save X-ready files.
         </p>

@@ -209,7 +209,7 @@ export function Wallets() {
               </div>
             </Reveal>
             <p className="mt-4 max-w-[640px] text-sm leading-relaxed text-[var(--faint)]">
-              Balance is the native USDC balance (Arc's gas token). "Txns 24h" counts the wallet's latest 50 transactions, so a "+" means it is at least that many. Prices are not shown because testnet USDC has no market price.
+              Balance is the native USDC balance (the gas token on Arc). "Txns 24h" counts the wallet's latest 50 transactions, so a "+" means it is at least that many. Prices are not shown because testnet USDC has no market price.
             </p>
           </section>
         </>
