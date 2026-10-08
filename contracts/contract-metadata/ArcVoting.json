@@ -1,0 +1,126 @@
+{
+  "contractAddress": "0xac8bba07b3ee5df345aab5c4274837179c7d32b9",
+  "network": "ARC-TESTNET",
+  "deployerWalletId": "3c2464b2-8369-52e2-a782-800bbeca5396",
+  "contract_code_path": "/home/user/app/contracts/ArcVoting.sol",
+  "contract_compiled_code_path": "/home/user/app/contracts/out/ArclyticsPlatform.sol/ArcVoting.json",
+  "contract_network_and_links": {
+    "Arc Testnet": "https://explorer.testnet.arc.io/address/0xac8bba07b3ee5df345aab5c4274837179c7d32b9"
+  },
+  "contract_deployments": [
+    {
+      "chain": "Arc Testnet",
+      "address": "0xac8bba07b3ee5df345aab5c4274837179c7d32b9",
+      "explorerUrl": "https://explorer.testnet.arc.io/address/0xac8bba07b3ee5df345aab5c4274837179c7d32b9",
+      "txHash": "0xe7cbf414b09caa030100b63605599e40579a7dd63af433a912d7ecf0384e882c",
+      "deployedAt": "2026-10-08T12:15:57.526Z"
+    }
+  ],
+  "abi": [
+    {
+      "type": "function",
+      "name": "canVote",
+      "inputs": [
+        {
+          "name": "voter",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "dappId",
+          "type": "string",
+          "internalType": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool",
+          "internalType": "bool"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "getLastVoteTime",
+      "inputs": [
+        {
+          "name": "voter",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "dappId",
+          "type": "string",
+          "internalType": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "getVoteCount",
+      "inputs": [
+        {
+          "name": "dappId",
+          "type": "string",
+          "internalType": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "vote",
+      "inputs": [
+        {
+          "name": "dappId",
+          "type": "string",
+          "internalType": "string"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "event",
+      "name": "Voted",
+      "inputs": [
+        {
+          "name": "voter",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "dappId",
+          "type": "string",
+          "indexed": true,
+          "internalType": "string"
+        },
+        {
+          "name": "timestamp",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
+    }
+  ]
+}

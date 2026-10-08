@@ -1,0 +1,102 @@
+{
+  "contractAddress": "0x231f98aecfcfd740e418af29b2ac7587b2d9e471",
+  "network": "ARC-TESTNET",
+  "deployerWalletId": "3c2464b2-8369-52e2-a782-800bbeca5396",
+  "contract_code_path": "/home/user/app/contracts/ArcAttestation.sol",
+  "contract_compiled_code_path": "/home/user/app/contracts/out/ArclyticsPlatform.sol/ArcAttestation.json",
+  "contract_network_and_links": {
+    "Arc Testnet": "https://explorer.testnet.arc.io/address/0x231f98aecfcfd740e418af29b2ac7587b2d9e471"
+  },
+  "contract_deployments": [
+    {
+      "chain": "Arc Testnet",
+      "address": "0x231f98aecfcfd740e418af29b2ac7587b2d9e471",
+      "explorerUrl": "https://explorer.testnet.arc.io/address/0x231f98aecfcfd740e418af29b2ac7587b2d9e471",
+      "txHash": "0xb153bfff43103600dd5c506f73fe05bd9d1e90a9381c951baaec78e84b433b9e",
+      "deployedAt": "2026-10-08T12:16:15.916Z"
+    }
+  ],
+  "abi": [
+    {
+      "type": "function",
+      "name": "attest",
+      "inputs": [
+        {
+          "name": "dappId",
+          "type": "string",
+          "internalType": "string"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "getAttestationCount",
+      "inputs": [
+        {
+          "name": "dappId",
+          "type": "string",
+          "internalType": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "hasAttested",
+      "inputs": [
+        {
+          "name": "user",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "dappId",
+          "type": "string",
+          "internalType": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool",
+          "internalType": "bool"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "event",
+      "name": "Attested",
+      "inputs": [
+        {
+          "name": "user",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "dappId",
+          "type": "string",
+          "indexed": true,
+          "internalType": "string"
+        },
+        {
+          "name": "timestamp",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
+    }
+  ]
+}

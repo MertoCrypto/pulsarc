@@ -1,0 +1,157 @@
+{
+  "contractAddress": "0x5683dfa3f97aaafa72f1eb2db95acb41878a520f",
+  "network": "ARC-TESTNET",
+  "deployerWalletId": "3c2464b2-8369-52e2-a782-800bbeca5396",
+  "contract_code_path": "/home/user/app/contracts/GmBoard.sol",
+  "contract_compiled_code_path": "/home/user/app/contracts/out/GmBoard.sol/GmBoard.json",
+  "contract_network_and_links": {
+    "Arc Testnet": "https://explorer.testnet.arc.io/address/0x5683dfa3f97aaafa72f1eb2db95acb41878a520f"
+  },
+  "contract_deployments": [
+    {
+      "chain": "Arc Testnet",
+      "address": "0x5683dfa3f97aaafa72f1eb2db95acb41878a520f",
+      "explorerUrl": "https://explorer.testnet.arc.io/address/0x5683dfa3f97aaafa72f1eb2db95acb41878a520f",
+      "txHash": "0x0e89513c92612c88001fe44e1360094fdf70a72394451b5ea24ed2813b010189",
+      "deployedAt": "2026-10-08T14:50:11.619Z"
+    }
+  ],
+  "abi": [
+    {
+      "type": "function",
+      "name": "cooldownRemaining",
+      "inputs": [
+        {
+          "name": "wallet",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint64",
+          "internalType": "uint64"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "getRecord",
+      "inputs": [
+        {
+          "name": "wallet",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "lastGm",
+          "type": "uint64",
+          "internalType": "uint64"
+        },
+        {
+          "name": "streak",
+          "type": "uint32",
+          "internalType": "uint32"
+        },
+        {
+          "name": "total",
+          "type": "uint32",
+          "internalType": "uint32"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "gm",
+      "inputs": [],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "lastGmSender",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "lastGmTime",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint64",
+          "internalType": "uint64"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "totalGms",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "event",
+      "name": "Gm",
+      "inputs": [
+        {
+          "name": "sender",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "streak",
+          "type": "uint32",
+          "indexed": false,
+          "internalType": "uint32"
+        },
+        {
+          "name": "total",
+          "type": "uint32",
+          "indexed": false,
+          "internalType": "uint32"
+        },
+        {
+          "name": "ts",
+          "type": "uint64",
+          "indexed": false,
+          "internalType": "uint64"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "error",
+      "name": "CooldownNotOver",
+      "inputs": [
+        {
+          "name": "nextGmTime",
+          "type": "uint64",
+          "internalType": "uint64"
+        }
+      ]
+    }
+  ]
+}
