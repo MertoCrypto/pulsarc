@@ -142,7 +142,7 @@ export function DApp() {
       {tab === 'Overview' && (
         <>
           <div className="flex flex-wrap items-center gap-3">
-            <FilterBar timeRange={timeRange} onTimeRangeChange={setTimeRange} category="All" onCategoryChange={() => {}} hideCategories />
+            <FilterBar timeRange={timeRange} onTimeRangeChange={v => setTimeRange(v as TimeRange)} ranges={['1h', '24h']} category="All" onCategoryChange={() => {}} hideCategories />
             <button className="arc-chip" data-active={hideAutomated} onClick={() => setHideAutomated(v => !v)}
               title={`Leaves out the app's busiest wallets that have ${HIGH_FREQUENCY.toLocaleString()}+ lifetime transactions`}>
               {hideAutomated ? 'Excluding automated wallets' : 'Exclude automated wallets'}

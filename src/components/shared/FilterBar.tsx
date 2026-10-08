@@ -1,16 +1,21 @@
 import { clsx } from 'clsx'
 import { Clock, ChevronDown } from 'lucide-react'
-import { type TimeRange } from '@/hooks/useAppMetrics'
+import { type RankRange } from '@/lib/appActivity'
 import { CATEGORIES } from '@/data/apps'
 
-const TIME_RANGES: { value: TimeRange; label: string }[] = [
+export const TIME_RANGES: { value: RankRange; label: string }[] = [
   { value: '1h', label: 'Last 1 Hour' },
   { value: '24h', label: 'Last 24 Hours' },
+  { value: '7d', label: 'Last 7 Days' },
+  { value: '30d', label: 'Last 30 Days' },
+  { value: 'all', label: '∞  All Time' },
 ]
 
 interface FilterBarProps {
-  timeRange: TimeRange
-  onTimeRangeChange: (v: TimeRange) => void
+  timeRange: RankRange
+  onTimeRangeChange: (v: RankRange) => void
+  /** Ranges to offer; pages that only understand 1h/24h pass these two. */
+  ranges?: RankRange[]
   category: string
   onCategoryChange: (v: string) => void
   hideCategories?: boolean
@@ -22,6 +27,7 @@ export function FilterBar({
   category,
   onCategoryChange,
   hideCategories,
+  ranges,
 }: FilterBarProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -29,10 +35,10 @@ export function FilterBar({
       <div className="relative">
         <select
           value={timeRange}
-          onChange={e => onTimeRangeChange(e.target.value as TimeRange)}
+          onChange={e => onTimeRangeChange(e.target.value as RankRange)}
           className="appearance-none pl-8 pr-8 py-2 text-[13px] font-medium text-[var(--text)] bg-transparent border border-[var(--line)] rounded-[10px] hover:border-[var(--line-strong)] transition-colors cursor-pointer focus:outline-none focus:border-[var(--periwinkle)]"
         >
-          {TIME_RANGES.map(r => (
+          {TIME_RANGES.filter(r => !ranges || ranges.includes(r.value)).map(r => (
             <option key={r.value} value={r.value} className="bg-[#10213b]">{r.label}</option>
           ))}
         </select>

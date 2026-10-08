@@ -95,7 +95,7 @@ export function Trends() {
       <section>
         <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
           <p className="arc-eyebrow">Tracked apps · by category</p>
-          <FilterBar timeRange={timeRange} onTimeRangeChange={setTimeRange} category="All" onCategoryChange={() => {}} hideCategories />
+          <FilterBar timeRange={timeRange} onTimeRangeChange={v => setTimeRange(v as TimeRange)} ranges={['1h', '24h']} category="All" onCategoryChange={() => {}} hideCategories />
         </div>
 
         {isLoading ? (

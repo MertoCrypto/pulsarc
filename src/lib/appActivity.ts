@@ -50,26 +50,33 @@ interface RawTx {
 }
 interface Page<T> { items: T[]; next_page_params: Record<string, unknown> | null }
 
-async function readPages<T extends { timestamp: string }>(path: string, pages: number): Promise<{ items: T[]; hasMore: boolean }> {
+async function readPages<T extends { timestamp: string }>(path: string, pages: number, horizon: number, priority: number): Promise<{ items: T[]; hasMore: boolean }> {
   const out: T[] = []
   let cursor: Record<string, unknown> | null = null
   let hasMore = false
   for (let i = 0; i < pages; i++) {
-    const page: Page<T> = await arcscan<Page<T>>(path, cursor ?? undefined)
+    let page: Page<T>
+    try {
+      page = await arcscan<Page<T>>(path, cursor ?? undefined, priority)
+    } catch (err) {
+      if (i === 0) throw err
+      hasMore = true // a deeper page failed: keep what we have and treat the rest as unread
+      break
+    }
     out.push(...page.items)
     cursor = page.next_page_params
     hasMore = cursor !== null
     const oldest = page.items[page.items.length - 1]
     if (!cursor || !oldest) break
-    if (Date.now() - new Date(oldest.timestamp).getTime() > 2 * DAY) break // past the widest window, plus one earlier window to compare with
+    if (Date.now() - new Date(oldest.timestamp).getTime() > horizon) break // past the widest window, plus one earlier window to compare with
   }
   return { items: out, hasMore }
 }
 
 const live = (a: string | undefined) => (a ? a.toLowerCase() : '')
 
-async function sampleAnchor(anchor: Anchor, pages: number): Promise<AnchorSample> {
-  const balanceReq = arcscan<{ coin_balance: string | null }>(`/addresses/${anchor.address}`)
+async function sampleAnchor(anchor: Anchor, pages: number, horizon: number, priority: number): Promise<AnchorSample> {
+  const balanceReq = arcscan<{ coin_balance: string | null }>(`/addresses/${anchor.address}`, undefined, { priority, timeoutMs: 6000, attempts: 1 })
     .then(a => scaled(a.coin_balance, 18))
     .catch(() => 0)
 
@@ -77,7 +84,7 @@ async function sampleAnchor(anchor: Anchor, pages: number): Promise<AnchorSample
   let hasMore: boolean
 
   if (anchor.kind === 'token') {
-    const { items, hasMore: more } = await readPages<RawTransfer>(`/tokens/${anchor.address}/transfers`, pages)
+    const { items, hasMore: more } = await readPages<RawTransfer>(`/tokens/${anchor.address}/transfers`, pages, horizon, priority)
     hasMore = more
     events = items.map(t => ({
       ts: new Date(t.timestamp).getTime(),
@@ -87,7 +94,7 @@ async function sampleAnchor(anchor: Anchor, pages: number): Promise<AnchorSample
       hash: t.transaction_hash,
     }))
   } else {
-    const { items, hasMore: more } = await readPages<RawTx>(`/addresses/${anchor.address}/transactions`, pages)
+    const { items, hasMore: more } = await readPages<RawTx>(`/addresses/${anchor.address}/transactions`, pages, horizon, priority)
     hasMore = more
     events = items.map(t => {
       const native = scaled(t.value, 18)
@@ -104,16 +111,66 @@ async function sampleAnchor(anchor: Anchor, pages: number): Promise<AnchorSample
   return { anchor, events, hasMore, balance: await balanceReq }
 }
 
-export async function sampleApp(app: ArcApp, pages: number): Promise<AppSample> {
+export async function sampleApp(app: ArcApp, pages: number, horizon = 2 * DAY, priority = 0): Promise<AppSample> {
   const anchors: AnchorSample[] = []
-  for (const a of app.anchors) anchors.push(await sampleAnchor(a, pages))
+  for (const a of app.anchors) anchors.push(await sampleAnchor(a, pages, horizon, priority))
   return { appId: app.id, anchors, fetchedAt: Date.now() }
+}
+
+// ── Lifetime counters ──────────────────────────────────────────────────────
+
+export interface AppLifetime {
+  appId: string
+  txCount: number          // lifetime transfers (token anchors) or transactions (contract anchors)
+  holders: number | null   // distinct token holders; null when the app has no token anchor
+  tvl: number
+  fetchedAt: number
+}
+
+const count = (v: string | undefined) => Number(v ?? 0) || 0
+
+export async function lifetimeOf(app: ArcApp, priority = 0): Promise<AppLifetime> {
+  let txCount = 0
+  let holders: number | null = null
+  let tvl = 0
+  for (const a of app.anchors) {
+    const bal = arcscan<{ coin_balance: string | null }>(`/addresses/${a.address}`, undefined, { priority, timeoutMs: 6000, attempts: 1 }).then(r => scaled(r.coin_balance, 18)).catch(() => 0)
+    if (a.kind === 'token') {
+      const c = await arcscan<{ transfers_count?: string; token_holders_count?: string }>(`/tokens/${a.address}/counters`, undefined, priority).catch(() => ({}) as { transfers_count?: string; token_holders_count?: string })
+      txCount += count(c.transfers_count)
+      holders = Math.max(holders ?? 0, count(c.token_holders_count))
+    } else {
+      const c = await arcscan<{ transactions_count?: string }>(`/addresses/${a.address}/counters`, undefined, priority).catch(() => ({}) as { transactions_count?: string })
+      txCount += count(c.transactions_count)
+    }
+    tvl += await bal
+  }
+  return { appId: app.id, txCount, holders, tvl, fetchedAt: Date.now() }
+}
+
+export function lifetimeMetrics(l: AppLifetime): AppMetrics {
+  return {
+    txCount: l.txCount,
+    activeWallets: l.holders ?? 0,
+    usersKnown: l.holders !== null,
+    volume: null,
+    tvl: l.tvl > 0 ? l.tvl : null,
+    usdcFees: null,
+    rankChange: 0,
+    trend: null,
+    estimated: false,
+    lifetime: true,
+  }
 }
 
 // ── Metrics ────────────────────────────────────────────────────────────────
 
 export type TimeRange = '1h' | '24h'
 export const RANGE_MS: Record<TimeRange, number> = { '1h': 3600_000, '24h': DAY }
+
+/** Ranges offered on the rankings page; 'all' is read from ArcScan's lifetime counters. */
+export type RankRange = TimeRange | '7d' | '30d' | 'all'
+export const RANK_RANGE_MS: Record<Exclude<RankRange, 'all'>, number> = { ...RANGE_MS, '7d': 7 * DAY, '30d': 30 * DAY }
 
 export interface Trend {
   txNow: number
@@ -131,6 +188,9 @@ export interface AppMetrics {
   usdcFees: number | null
   rankChange: number
   trend: Trend | null
+  /** Lifetime view: users are token holders, and are unknown for apps without a token. */
+  lifetime?: boolean
+  usersKnown?: boolean
   estimated: boolean // the sample did not reach back to the window start; counts are extrapolated
 }
 

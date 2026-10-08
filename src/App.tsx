@@ -32,7 +32,7 @@ function Layout() {
       <NetworkBar />
 
       {/* Page content */}
-      <main className="max-w-[1400px] mx-auto px-6 pt-[136px] pb-16 lg:pt-[92px]">
+      <main className="max-w-[1400px] mx-auto px-6 pt-[144px] pb-16 lg:pt-[100px]">
         <div className="flex gap-6">
           <div className="flex-1 min-w-0">
             <PageTransition>

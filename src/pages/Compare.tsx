@@ -100,7 +100,7 @@ export function Compare() {
         <div className="arc-card px-6 py-16 text-center text-[var(--muted)]">Add an app to start comparing.</div>
       ) : (
         <>
-          <FilterBar timeRange={timeRange} onTimeRangeChange={setTimeRange} category="All" onCategoryChange={() => {}} hideCategories />
+          <FilterBar timeRange={timeRange} onTimeRangeChange={v => setTimeRange(v as TimeRange)} ranges={['1h', '24h']} category="All" onCategoryChange={() => {}} hideCategories />
 
           <Reveal className="arc-card overflow-x-auto">
             <table className="w-full min-w-[560px] border-collapse">

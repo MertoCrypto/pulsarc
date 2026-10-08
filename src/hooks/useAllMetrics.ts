@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ARC_APPS, type AppKind, type ArcApp } from '@/data/apps'
-import { LIST_PAGES, useAppSamples, useRefreshSamples } from '@/hooks/useAppSamples'
-import { computeMetrics, RANGE_MS, type AppMetrics, type TimeRange } from '@/lib/appActivity'
+import { READ_PLAN, useAppLifetimes, useAppSamples, useRefreshSamples } from '@/hooks/useAppSamples'
+import { computeMetrics, lifetimeMetrics, RANK_RANGE_MS, type AppMetrics, type RankRange } from '@/lib/appActivity'
 
 export type SortKey = 'txCount' | 'activeWallets' | 'volume' | 'tvl' | 'usdcFees'
 
@@ -40,7 +40,7 @@ const sortValue = (m: AppMetrics, key: SortKey) => m[key] ?? -1
  * loading. `rankChange` compares with the ranking this browser saw at least 5 minutes ago.
  */
 export function useAllMetrics(
-  timeRange: TimeRange,
+  timeRange: RankRange,
   sortKey: SortKey,
   categoryFilter: string,
   opts: { defer?: boolean; kind?: AppKind | 'all' } = {},
@@ -52,12 +52,16 @@ export function useAllMetrics(
     const t = window.setTimeout(() => setReady(true), 4000)
     return () => window.clearTimeout(t)
   }, [opts.defer])
-  const queries = useAppSamples(ARC_APPS, LIST_PAGES, ready)
+  const lifetime = timeRange === 'all'
+  const plan = READ_PLAN[lifetime ? '24h' : timeRange]
+  const queries = useAppSamples(ARC_APPS, plan.pages, ready && !lifetime, plan.horizon, plan.every)
+  const lifetimes = useAppLifetimes(ARC_APPS, ready && lifetime)
   const refresh = useRefreshSamples()
 
   const loadedSamples = queries.map(q => q.data)
-  const loaded = loadedSamples.filter(Boolean).length
-  const stamp = loadedSamples.map(s => s?.fetchedAt ?? 0).join(',')
+  const loadedLife = lifetimes.map(q => q.data)
+  const loaded = (lifetime ? loadedLife : loadedSamples).filter(Boolean).length
+  const stamp = (lifetime ? loadedLife : loadedSamples).map(s => s?.fetchedAt ?? 0).join(',') + (lifetime ? 'L' : '')
 
   const { items, ranksAll } = useMemo(() => {
     const now = Date.now()
@@ -65,8 +69,12 @@ export function useAllMetrics(
     const usable = snap && now - snap.ts >= MIN_AGE ? snap : null
 
     const scored = ARC_APPS.flatMap((app, i) => {
+      if (lifetime) {
+        const l = loadedLife[i]
+        return l ? [{ app, metrics: lifetimeMetrics(l) }] : []
+      }
       const sample = loadedSamples[i]
-      return sample ? [{ app, metrics: computeMetrics(sample, RANGE_MS[timeRange], now) }] : []
+      return sample ? [{ app, metrics: computeMetrics(sample, RANK_RANGE_MS[timeRange as Exclude<RankRange, 'all'>], now) }] : []
     })
     scored.sort((a, b) => sortValue(b.metrics, sortKey) - sortValue(a.metrics, sortKey))
 
@@ -104,7 +112,7 @@ export function useAllMetrics(
     { volume: 0, activeWallets: 0, txCount: 0, tvl: 0 },
   )
 
-  const newest = Math.max(0, ...loadedSamples.map(s => s?.fetchedAt ?? 0))
+  const newest = Math.max(0, ...(lifetime ? loadedLife : loadedSamples).map(s => s?.fetchedAt ?? 0))
 
   return {
     items,

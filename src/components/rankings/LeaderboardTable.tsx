@@ -30,7 +30,7 @@ interface ColDef {
 // "≈" = extrapolated from the newest activity; "≥" = at least this many (sampled).
 const COLS: ColDef[] = [
   { key: 'txCount',       label: 'Transactions', render: r => `${r.metrics.estimated ? '≈' : ''}${fmtNum(r.metrics.txCount)}` },
-  { key: 'activeWallets', label: 'Users',       render: r => `${r.metrics.estimated ? '≥' : ''}${fmtNum(r.metrics.activeWallets)}` },
+  { key: 'activeWallets', label: 'Users',       render: r => r.metrics.lifetime && !r.metrics.usersKnown ? '—' : `${r.metrics.estimated ? '≥' : ''}${fmtNum(r.metrics.activeWallets)}` },
   { key: 'volume',        label: 'Volume',       render: r => r.metrics.volume === null ? '—' : `${r.metrics.estimated ? '≈' : ''}${fmt(r.metrics.volume)}` },
   { key: 'tvl',           label: 'USDC held',    render: r => r.metrics.tvl === null ? '—' : fmt(r.metrics.tvl) },
   { key: 'usdcFees',      label: 'Fees paid',    render: r => r.metrics.usdcFees === null ? '—' : `${r.metrics.estimated ? '≈' : ''}$${r.metrics.usdcFees.toFixed(4)}` },

@@ -12,7 +12,7 @@ import { LiveBadge } from '@/components/layout/LiveBadge'
 import { LeaderboardTable } from '@/components/rankings/LeaderboardTable'
 import { PortalApps } from '@/components/shared/PortalApps'
 import { useAllMetrics, type SortKey } from '@/hooks/useAllMetrics'
-import { type TimeRange } from '@/hooks/useAppMetrics'
+import { type RankRange } from '@/lib/appActivity'
 import { type AppKind } from '@/data/apps'
 
 const KINDS: { value: AppKind | 'all'; label: string }[] = [
@@ -34,14 +34,21 @@ function fmtNum(n: number): string {
 }
 
 export function Rankings() {
-  const [timeRange, setTimeRange] = useState<TimeRange>('24h')
+  const [timeRange, setTimeRange] = useState<RankRange>('24h')
   const [category, setCategory] = useState('All')
   const [kind, setKind] = useState<AppKind | 'all'>('app')
   const [sortKey, setSortKey] = useState<SortKey>('activeWallets')
 
+  // Lifetime counters have no per-window users for contract apps, so rank by transactions there.
+  const changeRange = (r: RankRange) => {
+    setTimeRange(r)
+    if (r === 'all' && sortKey === 'activeWallets') setSortKey('txCount')
+    if (r !== 'all' && timeRange === 'all' && sortKey === 'txCount') setSortKey('activeWallets')
+  }
+
   const { items, isLoading, loaded, total, lastUpdated, totals, refresh } = useAllMetrics(timeRange, sortKey, category, { kind })
   const reading = loaded < total
-  const windowLabel = timeRange === '1h' ? 'last hour' : 'last 24 hours'
+  const windowLabel = { '1h': 'last hour', '24h': 'last 24 hours', '7d': 'last 7 days', '30d': 'last 30 days', all: 'all time' }[timeRange]
 
   const heroRef = useRef<HTMLElement>(null)
   const copyRef = useRef<HTMLDivElement>(null)
@@ -157,7 +164,7 @@ export function Rankings() {
           </div>
           <FilterBar
             timeRange={timeRange}
-            onTimeRangeChange={setTimeRange}
+            onTimeRangeChange={changeRange}
             category={category}
             onCategoryChange={setCategory}
           />
@@ -172,7 +179,11 @@ export function Rankings() {
           onSortChange={setSortKey}
         />
         <p className="border-t border-[var(--line)] px-6 py-4 text-sm leading-relaxed text-[var(--faint)]">
-          Users are distinct wallets that used the app in the window. Change compares the window with the one before it; for busy apps it compares the newer half of our sample with the older half, marked ≈. Each app is measured through its real contracts (token transfers for pools, vaults and stablecoins; transactions for infrastructure). Very busy apps are sampled from their newest activity, so their counts are extrapolated — marked ≈, and wallets as ≥. "Dollars moved" only includes USDC-denominated transfers. Rank arrows show change since this browser last saw the ranking.
+          {timeRange === 'all'
+            ? 'All time: transactions are lifetime counts from ArcScan; users are token holders, so apps without a token show a dash. Volume and change need a window, so they are blank here. '
+            : timeRange === '7d' || timeRange === '30d'
+              ? 'Wide windows read as far back as ArcScan allows; very busy apps are projected from their newest activity (≈). '
+              : ''}Users are distinct wallets that used the app in the window. Change compares the window with the one before it; for busy apps it compares the newer half of our sample with the older half, marked ≈. Each app is measured through its real contracts (token transfers for pools, vaults and stablecoins; transactions for infrastructure). Very busy apps are sampled from their newest activity, so their counts are extrapolated — marked ≈, and wallets as ≥. "Dollars moved" only includes USDC-denominated transfers. Rank arrows show change since this browser last saw the ranking.
         </p>
       </div>
       </Reveal>
