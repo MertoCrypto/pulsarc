@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink, Link, useLocation } from 'react-router-dom'
+import { NavLink, Link, useLocation, useSearchParams } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { useChainStats } from '@/hooks/useChainStats'
 import { ConnectKitButton } from 'connectkit'
@@ -85,9 +85,12 @@ function MoreMenu({ pathname }: { pathname: string }) {
 }
 
 export function NetworkBar() {
-  const { blockNumber } = useChainStats()
-  const [pulseOpen, setPulseOpen] = useState(false)
   const { pathname } = useLocation()
+  const [params] = useSearchParams()
+  // the Network page can show mainnet; everywhere else the app runs on the configured network
+  const viewing = pathname.startsWith('/network') && params.get('net') === 'mainnet' ? 'mainnet' : pathname.startsWith('/network') ? 'testnet' : undefined
+  const { blockNumber } = useChainStats(viewing)
+  const [pulseOpen, setPulseOpen] = useState(false)
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-[var(--line)] bg-[#0b182c]/80 backdrop-blur-xl">
@@ -126,7 +129,7 @@ export function NetworkBar() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--positive)] opacity-70" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--positive)]" />
           </span>
-          <span className="text-xs text-[var(--muted)]">Arc Testnet</span>
+          <span className="text-xs text-[var(--muted)]">{viewing === 'mainnet' ? 'Arc Mainnet' : 'Arc Testnet'}</span>
           {blockNumber !== null && (
             <span className="text-xs font-['Geist_Mono'] text-[var(--faint)] tabular-nums">
               #{blockNumber.toString()}

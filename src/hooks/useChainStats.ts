@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react'
 import { createPublicClient, http } from 'viem'
-import { RPC_URL } from '@/lib/chain'
+import { NETWORKS, RPC_URL } from '@/lib/chain'
 
 /**
  * Latest block number, polled lightly. Throughput lives in useNetworkStats, which counts
  * the real transactions in each block instead of estimating.
  */
-export function useChainStats() {
+export function useChainStats(net?: 'testnet' | 'mainnet') {
   const [blockNumber, setBlockNumber] = useState<bigint | null>(null)
 
   useEffect(() => {
-    const client = createPublicClient({ transport: http(RPC_URL) })
+    setBlockNumber(null)
+    const client = createPublicClient({ transport: http(net ? NETWORKS[net].rpcUrl : RPC_URL) })
 
     async function poll() {
       try {
@@ -23,7 +24,7 @@ export function useChainStats() {
     void poll()
     const interval = setInterval(() => { void poll() }, 6000)
     return () => clearInterval(interval)
-  }, [])
+  }, [net])
 
   return { blockNumber }
 }
