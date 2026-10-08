@@ -155,6 +155,27 @@ body {
 .pm-wave-3 { animation-delay: .44s; }
 @keyframes pm-wave { 0% { opacity: .12; } 22% { opacity: 1; } 70%, 100% { opacity: .22; } }
 
+
+/* Arc core: the mark itself is never altered; the light behind it and the rings around it beat. */
+.arc-core-beat { background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.55), rgba(140,190,255,.0) 62%); opacity: 0; animation: arc-core-beat 2.6s cubic-bezier(.45,.05,.3,1) infinite; }
+@keyframes arc-core-beat { 0% { opacity: 0; transform: scale(.7); } 14% { opacity: .85; transform: scale(1); } 60%, 100% { opacity: 0; transform: scale(1.25); } }
+@keyframes arc-core-ring { 0% { opacity: .65; transform: scale(.98); } 100% { opacity: 0; transform: scale(1.55); } }
+
+/* Live buttons: wallet and GM */
+.arc-btn-live { position: relative; overflow: hidden; isolation: isolate; animation: arc-live-glow 2.8s ease-out infinite; }
+.arc-btn-live::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; transform: translateX(-120%);
+  background: linear-gradient(105deg, transparent 32%, rgba(255,255,255,.65) 50%, transparent 68%);
+  animation: arc-live-sweep 3.4s cubic-bezier(.4,.1,.3,1) infinite;
+}
+@keyframes arc-live-sweep { 0%, 55% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+@keyframes arc-live-glow { 0% { box-shadow: 0 0 0 0 rgba(169,196,234,.5); } 70%, 100% { box-shadow: 0 0 0 11px rgba(169,196,234,0); } }
+
+.arc-gm-live { animation: arc-gm-glow 2.4s ease-out infinite; border-color: rgba(169,196,234,.55); }
+@keyframes arc-gm-glow { 0% { box-shadow: 0 0 0 0 rgba(169,196,234,.45); } 70%, 100% { box-shadow: 0 0 0 9px rgba(169,196,234,0); } }
+.arc-sun-spin { animation: arc-sun-spin 9s linear infinite; }
+@keyframes arc-sun-spin { to { transform: rotate(360deg); } }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

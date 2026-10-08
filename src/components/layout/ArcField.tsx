@@ -57,8 +57,8 @@ interface Planet {
   minor?: boolean
 }
 
-const RING_R = [0, 112, 176, 246, 318, 384]
-const RING_SPEED = [0, 0.0054, 0.0038, 0.0027, 0.0019, 0.0014]
+const RING_R = [0, 150, 214, 292, 372]
+const RING_SPEED = [0, 0.0052, 0.0037, 0.0026, 0.0018]
 
 type Seed = Omit<Planet, 'slot' | 'kind'> & { kind?: Planet['kind'] }
 
@@ -83,23 +83,17 @@ const SEEDS: Seed[] = [
   { key: 'across', label: 'Across', note: 'Cross-chain bridge', kind: 'app', ring: 3, size: 54, img: logo('discover/across.png') },
   { key: 'aerodrome', label: 'Aerodrome', note: 'Liquidity and trading', kind: 'app', ring: 3, size: 54, img: logo('discover/aerodrome.png') },
   { key: 'xylonet', label: 'XyloNet', note: 'Stablecoin-native DeFi on Arc', kind: 'app', ring: 3, size: 54, img: logo('discover/xylonet.webp'), to: '/dapp/xylonet' },
-  // 4 · exchanges and more
-  { key: 'binance', label: 'Binance', note: 'Exchange', kind: 'app', ring: 4, size: 48, img: logo('discover/binance.webp'), minor: true },
-  { key: 'bybit', label: 'Bybit', note: 'Exchange', kind: 'app', ring: 4, size: 48, img: logo('discover/bybit.webp'), minor: true },
-  { key: 'kraken', label: 'Kraken', note: 'Exchange', kind: 'app', ring: 4, size: 48, img: logo('discover/kraken.webp'), minor: true },
-  { key: 'okx', label: 'OKX', note: 'Exchange and wallet', kind: 'app', ring: 4, size: 48, img: logo('discover/okx.webp'), minor: true },
-  { key: 'robinhood', label: 'Robinhood', note: 'Retail trading', kind: 'app', ring: 4, size: 48, img: logo('discover/robinhood.webp'), minor: true },
-  { key: 'hibachi', label: 'Hibachi', note: 'Perpetuals exchange', kind: 'app', ring: 4, size: 48, img: logo('discover/hibachi.png'), minor: true },
-  { key: 'synthra', label: 'Synthra', note: 'Assets across ecosystems', kind: 'app', ring: 4, size: 48, img: logo('discover/synthra.png'), to: '/dapp/synthra', minor: true },
-  // 5 · local-currency stablecoins
-  { key: 'jpyc', label: 'JPYC', note: 'Japanese yen stablecoin', ring: 5, size: 28, img: logo('tokens/jpyc.svg'), minor: true },
-  { key: 'gbpa', label: 'GBPA', note: 'British pound stablecoin', ring: 5, size: 28, img: logo('tokens/gbpa.svg'), minor: true },
-  { key: 'audd', label: 'AUDD', note: 'Australian dollar stablecoin', ring: 5, size: 28, img: logo('tokens/audd.svg'), minor: true },
-  { key: 'eurau', label: 'EURAU', note: 'Euro stablecoin · AllUnity', ring: 5, size: 28, img: logo('tokens/eurau.svg'), minor: true },
-  { key: 'chfau', label: 'CHFAU', note: 'Swiss franc stablecoin', ring: 5, size: 28, img: logo('tokens/chfau.svg'), minor: true },
-  { key: 'tryb', label: 'TRYB', note: 'Turkish lira stablecoin', ring: 5, size: 28, img: logo('tokens/tryb.svg'), minor: true },
-  { key: 'sekau', label: 'SEKAU', note: 'Swedish krona stablecoin', ring: 5, size: 28, img: logo('tokens/sekau.svg'), minor: true },
-  { key: 'cadd', label: 'CADD', note: 'Canadian dollar stablecoin', ring: 5, size: 28, img: logo('tokens/cadd.svg'), minor: true },
+  { key: 'hibachi', label: 'Hibachi', note: 'Onchain perpetuals', kind: 'app', ring: 3, size: 54, img: logo('discover/hibachi.png') },
+  { key: 'synthra', label: 'Synthra', note: 'Assets across ecosystems', kind: 'app', ring: 3, size: 54, img: logo('discover/synthra.png'), to: '/dapp/synthra' },
+  // 4 · local-currency stablecoins
+  { key: 'jpyc', label: 'JPYC', note: 'Japanese yen stablecoin', ring: 4, size: 28, img: logo('tokens/jpyc.svg'), minor: true },
+  { key: 'gbpa', label: 'GBPA', note: 'British pound stablecoin', ring: 4, size: 28, img: logo('tokens/gbpa.svg'), minor: true },
+  { key: 'audd', label: 'AUDD', note: 'Australian dollar stablecoin', ring: 4, size: 28, img: logo('tokens/audd.svg'), minor: true },
+  { key: 'eurau', label: 'EURAU', note: 'Euro stablecoin · AllUnity', ring: 4, size: 28, img: logo('tokens/eurau.svg'), minor: true },
+  { key: 'chfau', label: 'CHFAU', note: 'Swiss franc stablecoin', ring: 4, size: 28, img: logo('tokens/chfau.svg'), minor: true },
+  { key: 'tryb', label: 'TRYB', note: 'Turkish lira stablecoin', ring: 4, size: 28, img: logo('tokens/tryb.svg'), minor: true },
+  { key: 'sekau', label: 'SEKAU', note: 'Swedish krona stablecoin', ring: 4, size: 28, img: logo('tokens/sekau.svg'), minor: true },
+  { key: 'cadd', label: 'CADD', note: 'Canadian dollar stablecoin', ring: 4, size: 28, img: logo('tokens/cadd.svg'), minor: true },
 ]
 
 // spread each ring's planets evenly, staggering rings so they never line up
@@ -364,18 +358,19 @@ export function ArcField({ className = '' }: { className?: string }) {
       <canvas ref={canvasRef} className="absolute inset-0" aria-hidden />
 
       {/* Core: the Arc mark on a quiet disc, with a halo that breathes */}
-      <div ref={coreRef} className="pointer-events-none absolute left-0 top-0 z-20 will-change-transform" aria-hidden>
+      <div ref={coreRef} className="pointer-events-none absolute left-0 top-0 z-[45] will-change-transform" aria-hidden>
         <div className="relative">
-          <div ref={haloRef} className="absolute -inset-7 rounded-full bg-[radial-gradient(circle,rgba(86,150,255,0.55),rgba(59,123,255,0.14)_58%,transparent_72%)] blur-md" />
+          <div ref={haloRef} className="absolute -inset-9 rounded-full bg-[radial-gradient(circle,rgba(86,150,255,0.55),rgba(59,123,255,0.14)_58%,transparent_72%)] blur-md" />
           {[0, 1].map(i => (
             <div
               key={i}
               className="absolute -inset-3 rounded-full border border-[var(--periwinkle)]/30"
-              style={{ animation: `arc-pulse-ring 3.4s ease-out ${i * 1.7}s infinite` }}
+              style={{ animation: `arc-core-ring 2.6s cubic-bezier(.2,.6,.3,1) ${i * 0.32}s infinite` }}
             />
           ))}
-          <div className="relative flex h-[92px] w-[92px] items-center justify-center rounded-full border border-white/15 bg-[radial-gradient(circle_at_35%_30%,#4a8cf0,#14407f_62%,#0c2a57)] shadow-[0_0_60px_rgba(59,123,255,0.65),inset_0_1px_0_rgba(255,255,255,0.25)]">
-            <ArcLogo className="h-[34px] w-auto" />
+          <div className="relative flex h-[116px] w-[116px] items-center justify-center overflow-hidden rounded-full border border-white/15 bg-[radial-gradient(circle_at_35%_30%,#4a8cf0,#14407f_62%,#0c2a57)] shadow-[0_0_60px_rgba(59,123,255,0.65),inset_0_1px_0_rgba(255,255,255,0.25)]">
+            <span className="arc-core-beat absolute inset-0" />
+            <ArcLogo className="relative h-[46px] w-auto" />
           </div>
         </div>
       </div>

@@ -192,18 +192,29 @@ export function GmButton({ variant = 'hero' }: Props) {
   const isLoading = isPending || isConfirming
 
   if (variant === 'compact') {
+    const idle = !isLoading && !onCooldown && !notDeployed && !isSuccess
     return (
       <button
         onClick={handleGm}
         disabled={isLoading || onCooldown || notDeployed}
+        title={streak > 0 ? `${streak}-day streak · ${totalPersonal} GMs from you` : 'Say GM onchain, once a day'}
         className={clsx(
-          'arc-chip inline-flex items-center gap-1.5 !px-3 !py-1.5',
-          (onCooldown || notDeployed) && 'cursor-not-allowed opacity-50',
+          'inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-[var(--line-strong)] bg-white/[0.03] px-3.5 py-2.5 sm:px-4 text-[15px] text-white transition-colors hover:border-[var(--periwinkle)] hover:bg-white/[0.07]',
+          idle && 'arc-gm-live',
+          (onCooldown || notDeployed) && 'cursor-not-allowed opacity-60',
         )}
-        data-active={isSuccess}
       >
-        {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sun className="h-3 w-3" />}
+        {isLoading ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : isSuccess ? (
+          <CheckCircle2 className="h-4 w-4 text-[var(--periwinkle)]" />
+        ) : (
+          <Sun className={clsx('h-4 w-4 text-[var(--periwinkle)]', idle && 'arc-sun-spin')} />
+        )}
         {onCooldown ? fmtDuration(countdown) : isSuccess ? 'GM sent' : 'GM'}
+        {streak > 0 && !onCooldown && !isSuccess && (
+          <span className="flex items-center gap-1 text-xs text-[var(--muted)]"><Flame className="h-3 w-3" />{streak}</span>
+        )}
       </button>
     )
   }
@@ -242,7 +253,7 @@ export function GmButton({ variant = 'hero' }: Props) {
         disabled={isLoading || onCooldown || notDeployed}
         className={clsx(
           'mt-4 w-full',
-          notDeployed || onCooldown ? 'arc-btn-ghost cursor-not-allowed justify-center opacity-60' : 'arc-btn',
+          notDeployed || onCooldown ? 'arc-btn-ghost cursor-not-allowed justify-center opacity-60' : 'arc-btn arc-btn-live',
         )}
       >
         {isLoading ? (

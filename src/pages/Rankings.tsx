@@ -60,7 +60,7 @@ export function Rankings() {
 
         <div ref={copyRef} className="relative z-40 max-w-[700px] px-6 py-16 will-change-transform max-[899px]:pb-10 max-[899px]:pt-[300px]">
           <Reveal>
-            <p className="arc-eyebrow mb-6">Pulsarc · Arc Testnet</p>
+            <p className="arc-eyebrow mb-6">Analytics for the Arc Network</p>
           </Reveal>
           <SplitLines
             as="h1"
