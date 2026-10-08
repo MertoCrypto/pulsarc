@@ -20,7 +20,15 @@ export interface IndexedWindow {
   top: IndexedContract[]
 }
 
+export interface ContractLabel {
+  contract: boolean
+  name: string | null
+  symbol: string | null
+  kind?: string
+}
+
 export interface IndexerSnapshot {
+  labels: Record<string, ContractLabel>
   network: 'mainnet' | 'testnet'
   generatedAt: string
   windows: Record<'1h' | '24h' | '7d', IndexedWindow>
@@ -37,7 +45,10 @@ export function useIndexer(net: 'mainnet' | 'testnet') {
     queryFn: async (): Promise<IndexerSnapshot | null> => {
       const res = await fetch(`${BASE}/${net}/latest.json`)
       if (!res.ok) return null
-      return (await res.json()) as IndexerSnapshot
+      const snap = (await res.json()) as Omit<IndexerSnapshot, 'labels'>
+      // labels are optional: the table falls back to addresses until they exist
+      const labels = await fetch(`${BASE}/${net}/labels.json`).then(r => (r.ok ? r.json() : {})).catch(() => ({}))
+      return { ...snap, labels } as IndexerSnapshot
     },
   })
 }

@@ -201,6 +201,8 @@ function MainnetIndexed() {
   const w = data.windows[win]
   const failRate = w.txs ? (w.failed / w.txs) * 100 : 0
   const EXPLORER = NETWORKS.mainnet.explorerUrl
+  const aaTxs = w.top.reduce((n, c) => n + (data.labels?.[c.address]?.kind === 'account-abstraction' ? c.txs : 0), 0)
+  const aaShare = w.txs ? (aaTxs / w.txs) * 100 : 0
   const covered = w.hours < (win === '1h' ? 1 : win === '24h' ? 24 : 168)
 
   return (
@@ -223,6 +225,14 @@ function MainnetIndexed() {
         <StatCard label="Wallet-hours" value={w.walletHours} format={n => compact(n, 1)} subValue="distinct wallets, summed per hour" icon={Users} />
       </Reveal>
 
+      {aaTxs > 0 && (
+        <Reveal delay={0.03} className="mt-4">
+          <Callout>
+            {aaShare.toFixed(1)}% of transactions in this window are bundles sent to the ERC-4337 EntryPoint — the gasless smart-account path. Each bundle can carry several user operations, so this understates the number of operations.
+          </Callout>
+        </Reveal>
+      )}
+
       <Reveal delay={0.05} className="arc-card mt-4 overflow-hidden">
         <div className="grid grid-cols-[28px_1fr_90px_90px_80px] gap-3 border-b border-[var(--line)] px-5 py-3 text-xs uppercase tracking-wider text-[var(--faint)] sm:grid-cols-[36px_1fr_120px_120px_100px]">
           <span>#</span><span>Contract</span><span className="text-right">Txs</span><span className="text-right">Wallet-hrs</span><span className="text-right">Fees</span>
@@ -231,8 +241,9 @@ function MainnetIndexed() {
           {w.top.slice(0, 25).map((c, i) => (
             <li key={c.address} className="arc-row grid grid-cols-[28px_1fr_90px_90px_80px] items-center gap-3 border-b border-[var(--line)] px-5 py-3 last:border-0 sm:grid-cols-[36px_1fr_120px_120px_100px]">
               <span className="text-sm tabular-nums text-[var(--faint)]">{i + 1}</span>
-              <a href={`${EXPLORER}/address/${c.address}`} target="_blank" rel="noreferrer" className="font-['Geist_Mono'] text-sm text-white hover:text-[var(--periwinkle)]">
-                {short(c.address)}
+              <a href={`${EXPLORER}/address/${c.address}`} target="_blank" rel="noreferrer" className="min-w-0 truncate text-sm text-white hover:text-[var(--periwinkle)]">
+                {data.labels?.[c.address]?.name ?? <span className="font-['Geist_Mono']">{short(c.address)}</span>}
+                {data.labels?.[c.address]?.name && <span className="ml-2 font-['Geist_Mono'] text-xs text-[var(--faint)]">{short(c.address)}</span>}
               </a>
               <span className="text-right text-sm tabular-nums text-white">{compact(c.txs, 1)}</span>
               <span className="text-right text-sm tabular-nums text-[var(--muted)]">{compact(c.walletHours, 1)}</span>
@@ -243,7 +254,7 @@ function MainnetIndexed() {
       </Reveal>
       <p className="mt-4 text-sm text-[var(--faint)]">
         Counted from every block by Pulsarc's own indexer, about {Math.max(1, Math.round((Date.now() - new Date(data.generatedAt).getTime()) / 60000))} minutes ago.
-        {covered ? ' The indexer is still catching up, so this window is not complete yet.' : ''} Wallet-hours add up the distinct wallets seen in each hour, so one wallet active for 3 hours counts 3 times. Contracts are shown by address until they are labelled.
+        {covered ? ' The indexer is still catching up, so this window is not complete yet.' : ''} Wallet-hours add up the distinct wallets seen in each hour, so one wallet active for 3 hours counts 3 times. Names come from the contracts themselves or a short list of well-known ones; unnamed contracts show their address.
       </p>
     </section>
   )
