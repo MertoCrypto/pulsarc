@@ -61,7 +61,7 @@ async function readPages<T extends { timestamp: string }>(path: string, pages: n
     hasMore = cursor !== null
     const oldest = page.items[page.items.length - 1]
     if (!cursor || !oldest) break
-    if (Date.now() - new Date(oldest.timestamp).getTime() > DAY) break // past the widest window
+    if (Date.now() - new Date(oldest.timestamp).getTime() > 2 * DAY) break // past the widest window, plus one earlier window to compare with
   }
   return { items: out, hasMore }
 }
@@ -115,6 +115,14 @@ export async function sampleApp(app: ArcApp, pages: number): Promise<AppSample> 
 export type TimeRange = '1h' | '24h'
 export const RANGE_MS: Record<TimeRange, number> = { '1h': 3600_000, '24h': DAY }
 
+export interface Trend {
+  txNow: number
+  txPrev: number
+  walletsNow: number
+  walletsPrev: number
+  approx: boolean // newer half vs older half of the sample, not two full windows
+}
+
 export interface AppMetrics {
   txCount: number
   activeWallets: number
@@ -122,6 +130,7 @@ export interface AppMetrics {
   tvl: number | null
   usdcFees: number | null
   rankChange: number
+  trend: Trend | null
   estimated: boolean // the sample did not reach back to the window start; counts are extrapolated
 }
 
@@ -167,8 +176,46 @@ export function computeMetrics(sample: AppSample, windowMs: number, now = Date.n
     tvl: tvl > 0 ? tvl : null,
     usdcFees: hasFees ? fees : null,
     rankChange: 0,
+    trend: computeTrend(sample, windowMs, now, exclude),
     estimated,
   }
+}
+
+/**
+ * How activity moved. When the sample reaches back two windows the comparison is exact
+ * (this window vs the one before). Otherwise the sample's newer half is compared with its older
+ * half — a rate trend, flagged `approx`. Null when there is too little history to say anything.
+ */
+function computeTrend(sample: AppSample, windowMs: number, now: number, exclude?: ReadonlySet<string>): Trend | null {
+  const exact = sample.anchors.every(s => isComplete(s, now - 2 * windowMs))
+  const cutAll = now - windowMs
+  const wNow = new Set<string>()
+  const wPrev = new Set<string>()
+  let txNow = 0
+  let txPrev = 0
+
+  for (const s of sample.anchors) {
+    const skip = (e: ActivityEvent) => !!exclude && e.wallets.some(w => exclude.has(w))
+    if (exact || isComplete(s, now - 2 * windowMs)) {
+      for (const e of s.events) {
+        if (skip(e)) continue
+        if (e.ts >= cutAll) { txNow++; e.wallets.forEach(w => wNow.add(w)) }
+        else if (e.ts >= cutAll - windowMs) { txPrev++; e.wallets.forEach(w => wPrev.add(w)) }
+      }
+    } else {
+      // busy anchor: newer half of what we read vs older half
+      const span = now - oldestOf(s)
+      if (span < 60_000) continue
+      const mid = now - span / 2
+      for (const e of s.events) {
+        if (skip(e)) continue
+        if (e.ts >= mid) { txNow++; e.wallets.forEach(w => wNow.add(w)) }
+        else { txPrev++; e.wallets.forEach(w => wPrev.add(w)) }
+      }
+    }
+  }
+  if (txNow + txPrev < 6) return null
+  return { txNow, txPrev, walletsNow: wNow.size, walletsPrev: wPrev.size, approx: !exact }
 }
 
 // ── History ────────────────────────────────────────────────────────────────

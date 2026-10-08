@@ -30,11 +30,23 @@ interface ColDef {
 // "≈" = extrapolated from the newest activity; "≥" = at least this many (sampled).
 const COLS: ColDef[] = [
   { key: 'txCount',       label: 'Transactions', render: r => `${r.metrics.estimated ? '≈' : ''}${fmtNum(r.metrics.txCount)}` },
-  { key: 'activeWallets', label: 'Wallets',      render: r => `${r.metrics.estimated ? '≥' : ''}${fmtNum(r.metrics.activeWallets)}` },
+  { key: 'activeWallets', label: 'Users',       render: r => `${r.metrics.estimated ? '≥' : ''}${fmtNum(r.metrics.activeWallets)}` },
   { key: 'volume',        label: 'Volume',       render: r => r.metrics.volume === null ? '—' : `${r.metrics.estimated ? '≈' : ''}${fmt(r.metrics.volume)}` },
   { key: 'tvl',           label: 'USDC held',    render: r => r.metrics.tvl === null ? '—' : fmt(r.metrics.tvl) },
   { key: 'usdcFees',      label: 'Fees paid',    render: r => r.metrics.usdcFees === null ? '—' : `${r.metrics.estimated ? '≈' : ''}$${r.metrics.usdcFees.toFixed(4)}` },
 ]
+
+/** Change versus the window before; "new" when that had no activity; "—" when there is too little history. */
+function Change({ now, prev, approx }: { now: number; prev: number; approx: boolean }) {
+  const mark = approx ? '≈' : ''
+  if (prev === 0) return now > 0 ? <span className="text-[var(--periwinkle)]">new</span> : <span className="text-[var(--faint)]">—</span>
+  const pct = ((now - prev) / prev) * 100
+  if (Math.abs(pct) < 0.5) return <span className="text-[var(--muted)]">{mark}0%</span>
+  const shown = Math.abs(pct) >= 1000 ? `${Math.round(Math.abs(pct) / 100) / 10}k%` : `${Math.round(Math.abs(pct))}%`
+  return pct > 0
+    ? <span className="text-emerald-300">{mark}▲ {shown}</span>
+    : <span className="text-rose-300/90">{mark}▼ {shown}</span>
+}
 
 interface Props {
   items: RankedApp[]
@@ -48,7 +60,7 @@ export function LeaderboardTable({ items, isLoading, sortKey, onSortChange }: Pr
 
   return (
     <div className="w-full overflow-x-auto">
-      <table className="w-full min-w-[760px] border-collapse">
+      <table className="w-full min-w-[860px] border-collapse">
         <thead>
           <tr className="border-b border-[var(--line)]">
             <th className="text-left px-5 py-3.5 arc-eyebrow !text-[10px] !tracking-[0.18em] w-14">Rank</th>
@@ -68,6 +80,7 @@ export function LeaderboardTable({ items, isLoading, sortKey, onSortChange }: Pr
                 </button>
               </th>
             ))}
+            <th className="text-right px-5 py-3.5 w-28 arc-eyebrow !text-[10px] !tracking-[0.18em]" title="Versus the window just before this one">Change</th>
           </tr>
         </thead>
         <tbody>
@@ -83,7 +96,7 @@ export function LeaderboardTable({ items, isLoading, sortKey, onSortChange }: Pr
                   </td>
                   <td className="px-5 py-4"><div className="h-4 w-14 rounded bg-white/8 animate-pulse" /></td>
                   <td className="px-5 py-4"><div className="h-6 w-14 rounded bg-white/8 animate-pulse" /></td>
-                  {COLS.map(c => (
+                  {[...COLS, { key: 'change' }].map(c => (
                     <td key={c.key} className="px-5 py-4 text-right">
                       <div className="h-4 w-16 rounded bg-white/8 animate-pulse ml-auto" />
                     </td>
@@ -125,6 +138,15 @@ export function LeaderboardTable({ items, isLoading, sortKey, onSortChange }: Pr
                       {col.render(item)}
                     </td>
                   ))}
+                  <td className="px-5 py-4 text-right text-[15px] tabular-nums">
+                    {(() => {
+                      const t = item.metrics.trend
+                      if (!t) return <span className="text-[var(--faint)]" title="Not enough activity to compare">—</span>
+                      return sortKey === 'activeWallets'
+                        ? <Change now={t.walletsNow} prev={t.walletsPrev} approx={t.approx} />
+                        : <Change now={t.txNow} prev={t.txPrev} approx={t.approx} />
+                    })()}
+                  </td>
                 </motion.tr>
               ))
           }

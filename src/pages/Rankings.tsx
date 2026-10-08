@@ -13,6 +13,13 @@ import { LeaderboardTable } from '@/components/rankings/LeaderboardTable'
 import { PortalApps } from '@/components/shared/PortalApps'
 import { useAllMetrics, type SortKey } from '@/hooks/useAllMetrics'
 import { type TimeRange } from '@/hooks/useAppMetrics'
+import { type AppKind } from '@/data/apps'
+
+const KINDS: { value: AppKind | 'all'; label: string }[] = [
+  { value: 'app', label: 'Apps' },
+  { value: 'asset', label: 'Assets' },
+  { value: 'all', label: 'All' },
+]
 
 function fmtUSD(n: number): string {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`
@@ -29,9 +36,10 @@ function fmtNum(n: number): string {
 export function Rankings() {
   const [timeRange, setTimeRange] = useState<TimeRange>('24h')
   const [category, setCategory] = useState('All')
-  const [sortKey, setSortKey] = useState<SortKey>('txCount')
+  const [kind, setKind] = useState<AppKind | 'all'>('app')
+  const [sortKey, setSortKey] = useState<SortKey>('activeWallets')
 
-  const { items, isLoading, loaded, total, lastUpdated, totals, refresh } = useAllMetrics(timeRange, sortKey, category)
+  const { items, isLoading, loaded, total, lastUpdated, totals, refresh } = useAllMetrics(timeRange, sortKey, category, { kind })
   const reading = loaded < total
   const windowLabel = timeRange === '1h' ? 'last hour' : 'last 24 hours'
 
@@ -133,12 +141,27 @@ export function Rankings() {
       <Reveal>
       <div id="rankings" className="arc-card overflow-hidden scroll-mt-24">
         <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-5 border-b border-[var(--line)]">
+          <div className="flex flex-wrap items-center gap-3">
+          <div className="inline-flex rounded-xl border border-[var(--line)] p-1" role="tablist" aria-label="What to rank">
+            {KINDS.map(k => (
+              <button
+                key={k.value}
+                role="tab"
+                aria-selected={kind === k.value}
+                onClick={() => setKind(k.value)}
+                className={`rounded-lg px-4 py-1.5 text-[14px] transition-colors ${kind === k.value ? 'bg-white/[0.09] text-white' : 'text-[var(--muted)] hover:text-white'}`}
+              >
+                {k.label}
+              </button>
+            ))}
+          </div>
           <FilterBar
             timeRange={timeRange}
             onTimeRangeChange={setTimeRange}
             category={category}
             onCategoryChange={setCategory}
           />
+          </div>
           <LiveBadge lastUpdated={lastUpdated} onRefresh={() => { void refresh() }} isLoading={reading} progress={reading ? `Reading apps ${loaded}/${total}…` : undefined} />
         </div>
 
@@ -149,7 +172,7 @@ export function Rankings() {
           onSortChange={setSortKey}
         />
         <p className="border-t border-[var(--line)] px-6 py-4 text-sm leading-relaxed text-[var(--faint)]">
-          Each app is measured through its real contracts (token transfers for pools, vaults and stablecoins; transactions for infrastructure). Very busy apps are sampled from their newest activity, so their counts are extrapolated — marked ≈, and wallets as ≥. "Dollars moved" only includes USDC-denominated transfers. Rank arrows show change since this browser last saw the ranking.
+          Users are distinct wallets that used the app in the window. Change compares the window with the one before it; for busy apps it compares the newer half of our sample with the older half, marked ≈. Each app is measured through its real contracts (token transfers for pools, vaults and stablecoins; transactions for infrastructure). Very busy apps are sampled from their newest activity, so their counts are extrapolated — marked ≈, and wallets as ≥. "Dollars moved" only includes USDC-denominated transfers. Rank arrows show change since this browser last saw the ranking.
         </p>
       </div>
       </Reveal>

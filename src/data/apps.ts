@@ -20,8 +20,12 @@ export interface Anchor {
   usd?: boolean
 }
 
+/** 'asset' = a token people hold (stablecoins, wrapped coins); 'app' = something people use. */
+export type AppKind = 'app' | 'asset'
+
 export interface ArcApp {
   id: string
+  kind: AppKind
   name: string
   description: string
   category: AppCategory
@@ -35,6 +39,7 @@ export interface ArcApp {
 }
 
 const NEUTRAL = '#a9c4ea'
+const ASSET_IDS = new Set(['usdc', 'eurc', 'usyc', 'cirbtc', 'wusdc', 'arc-dollar'])
 
 function app(
   id: string, name: string, category: AppCategory, description: string,
@@ -42,6 +47,7 @@ function app(
 ): ArcApp {
   return {
     id, name, category, description, anchors,
+    kind: ASSET_IDS.has(id) ? 'asset' : 'app',
     contractAddress: anchors[0].address,
     verified: official,
     logoInitials: name.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase(),

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ARC_APPS, type ArcApp } from '@/data/apps'
+import { ARC_APPS, type AppKind, type ArcApp } from '@/data/apps'
 import { LIST_PAGES, useAppSamples, useRefreshSamples } from '@/hooks/useAppSamples'
 import { computeMetrics, RANGE_MS, type AppMetrics, type TimeRange } from '@/lib/appActivity'
 
@@ -43,7 +43,7 @@ export function useAllMetrics(
   timeRange: TimeRange,
   sortKey: SortKey,
   categoryFilter: string,
-  opts: { defer?: boolean } = {},
+  opts: { defer?: boolean; kind?: AppKind | 'all' } = {},
 ): AllMetricsState & { refresh: () => void } {
   // Side widgets wait a moment so the page's own requests get ArcScan's limited capacity first.
   const [ready, setReady] = useState(!opts.defer)
@@ -74,7 +74,7 @@ export function useAllMetrics(
     scored.forEach((s, i) => { ranksAll[s.app.id] = i + 1 })
 
     const visible = scored
-      .filter(s => categoryFilter === 'All' || s.app.category === categoryFilter)
+      .filter(s => (!opts.kind || opts.kind === 'all' || s.app.kind === opts.kind) && (categoryFilter === 'All' || s.app.category === categoryFilter))
       .map((s, i) => {
         const before = usable?.ranks[s.app.id]
         const rank = i + 1
@@ -82,7 +82,7 @@ export function useAllMetrics(
       })
     return { items: visible as RankedApp[], ranksAll }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stamp, timeRange, sortKey, categoryFilter])
+  }, [stamp, timeRange, sortKey, categoryFilter, opts.kind])
 
   // Remember the ranking so a later visit can show movement.
   useEffect(() => {
