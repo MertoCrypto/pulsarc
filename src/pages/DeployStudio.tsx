@@ -1,15 +1,28 @@
 /**
  * Deploy — one-click ERC-20, ERC-721 and ERC-1155 contracts on Arc Testnet, signed by the
  * connected wallet. Sources live in contracts/ArcToken.sol, ArcNFT.sol and ArcMultiToken.sol
- * (OpenZeppelin 5.1); bytecode in src/contracts/deployables.ts is compiled from them and was
- * dry-run against the Arc Testnet RPC before shipping.
+ * (OpenZeppelin 5.x); bytecode in src/contracts/deployables.ts is compiled from them.
+ *
+ * All three contract types now accept a final `owner_` constructor argument so that tokens
+ * are minted to the actual user rather than to the CREATE2 factory (msg.sender).
+ *
+ * Deployment strategy: instead of a raw CREATE (walletClient.sendTransaction with no `to`),
+ * we send a plain transfer `{ to: CREATE2_DEPLOYER, data: salt ++ initcode }`. This works
+ * with every wallet type including ERC-4337 smart accounts (Circle passkey wallet), which
+ * cannot perform raw CREATE because their EIP-1193 provider requires a `to` address.
+ *
+ * The deployer at 0x4e59b44847b379578588920cA78FbF26c0B4956C is the canonical deterministic
+ * CREATE2 factory (Nick's factory), confirmed live on Arc Testnet (69 bytes of code).
+ * Its calldata convention: first 32 bytes = salt, remaining bytes = initcode.
+ * The deployed address is keccak256(0xff ++ factory ++ salt ++ keccak256(initcode))[12:].
+ * viem's getContractAddress({ opcode: 'CREATE2', from, salt, bytecode }) computes this.
  */
 import { useState } from 'react'
 import { useAccount, useSwitchChain, useWalletClient } from 'wagmi'
 import { ArrowLeft, ArrowUpRight, CheckCircle2, Coins, Image, Layers3, Loader2 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { toast } from 'sonner'
-import { createPublicClient, encodeDeployData, http } from 'viem'
+import { concat, createPublicClient, encodeDeployData, getContractAddress, http, toBytes, toHex } from 'viem'
 import { Reveal } from '@/components/shared/Reveal'
 import { SplitLines } from '@/components/shared/SplitLines'
 import { buildAddressExplorerUrl, buildTxExplorerUrl } from '@/onchain-facts'
@@ -20,6 +33,9 @@ import {
 } from '@/contracts/deployables'
 
 import { CHAIN_ID, RPC_URL as RPC } from '@/lib/chain'
+
+/** Nick's deterministic CREATE2 factory — same address on every EVM chain */
+const CREATE2_DEPLOYER = '0x4e59b44847b379578588920cA78FbF26c0B4956C' as const
 
 type ContractType = 'erc20' | 'erc721' | 'erc1155'
 
@@ -32,7 +48,8 @@ interface Field {
   numeric?: boolean
 }
 
-interface Plan { data: `0x${string}` }
+/** Plan now includes the full initcode (ABI-encoded constructor args appended to bytecode). */
+interface Plan { initcode: `0x${string}` }
 
 interface ContractDef {
   id: ContractType
@@ -41,7 +58,8 @@ interface ContractDef {
   blurb: string
   icon: typeof Coins
   fields: Field[]
-  build: (v: Record<string, string>) => Plan | string
+  /** Returns a validation error string, or a Plan if inputs are valid. owner is the wallet address. */
+  build: (v: Record<string, string>, owner: `0x${string}`) => Plan | string
 }
 
 const digits = (s: string) => /^\d+$/.test(s.trim())
@@ -58,10 +76,16 @@ const DEFS: ContractDef[] = [
       { id: 'symbol', label: 'Symbol', placeholder: 'ARCD', hint: '3–6 letters.' },
       { id: 'supply', label: 'Supply', placeholder: '1000000', numeric: true, hint: 'Whole tokens, 18 decimals. Minted to you.' },
     ],
-    build: v => {
+    build: (v, owner) => {
       if (!v.name?.trim() || !v.symbol?.trim()) return 'Name and symbol are required.'
       if (!digits(v.supply ?? '') || BigInt(v.supply) === 0n || BigInt(v.supply) > 10n ** 15n) return 'Supply must be a whole number between 1 and 1,000,000,000,000,000.'
-      return { data: encodeDeployData({ abi: ArcTokenAbi, bytecode: ArcTokenBytecode, args: [v.name.trim(), v.symbol.trim(), BigInt(v.supply) * 10n ** 18n] }) }
+      return {
+        initcode: encodeDeployData({
+          abi: ArcTokenAbi,
+          bytecode: ArcTokenBytecode,
+          args: [v.name.trim(), v.symbol.trim(), BigInt(v.supply) * 10n ** 18n, owner],
+        }),
+      }
     },
   },
   {
@@ -76,10 +100,16 @@ const DEFS: ContractDef[] = [
       { id: 'quantity', label: 'How many to mint', placeholder: '10', numeric: true, hint: '1 to 50, minted to you.' },
       { id: 'baseUri', label: 'Metadata base URI', placeholder: 'ipfs://…/', hint: 'Optional. Each token reads baseURI + its ID.' },
     ],
-    build: v => {
+    build: (v, owner) => {
       if (!v.name?.trim() || !v.symbol?.trim()) return 'Name and symbol are required.'
       if (!digits(v.quantity ?? '') || Number(v.quantity) < 1 || Number(v.quantity) > 50) return 'Pick between 1 and 50 NFTs.'
-      return { data: encodeDeployData({ abi: ArcNFTAbi, bytecode: ArcNFTBytecode, args: [v.name.trim(), v.symbol.trim(), (v.baseUri ?? '').trim(), BigInt(v.quantity)] }) }
+      return {
+        initcode: encodeDeployData({
+          abi: ArcNFTAbi,
+          bytecode: ArcNFTBytecode,
+          args: [v.name.trim(), v.symbol.trim(), (v.baseUri ?? '').trim(), BigInt(v.quantity), owner],
+        }),
+      }
     },
   },
   {
@@ -93,19 +123,46 @@ const DEFS: ContractDef[] = [
       { id: 'tokenId', label: 'Token ID', placeholder: '1', initial: '1', numeric: true },
       { id: 'amount', label: 'Copies to mint', placeholder: '100', numeric: true, hint: 'Minted to you.' },
     ],
-    build: v => {
+    build: (v, owner) => {
       if (!v.uri?.trim()) return 'A metadata URI is required.'
       if (!digits(v.tokenId ?? '')) return 'Token ID must be a whole number.'
       if (!digits(v.amount ?? '') || BigInt(v.amount) === 0n) return 'Copies must be a whole number above 0.'
-      return { data: encodeDeployData({ abi: ArcMultiTokenAbi, bytecode: ArcMultiTokenBytecode, args: [v.uri.trim(), BigInt(v.tokenId), BigInt(v.amount)] }) }
+      return {
+        initcode: encodeDeployData({
+          abi: ArcMultiTokenAbi,
+          bytecode: ArcMultiTokenBytecode,
+          args: [v.uri.trim(), BigInt(v.tokenId), BigInt(v.amount), owner],
+        }),
+      }
     },
   },
 ]
 
 interface DeployResult { txHash: `0x${string}`; contractAddress?: `0x${string}` }
 
+/**
+ * Generate a random 32-byte salt as a 0x-prefixed hex string.
+ * Using crypto.getRandomValues for good entropy.
+ */
+function randomSalt(): `0x${string}` {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  return toHex(bytes)
+}
+
+/**
+ * Encode the calldata for Nick's CREATE2 factory:
+ *   bytes32 salt (32 bytes) ++ initcode (variable length)
+ */
+function encodeCreate2Data(salt: `0x${string}`, initcode: `0x${string}`): `0x${string}` {
+  // salt is 32 bytes; concat pads/strips correctly via toBytes
+  const saltBytes = toBytes(salt, { size: 32 })
+  const initcodeBytes = toBytes(initcode)
+  return toHex(concat([saltBytes, initcodeBytes]))
+}
+
 function DeployForm({ def, onBack }: { def: ContractDef; onBack: () => void }) {
-  const { chainId, isConnected } = useAccount()
+  const { address, chainId, isConnected } = useAccount()
   const { switchChain } = useSwitchChain()
   const { data: walletClient } = useWalletClient()
 
@@ -117,33 +174,65 @@ function DeployForm({ def, onBack }: { def: ContractDef; onBack: () => void }) {
   const [errorMsg, setErrorMsg] = useState('')
 
   async function deploy() {
-    if (!isConnected) { toast.error('Connect your wallet first.'); return }
+    if (!isConnected || !address) { toast.error('Connect your wallet first.'); return }
     if (chainId !== CHAIN_ID) { switchChain({ chainId: CHAIN_ID }); return }
     if (!walletClient) { toast.error('Wallet is not ready yet.'); return }
 
-    const plan = def.build(values)
+    const plan = def.build(values, address)
     if (typeof plan === 'string') { toast.error(plan); return }
+
+    // Generate a fresh random salt for this deployment
+    const salt = randomSalt()
+
+    // Compute the CREATE2 address locally before sending the transaction
+    const contractAddress = getContractAddress({
+      opcode: 'CREATE2',
+      from: CREATE2_DEPLOYER,
+      salt,
+      bytecode: plan.initcode,
+    })
+
+    // Encode factory calldata: salt (32 bytes) ++ initcode
+    const data = encodeCreate2Data(salt, plan.initcode)
 
     setStatus('deploying')
     setErrorMsg('')
     try {
-      const txHash = await walletClient.sendTransaction({ data: plan.data, chain: undefined })
+      // Send as a plain transfer TO the CREATE2 factory — works for all wallet types
+      // including ERC-4337 smart accounts that cannot do raw CREATE (no `to`).
+      const txHash = await walletClient.sendTransaction({
+        to: CREATE2_DEPLOYER,
+        data,
+        chain: undefined,
+      })
       setResult({ txHash })
+
+      // Best-effort receipt lookup to confirm deployment
       try {
         const client = createPublicClient({ transport: http(RPC) })
         const receipt = await client.waitForTransactionReceipt({ hash: txHash })
         if (receipt.status === 'reverted') throw new Error('The deployment transaction reverted.')
-        setResult({ txHash, contractAddress: receipt.contractAddress ?? undefined })
+
+        // Confirm the computed address actually has code
+        const code = await client.getCode({ address: contractAddress })
+        if (!code || code === '0x') {
+          throw new Error(`CREATE2 address ${contractAddress} has no code after the transaction. The factory may have reverted internally.`)
+        }
+
+        setResult({ txHash, contractAddress })
       } catch (err) {
-        if (err instanceof Error && err.message.includes('reverted')) throw err
-        // Receipt lookup is best-effort; the tx link still works.
+        if (err instanceof Error && (err.message.includes('reverted') || err.message.includes('no code'))) throw err
+        // Receipt lookup timed out or RPC error — tx link still works, address is computed
+        setResult({ txHash, contractAddress })
       }
       setStatus('success')
       toast.success(`${def.label} deployed`)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Deployment failed'
-      if (/user rejected|denied/i.test(msg)) { setStatus('idle'); toast.error('Cancelled.') }
-      else { setStatus('error'); setErrorMsg(msg.slice(0, 160)) }
+      console.error('[DeployStudio] deployment error:', err)
+      const e = err as { shortMessage?: string; message?: string }
+      const detail = e.shortMessage ?? (e.message ? e.message.slice(0, 160) : 'Deployment failed')
+      if (/user rejected|denied/i.test(detail)) { setStatus('idle'); toast.error('Cancelled.') }
+      else { setStatus('error'); setErrorMsg(detail) }
     }
   }
 
