@@ -5,7 +5,7 @@
  * CIRCLE_CHAIN_PATH and CIRCLE_CHAIN below (one-line change each).
  */
 
-import { createPublicClient, http } from 'viem'
+import { createPublicClient, fallback, http } from 'viem'
 import { arcTestnet } from 'viem/chains'
 import { createBundlerClient } from 'viem/account-abstraction'
 import {
@@ -221,7 +221,11 @@ export function circlePasskeyConnector(): ReturnType<typeof createConnector<any>
       // Do NOT use viem's built-in arcTestnet RPC — it has no CORS on Vercel.
       const plainPublicClient = createPublicClient({
         chain: CIRCLE_CHAIN,
-        transport: http(NETWORKS.testnet.rpcUrl),
+        transport: fallback([
+          http(NETWORKS.testnet.rpcUrl),
+          http('https://rpc.blockdaemon.testnet.arc.network'),
+          http('https://rpc.drpc.testnet.arc.network'),
+        ]),
       })
 
       // ── Bundler client (used for smart-account operations) ───────────────

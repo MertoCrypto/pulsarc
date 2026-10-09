@@ -18,7 +18,7 @@
  * viem's getContractAddress({ opcode: 'CREATE2', from, salt, bytecode }) computes this.
  */
 import { useState } from 'react'
-import { useAccount, useSwitchChain, useWalletClient } from 'wagmi'
+import { useAccount, usePublicClient, useSwitchChain, useWalletClient } from 'wagmi'
 import { ArrowLeft, ArrowUpRight, CheckCircle2, Coins, Image, Layers3, Loader2 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { toast } from 'sonner'
@@ -165,6 +165,8 @@ function DeployForm({ def, onBack }: { def: ContractDef; onBack: () => void }) {
   const { address, chainId, isConnected } = useAccount()
   const { switchChain } = useSwitchChain()
   const { data: walletClient } = useWalletClient()
+  // the app's shared client: it falls back across several RPCs, unlike a single hard-coded endpoint
+  const publicClient = usePublicClient({ chainId: CHAIN_ID })
 
   const [values, setValues] = useState<Record<string, string>>(
     () => Object.fromEntries(def.fields.map(f => [f.id, f.initial ?? ''])),
@@ -209,8 +211,8 @@ function DeployForm({ def, onBack }: { def: ContractDef; onBack: () => void }) {
 
       // Best-effort receipt lookup to confirm deployment
       try {
-        const client = createPublicClient({ transport: http(RPC) })
-        const receipt = await client.waitForTransactionReceipt({ hash: txHash })
+        const client = publicClient ?? createPublicClient({ transport: http(RPC) })
+        const receipt = await client.waitForTransactionReceipt({ hash: txHash, timeout: 60_000, pollingInterval: 2_000 })
         if (receipt.status === 'reverted') throw new Error('The deployment transaction reverted.')
 
         // Confirm the computed address actually has code
