@@ -42,7 +42,7 @@ function MoreMenu({ pathname }: { pathname: string }) {
         onMouseEnter={() => setOpen(true)}
         aria-expanded={open}
         className={clsx(
-          'flex items-center gap-1.5 rounded-xl border px-4 py-2 text-[15px] transition-all',
+          'flex items-center gap-1.5 rounded-xl border px-2.5 xl:px-4 py-2 text-[15px] transition-all',
           active
             ? 'border-[var(--periwinkle)]/70 bg-white/[0.06] text-white shadow-[0_0_0_3px_rgba(169,196,234,0.12)]'
             : 'border-transparent text-[var(--muted)] hover:text-white',
@@ -93,7 +93,7 @@ export function NetworkBar() {
                 key={item.to}
                 to={item.to}
                 className={clsx(
-                  'px-4 py-2 rounded-xl text-[15px] transition-all border',
+                  'px-2.5 xl:px-4 py-2 rounded-xl text-[15px] transition-all border',
                   active
                     ? 'text-white border-[var(--periwinkle)]/70 bg-white/[0.06] shadow-[0_0_0_3px_rgba(169,196,234,0.12)]'
                     : 'text-[var(--muted)] border-transparent hover:text-white'

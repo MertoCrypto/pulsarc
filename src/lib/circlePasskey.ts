@@ -58,6 +58,16 @@ export function clearCredential(): void {
   localStorage.removeItem(STORAGE_KEY)
 }
 
+const ACTIVE_KEY = 'pulsarc:passkey:active'
+
+/** Whether the passkey wallet was signed in when the page was last open (explicit sign-out clears it). */
+export function wasPasskeyActive(): boolean {
+  try { return localStorage.getItem(ACTIVE_KEY) === '1' } catch { return false }
+}
+function setActive(on: boolean): void {
+  try { if (on) localStorage.setItem(ACTIVE_KEY, '1'); else localStorage.removeItem(ACTIVE_KEY) } catch { /* best effort */ }
+}
+
 /** Returns true when the browser supports the WebAuthn API. */
 export function isPasskeySupported(): boolean {
   return (
@@ -265,7 +275,7 @@ export function circlePasskeyConnector(): ReturnType<typeof createConnector<any>
       },
 
       async connect(parameters?: { chainId?: number; isReconnecting?: boolean; [key: string]: unknown }) {
-        const { username } = (parameters ?? {}) as { username?: string }
+        const { username, silent } = (parameters ?? {}) as { username?: string; silent?: boolean }
         const clientKey = getClientKey()
         const clientUrl = getClientUrl()
         const passkeyTransport = toPasskeyTransport(clientUrl, clientKey)
@@ -274,7 +284,10 @@ export function circlePasskeyConnector(): ReturnType<typeof createConnector<any>
         const stored = loadStoredCredential()
         let credential: P256Credential
 
-        if (stored) {
+        if (stored && silent) {
+          // page reload: the stored credential is enough to rebuild the account; the prompt comes at signing time
+          credential = stored
+        } else if (stored) {
           credential = await toWebAuthnCredential({
             transport: passkeyTransport,
             mode: WebAuthnMode.Login,
@@ -288,6 +301,7 @@ export function circlePasskeyConnector(): ReturnType<typeof createConnector<any>
         }
 
         saveCredential(credential)
+        setActive(true)
         _buildPromise = buildProvider(credential)
         await _buildPromise
 
@@ -301,6 +315,7 @@ export function circlePasskeyConnector(): ReturnType<typeof createConnector<any>
         _wrappedProvider = null
         _address = null
         _buildPromise = null
+        setActive(false)
         // keep the stored credential: signing out must not turn the next sign-in into a new wallet
       },
 

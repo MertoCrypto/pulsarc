@@ -21,11 +21,12 @@ import {
   circlePasskeyConnector,
   isPasskeySupported,
   loadStoredCredential,
+  wasPasskeyActive,
   clearCredential,
 } from '@/lib/circlePasskey'
 
 export function PasskeyButton() {
-  const { isConnected } = useAccount()
+  const { isConnected, status } = useAccount()
   const { connectAsync } = useConnect()
 
   const [visible, setVisible] = useState(false)
@@ -40,6 +41,14 @@ export function PasskeyButton() {
     setVisible(!!key && supported && !isConnected)
     setIsReturning(loadStoredCredential() !== null)
   }, [isConnected])
+
+  // Page reload: wagmi cannot reconnect this connector on its own, so restore the session once it has settled.
+  useEffect(() => {
+    if (status !== 'disconnected' || !wasPasskeyActive() || !loadStoredCredential()) return
+    if (!import.meta.env.VITE_CLIENT_KEY) return
+    connectAsync({ connector: circlePasskeyConnector(), silent: true } as Parameters<typeof connectAsync>[0]).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status === 'disconnected'])
 
   if (!visible) return null
 
