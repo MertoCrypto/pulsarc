@@ -45,9 +45,14 @@ export function TipBox() {
           setLastTipper(address ?? null)
         },
         onError: (err) => {
+          console.error('[TipBox] writeContract error:', err)
           const msg = err.message?.toLowerCase() ?? ''
-          if (msg.includes('user rejected') || msg.includes('denied')) toast.error('Transaction cancelled.')
-          else toast.error('Tip failed. Try again.')
+          const detail = (err as { shortMessage?: string }).shortMessage ?? err.message?.slice(0, 120) ?? ''
+          if (msg.includes('user rejected') || msg.includes('denied')) {
+            toast.error('Transaction cancelled.')
+          } else {
+            toast.error(`Tip failed. Try again.${detail ? ` — ${detail}` : ''}`)
+          }
         },
       }
     )

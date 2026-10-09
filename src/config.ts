@@ -9,7 +9,6 @@ import { arcTestnet } from 'viem/chains'
 import { injected } from 'wagmi/connectors'
 import { registerChain } from './tracing'
 import { NETWORKS } from './lib/chain'
-import { circlePasskeyConnector } from './lib/circlePasskey'
 
 // Pre-register chain RPC URLs so trace events show correct chain names immediately
 registerChain(arcTestnet.id, arcTestnet.rpcUrls.default.http[0])
@@ -18,8 +17,14 @@ export const config = createConfig({
   chains: [arcTestnet, mainnet], // mainnet needed for ENS resolution
   connectors: [
     injected(),
-    // Circle Modular Wallets passkey connector — active when VITE_CLIENT_KEY is set.
-    circlePasskeyConnector(),
+    // NOTE: circlePasskeyConnector is intentionally NOT listed here.
+    // ConnectKit lists every connector in this array; an unknown connector type
+    // (not 'injected', 'mock', or 'coinbaseWalletSDK') gets isInstalled=false,
+    // and a connector without getWalletConnectDeeplink falls into a "not installed"
+    // or blank-icon/scan-screen path that confuses users.
+    // PasskeyButton.tsx calls connect({ connector: circlePasskeyConnector() })
+    // directly — wagmi accepts a connector factory in connect() and sets it up
+    // on first use, keeping it fully functional without exposing it in the CK list.
   ],
   transports: {
     // viem's built-in Arc URL is an old host without CORS; use the documented public RPC.

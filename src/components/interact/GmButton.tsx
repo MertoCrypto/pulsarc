@@ -176,13 +176,15 @@ export function GmButton({ variant = 'hero' }: Props) {
       },
       {
         onError: (err) => {
+          console.error('[GmButton] writeContract error:', err)
           const msg = err.message?.toLowerCase() ?? ''
+          const detail = (err as { shortMessage?: string }).shortMessage ?? err.message?.slice(0, 120) ?? ''
           if (msg.includes('cooldownnotover') || msg.includes('cooldown')) {
             toast.error('Already said GM today! Come back tomorrow.')
           } else if (msg.includes('user rejected') || msg.includes('denied')) {
             toast.error('Cancelled.')
           } else {
-            toast.error('GM failed. Try again.')
+            toast.error(`GM failed. Try again.${detail ? ` — ${detail}` : ''}`)
           }
         },
       }

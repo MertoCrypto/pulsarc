@@ -5,7 +5,7 @@
  * CIRCLE_CHAIN_PATH and CIRCLE_CHAIN below (one-line change each).
  */
 
-import { createPublicClient } from 'viem'
+import { createPublicClient, http } from 'viem'
 import { arcTestnet } from 'viem/chains'
 import { createBundlerClient } from 'viem/account-abstraction'
 import {
@@ -17,7 +17,8 @@ import {
   EIP1193Provider,
 } from '@circle-fin/modular-wallets-core'
 import { createConnector } from 'wagmi'
-import type { P256Credential } from '@circle-fin/modular-wallets-core'
+import type { P256Credential } from 'viem/account-abstraction'
+import { NETWORKS } from './chain'
 
 // ─── Chain config (one-line change to switch to mainnet) ───────────────────
 /** Circle transport path segment for the target chain. */
@@ -81,18 +82,109 @@ export function toCircleUsername(raw?: string): string {
 export const CIRCLE_PASSKEY_CONNECTOR_ID = 'circlePasskey'
 
 /**
+ * Wraps the Circle EIP1193Provider so its request() returns the raw result
+ * instead of the full JSON-RPC envelope { result, jsonrpc, id } that the SDK
+ * emits by default.  viem/wagmi expect EIP-1193: request() → raw value.
+ *
+ * Also intercepts methods the SDK does not implement and routes them to either
+ * a plain-HTTP public client or returns sensible no-op answers so wagmi's
+ * internal machinery (fee estimation, nonce, chain-switch) does not error out.
+ *
+ * Per the Circle guide the publicClient passed to EIP1193Provider must use a
+ * standard HTTP transport (not modularTransport) so that eth_getTransactionReceipt
+ * resolves against the chain's public RPC.
+ */
+function wrapProvider(sdkProvider: InstanceType<typeof EIP1193Provider>, plainPublicClient: ReturnType<typeof createPublicClient>) {
+  let _idCounter = 1
+
+  const wrapped = {
+    // ── EIP-1193 request ────────────────────────────────────────────────
+    async request({ method, params }: { method: string; params?: unknown[] }): Promise<unknown> {
+      // Methods to route straight to the plain public client (reads)
+      const publicReadMethods = new Set([
+        'eth_getBalance',
+        'eth_getCode',
+        'eth_getStorageAt',
+        'eth_getTransactionCount',
+        'eth_call',
+        'eth_blockNumber',
+        'eth_getBlockByNumber',
+        'eth_getBlockByHash',
+        'eth_estimateGas',
+        'eth_feeHistory',
+        'eth_getLogs',
+        'eth_getFilterLogs',
+      ])
+
+      if (publicReadMethods.has(method)) {
+        return plainPublicClient.request({ method, params })
+      }
+
+      // Fee-related — return zero so wagmi doesn't stall; ERC-4337 sets its own fees
+      if (method === 'eth_gasPrice' || method === 'eth_maxPriorityFeePerGas') {
+        return '0x0'
+      }
+
+      // Chain-switch is a no-op — connector is Arc Testnet only
+      if (method === 'wallet_switchEthereumChain' || method === 'wallet_addEthereumChain') {
+        return null
+      }
+
+      // Everything else goes to the SDK provider; unwrap the JSON-RPC envelope
+      const id = _idCounter++
+      const response = await sdkProvider.request({ method, params, jsonrpc: '2.0', id })
+      // The SDK returns { result, jsonrpc, id } — extract result
+      if (response !== null && typeof response === 'object' && 'result' in (response as object)) {
+        return (response as { result: unknown }).result
+      }
+      return response
+    },
+
+    // ── Event emitter stubs wagmi needs ─────────────────────────────────
+    on(event: string, listener: (...args: unknown[]) => void) {
+      if ('on' in sdkProvider && typeof (sdkProvider as { on?: unknown }).on === 'function') {
+        (sdkProvider as { on: (e: string, l: (...a: unknown[]) => void) => void }).on(event, listener)
+      }
+    },
+    removeListener(event: string, listener: (...args: unknown[]) => void) {
+      if ('removeListener' in sdkProvider && typeof (sdkProvider as { removeListener?: unknown }).removeListener === 'function') {
+        (sdkProvider as { removeListener: (e: string, l: (...a: unknown[]) => void) => void }).removeListener(event, listener)
+      }
+    },
+    off(event: string, listener: (...args: unknown[]) => void) {
+      if ('off' in sdkProvider && typeof (sdkProvider as { off?: unknown }).off === 'function') {
+        (sdkProvider as { off: (e: string, l: (...a: unknown[]) => void) => void }).off(event, listener)
+      }
+    },
+  }
+
+  return wrapped
+}
+
+type WrappedProvider = ReturnType<typeof wrapProvider>
+
+/**
  * Creates a wagmi connector that authenticates via Circle Modular Wallets
  * (passkey / WebAuthn) and exposes the smart account through EIP-1193 so
  * wagmi hooks (useAccount, useWriteContract, etc.) work without modification.
  *
+ * The connector is intentionally NOT registered in createConfig() — it is
+ * passed directly to connect() from PasskeyButton so ConnectKit never lists
+ * it and cannot show the QR / "not installed" screen for it.
+ *
  * The connector is only useful when VITE_CLIENT_KEY is set.  If it is absent,
- * the connector exists but connect() will throw, allowing the UI to hide the
- * passkey option gracefully.
+ * connect() will throw, allowing the UI to hide the passkey option gracefully.
  */
-export function circlePasskeyConnector() {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function circlePasskeyConnector(): ReturnType<typeof createConnector<any>> {
+  // Cast needed because our connect() signature includes a custom `username` field
+  // that lies outside the strict wagmi generic — the runtime behaviour is correct.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return createConnector((config) => {
-    let _provider: InstanceType<typeof EIP1193Provider> | null = null
+    let _wrappedProvider: WrappedProvider | null = null
     let _address: `0x${string}` | null = null
+    // Track the in-flight build so getProvider() can await it after a setup() reconnect
+    let _buildPromise: Promise<WrappedProvider> | null = null
 
     function getClientKey(): string {
       const key = import.meta.env.VITE_CLIENT_KEY as string | undefined
@@ -105,7 +197,7 @@ export function circlePasskeyConnector() {
         'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
     }
 
-    async function buildProvider(credential: P256Credential) {
+    async function buildProvider(credential: P256Credential): Promise<WrappedProvider> {
       const clientKey = getClientKey()
       const clientUrl = getClientUrl()
 
@@ -114,32 +206,40 @@ export function circlePasskeyConnector() {
         clientKey,
       )
 
-      const publicClient = createPublicClient({
+      // ── Read-only public client on the plain Arc RPC (no modularTransport) ──
+      // The Circle guide requires this for eth_getTransactionReceipt to work.
+      // Do NOT use viem's built-in arcTestnet RPC — it has no CORS on Vercel.
+      const plainPublicClient = createPublicClient({
         chain: CIRCLE_CHAIN,
-        transport: modularTransport,
+        transport: http(NETWORKS.testnet.rpcUrl),
       })
 
+      // ── Bundler client (used for smart-account operations) ───────────────
       const bundlerClient = createBundlerClient({
         chain: CIRCLE_CHAIN,
         transport: modularTransport,
       })
 
+      // ── Smart account (needs a public client for state reads) ────────────
       const { toWebAuthnAccount } = await import('viem/account-abstraction')
       const account = await toCircleSmartAccount({
-        client: publicClient,
-        owner: toWebAuthnAccount({ credential }) as Parameters<typeof toCircleSmartAccount>[0]['owner'],
+        client: plainPublicClient,
+        owner: toWebAuthnAccount({ credential }),
       })
 
       _address = account.address
 
+      // ── Bundler + account client (for sending user ops) ──────────────────
       const bundlerWithAccount = createBundlerClient({
         account,
         chain: CIRCLE_CHAIN,
         transport: modularTransport,
       })
 
-      _provider = new EIP1193Provider(bundlerWithAccount, publicClient)
-      return _provider
+      // ── EIP1193Provider wraps the account bundler client ─────────────────
+      const sdkProvider = new EIP1193Provider(bundlerWithAccount, plainPublicClient)
+      _wrappedProvider = wrapProvider(sdkProvider, plainPublicClient)
+      return _wrappedProvider
     }
 
     return {
@@ -154,14 +254,17 @@ export function circlePasskeyConnector() {
         try {
           const key = import.meta.env.VITE_CLIENT_KEY as string | undefined
           if (!key) return
-          await buildProvider(stored)
+          _buildPromise = buildProvider(stored)
+          await _buildPromise
           config.emitter.emit('change', { accounts: [_address!], chainId: CIRCLE_CHAIN.id })
         } catch {
           clearCredential()
+          _buildPromise = null
         }
       },
 
-      async connect({ username }: { username?: string } = {}) {
+      async connect(parameters?: { chainId?: number; isReconnecting?: boolean; [key: string]: unknown }) {
+        const { username } = (parameters ?? {}) as { username?: string }
         const clientKey = getClientKey()
         const clientUrl = getClientUrl()
         const passkeyTransport = toPasskeyTransport(clientUrl, clientKey)
@@ -184,33 +287,41 @@ export function circlePasskeyConnector() {
         }
 
         saveCredential(credential)
-        await buildProvider(credential)
+        _buildPromise = buildProvider(credential)
+        await _buildPromise
 
         return {
-          accounts: [_address!],
+          accounts: [_address!] as readonly `0x${string}`[],
           chainId: CIRCLE_CHAIN.id,
         }
       },
 
       async disconnect() {
-        _provider = null
+        _wrappedProvider = null
         _address = null
-        clearCredential()
+        _buildPromise = null
+        // keep the stored credential: signing out must not turn the next sign-in into a new wallet
       },
 
       async getAccounts() {
         if (!_address) {
-          const stored = loadStoredCredential()
-          if (stored) {
-            try {
-              const key = import.meta.env.VITE_CLIENT_KEY as string | undefined
-              if (!key) return []
-              await buildProvider(stored)
-            } catch {
+          // May be in the middle of a silent reconnect — wait for it
+          if (_buildPromise) {
+            try { await _buildPromise } catch { return [] }
+          } else {
+            const stored = loadStoredCredential()
+            if (stored) {
+              try {
+                const key = import.meta.env.VITE_CLIENT_KEY as string | undefined
+                if (!key) return []
+                _buildPromise = buildProvider(stored)
+                await _buildPromise
+              } catch {
+                return []
+              }
+            } else {
               return []
             }
-          } else {
-            return []
           }
         }
         return _address ? [_address] : []
@@ -221,7 +332,11 @@ export function circlePasskeyConnector() {
       },
 
       async getProvider() {
-        return _provider
+        // If a build is in-flight (e.g. from setup()), await it before returning
+        if (!_wrappedProvider && _buildPromise) {
+          try { await _buildPromise } catch { /* ignored */ }
+        }
+        return _wrappedProvider
       },
 
       async isAuthorized() {
@@ -232,10 +347,11 @@ export function circlePasskeyConnector() {
       onAccountsChanged() {},
       onChainChanged() {},
       onDisconnect() {
-        clearCredential()
-        _provider = null
+        _wrappedProvider = null
         _address = null
+        _buildPromise = null
       },
-    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any
   })
 }

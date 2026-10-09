@@ -18,7 +18,7 @@ import { useConnect, useAccount } from 'wagmi'
 import { Fingerprint, X, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
-  CIRCLE_PASSKEY_CONNECTOR_ID,
+  circlePasskeyConnector,
   isPasskeySupported,
   loadStoredCredential,
   clearCredential,
@@ -26,11 +26,9 @@ import {
 
 export function PasskeyButton() {
   const { isConnected } = useAccount()
-  const { connect, connectors } = useConnect()
+  const { connectAsync } = useConnect()
 
   const [visible, setVisible] = useState(false)
-  const [supported, setSupported] = useState(false)
-  const [hasKey, setHasKey] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [username, setUsername] = useState('')
   const [loading, setLoading] = useState(false)
@@ -39,22 +37,22 @@ export function PasskeyButton() {
   useEffect(() => {
     const key = import.meta.env.VITE_CLIENT_KEY as string | undefined
     const supported = isPasskeySupported()
-    setHasKey(!!key)
-    setSupported(supported)
     setVisible(!!key && supported && !isConnected)
     setIsReturning(loadStoredCredential() !== null)
   }, [isConnected])
 
   if (!visible) return null
 
-  const connector = connectors.find(c => c.id === CIRCLE_PASSKEY_CONNECTOR_ID)
-  if (!connector) return null
+  // The connector factory is passed directly to connect() — wagmi registers it
+  // on first use.  This keeps the connector out of ConnectKit's wallet list
+  // so ConnectKit can never show a broken icon or QR screen for it.
+  const connector = circlePasskeyConnector()
 
   async function handleConnect(providedUsername?: string) {
     setLoading(true)
     try {
-      await connect({
-        connector: connector!,
+      await connectAsync({
+        connector,
         // Pass username only for first registration
         ...(!isReturning && providedUsername ? { username: providedUsername } as Record<string, unknown> : {}),
       })
