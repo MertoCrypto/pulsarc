@@ -3,7 +3,7 @@
  * Built with Arc Studio — https://studio.arc.io
  */
 
-import { http, createConfig } from 'wagmi'
+import { http, fallback, createConfig } from 'wagmi'
 import { mainnet } from 'wagmi/chains'
 import { arcTestnet } from 'viem/chains'
 import { injected } from 'wagmi/connectors'
@@ -28,7 +28,12 @@ export const config = createConfig({
   ],
   transports: {
     // viem's built-in Arc URL is an old host without CORS; use the documented public RPC.
-    [arcTestnet.id]: http(NETWORKS.testnet.rpcUrl),
+    // Several public endpoints, tried in order: one rate-limited or blocked RPC no longer blanks the GM and tip panels.
+    [arcTestnet.id]: fallback([
+      http(NETWORKS.testnet.rpcUrl),
+      http('https://rpc.blockdaemon.testnet.arc.network'),
+      http('https://rpc.drpc.testnet.arc.network'),
+    ]),
     [mainnet.id]: http(), // ENS resolution uses mainnet
   },
 })
