@@ -71,7 +71,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <ConnectKitProvider>
+        <ConnectKitProvider options={{ hideNoWalletCTA: true }}>
           <App />
           <StudioWatermark />
           <Toaster position="top-center" />

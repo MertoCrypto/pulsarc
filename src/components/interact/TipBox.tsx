@@ -56,7 +56,7 @@ export function TipBox() {
   return (
     <div className="arc-card p-5">
       <p className="arc-eyebrow">Support</p>
-      <p className="mt-3 text-[17px] font-light leading-snug text-white">Pulsarc is free. Tips in USDC go straight to the team.</p>
+      <p className="mt-3 text-[17px] font-light leading-snug text-white">Pulsarc is free. Tips in USDC are held in the Pulsarc tip jar.</p>
 
       <div className="mb-3 mt-5 flex gap-2">
         {TIP_PRESETS.map(v => (
