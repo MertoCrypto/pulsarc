@@ -223,7 +223,8 @@ export function circlePasskeyConnector(): ReturnType<typeof createConnector<any>
       // ── Smart account (needs a public client for state reads) ────────────
       const { toWebAuthnAccount } = await import('viem/account-abstraction')
       const account = await toCircleSmartAccount({
-        client: plainPublicClient,
+        // must use the Circle transport: it is what registers the wallet with Circle
+        client: createPublicClient({ chain: CIRCLE_CHAIN, transport: modularTransport }),
         owner: toWebAuthnAccount({ credential }),
       })
 
