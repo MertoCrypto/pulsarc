@@ -7,6 +7,7 @@ import { erc20ApproveAbi, ARC_USDC_ADDRESS } from '@/contracts/abis'
 import { requireChain } from '@/onchain-facts'
 import { parseUsdc } from '@/onchain-money'
 import { CHAIN_ID } from '@/lib/chain'
+import { TipWithdraw } from './TipWithdraw'
 // parseUsdc returns bigint directly
 
 import { TIP_ADDRESS } from '@/lib/tip'
@@ -115,6 +116,8 @@ export function TipBox() {
           )}
         </button>
       )}
+
+      <TipWithdraw />
 
       {lastTipper && (
         <p className="mt-2 text-center font-['Geist_Mono'] text-[10px] text-[var(--faint)]">
