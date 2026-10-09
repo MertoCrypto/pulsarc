@@ -54,6 +54,11 @@ const gmBoardAbi = [
     outputs: [{ name: '', type: 'address' }],
   },
   {
+    name: 'CooldownNotOver',
+    type: 'error',
+    inputs: [{ name: 'nextGmTime', type: 'uint64' }],
+  },
+  {
     name: 'Gm',
     type: 'event',
     inputs: [
@@ -114,7 +119,7 @@ export function GmButton({ variant = 'hero' }: Props) {
     functionName: 'cooldownRemaining',
     args: [address ?? '0x0000000000000000000000000000000000000000'],
     chainId: CHAIN_ID,
-    query: { enabled: !!address && !notDeployed },
+    query: { enabled: !!address && !notDeployed, refetchInterval: 20_000 },
   })
 
   const { data: totalGms } = useReadContract({
@@ -181,6 +186,8 @@ export function GmButton({ variant = 'hero' }: Props) {
           const detail = (err as { shortMessage?: string }).shortMessage ?? err.message?.slice(0, 120) ?? ''
           if (msg.includes('cooldownnotover') || msg.includes('cooldown')) {
             toast.error('Already said GM today! Come back tomorrow.')
+            void refetchCooldown()
+            void refetchRecord()
           } else if (msg.includes('user rejected') || msg.includes('denied')) {
             toast.error('Cancelled.')
           } else {
