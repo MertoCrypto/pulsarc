@@ -77,7 +77,7 @@ export function useMemoFeed(hours = 24): MemoFeed {
 
   useEffect(() => {
     let cancelled = false
-    const key = `arclytics:memo:${hours}`
+    const key = `pulsarc:memo:${hours}`
 
     async function load() {
       const cached = readCache<MemoEntry[]>(key, CACHE_MS)

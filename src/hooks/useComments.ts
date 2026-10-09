@@ -15,7 +15,7 @@ export interface Comment {
   likedBy: string[]
 }
 
-const STORAGE_KEY = 'arclytics_comments_v1'
+const STORAGE_KEY = 'pulsarc_comments_v1'
 
 function loadComments(): Comment[] {
   try {

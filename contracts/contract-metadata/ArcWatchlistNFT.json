@@ -3,7 +3,7 @@
   "network": "ARC-TESTNET",
   "deployerWalletId": "3c2464b2-8369-52e2-a782-800bbeca5396",
   "contract_code_path": "/home/user/app/contracts/ArcWatchlistNFT.sol",
-  "contract_compiled_code_path": "/home/user/app/contracts/out/ArclyticsPlatform.sol/ArcWatchlistNFT.json",
+  "contract_compiled_code_path": "/home/user/app/contracts/out/PulsarcPlatform.sol/ArcWatchlistNFT.json",
   "contract_network_and_links": {
     "Arc Testnet": "https://explorer.testnet.arc.io/address/0xf751a0e96c18dac8c82f4972827bb8cd657f7648"
   },

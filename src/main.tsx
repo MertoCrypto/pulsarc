@@ -12,6 +12,7 @@
 
 import './tracing'
 import './console-capture'
+import './lib/migrateStorage'
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'

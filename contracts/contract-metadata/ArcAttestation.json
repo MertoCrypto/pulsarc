@@ -3,7 +3,7 @@
   "network": "ARC-TESTNET",
   "deployerWalletId": "3c2464b2-8369-52e2-a782-800bbeca5396",
   "contract_code_path": "/home/user/app/contracts/ArcAttestation.sol",
-  "contract_compiled_code_path": "/home/user/app/contracts/out/ArclyticsPlatform.sol/ArcAttestation.json",
+  "contract_compiled_code_path": "/home/user/app/contracts/out/PulsarcPlatform.sol/ArcAttestation.json",
   "contract_network_and_links": {
     "Arc Testnet": "https://explorer.testnet.arc.io/address/0x231f98aecfcfd740e418af29b2ac7587b2d9e471"
   },

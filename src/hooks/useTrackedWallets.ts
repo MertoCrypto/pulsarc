@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useQueries } from '@tanstack/react-query'
 import { arcscan, scaled, isAddress } from '@/lib/arcscan'
 
-const KEY = 'arclytics.trackedWallets.v1'
+const KEY = 'pulsarc.trackedWallets.v1'
 export const MAX_WALLETS = 25
 
 export interface TrackedWallet {

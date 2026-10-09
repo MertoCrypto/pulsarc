@@ -196,7 +196,7 @@ contract ArcWatchlistNFT is ERC721 {
         string memory json = string.concat(
             "{",
             '"name":"', name(), " - ", dappId, '",',
-            '"description":"Arclytics watchlist NFT for dapp ', dappId, '",',
+            '"description":"Pulsarc watchlist NFT for dapp ', dappId, '",',
             '"dappId":"', dappId, '",',
             '"mintedAt":"', mintedAt.toString(), '",',
             '"minterAddress":"', Strings.toHexString(uint256(uint160(minter)), 20), '"',

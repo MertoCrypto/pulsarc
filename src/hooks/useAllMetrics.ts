@@ -20,7 +20,7 @@ export interface AllMetricsState {
   totals: { volume: number; activeWallets: number; txCount: number; tvl: number }
 }
 
-const SNAP_KEY = (range: string, sort: string) => `arclytics.rankSnap.v1:${range}:${sort}`
+const SNAP_KEY = (range: string, sort: string) => `pulsarc.rankSnap.v1:${range}:${sort}`
 const MIN_AGE = 5 * 60_000   // compare against a snapshot at least this old
 const KEEP_AGE = 30 * 60_000 // replace the snapshot once it is this old
 
