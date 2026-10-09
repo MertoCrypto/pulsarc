@@ -140,7 +140,7 @@ export function PasskeyButton() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && username.trim()) handleConnect(username.trim()) }}
-              placeholder="Display name (e.g. Alice)"
+              placeholder="Name (e.g. alice_arc)"
               autoFocus
               className="mb-4 w-full rounded-xl border border-[var(--line)] bg-[var(--bg)] px-3 py-2.5 text-[13px] text-white placeholder:text-[var(--faint)] outline-none focus:border-[var(--line-strong)] transition-colors"
             />
@@ -153,7 +153,7 @@ export function PasskeyButton() {
                 Cancel
               </button>
               <button
-                onClick={() => handleConnect(username.trim() || 'Pulsarc user')}
+                onClick={() => handleConnect(username.trim())}
                 disabled={loading}
                 className="flex-1 rounded-xl bg-[var(--periwinkle)] py-2.5 text-[13px] font-medium text-[#0a1424] hover:bg-[var(--periwinkle-hi)] disabled:opacity-50 disabled:cursor-wait transition-all"
               >
