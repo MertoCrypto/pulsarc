@@ -104,7 +104,7 @@ export function GmButton({ variant = 'hero' }: Props) {
   const { switchChain } = useSwitchChain()
   const notDeployed = GM_BOARD_ADDRESS === '0x0000000000000000000000000000000000000000'
 
-  const { data: record, refetch: refetchRecord } = useReadContract({
+  const { data: record, refetch: refetchRecord, isError: recordError } = useReadContract({
     address: GM_BOARD_ADDRESS,
     abi: gmBoardAbi,
     functionName: 'getRecord',
@@ -113,7 +113,7 @@ export function GmButton({ variant = 'hero' }: Props) {
     query: { enabled: !!address && !notDeployed },
   })
 
-  const { data: cooldownRaw, refetch: refetchCooldown } = useReadContract({
+  const { data: cooldownRaw, refetch: refetchCooldown, isError: cooldownError } = useReadContract({
     address: GM_BOARD_ADDRESS,
     abi: gmBoardAbi,
     functionName: 'cooldownRemaining',
@@ -122,7 +122,7 @@ export function GmButton({ variant = 'hero' }: Props) {
     query: { enabled: !!address && !notDeployed, refetchInterval: 20_000 },
   })
 
-  const { data: totalGms } = useReadContract({
+  const { data: totalGms, refetch: refetchTotal, isError: totalError } = useReadContract({
     address: GM_BOARD_ADDRESS,
     abi: gmBoardAbi,
     functionName: 'totalGms',
@@ -199,6 +199,7 @@ export function GmButton({ variant = 'hero' }: Props) {
   }
 
   const isLoading = isPending || isConfirming
+  const readError = recordError || cooldownError || totalError
 
   if (variant === 'compact') {
     const idle = !isLoading && !onCooldown && !notDeployed && !isSuccess
@@ -256,6 +257,18 @@ export function GmButton({ variant = 'hero' }: Props) {
           </div>
         ))}
       </div>
+
+      {readError && (
+        <p className="mt-3 flex items-center justify-between text-xs text-[var(--faint)]">
+          <span>Couldn't read the chain. Retrying…</span>
+          <button
+            onClick={() => { void refetchRecord(); void refetchCooldown(); void refetchTotal() }}
+            className="ml-3 text-xs text-[var(--faint)] underline underline-offset-2 hover:text-[var(--muted)]"
+          >
+            Retry
+          </button>
+        </p>
+      )}
 
       <button
         onClick={handleGm}
