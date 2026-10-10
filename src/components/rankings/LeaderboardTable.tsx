@@ -53,9 +53,11 @@ interface Props {
   isLoading: boolean
   sortKey: SortKey
   onSortChange: (k: SortKey) => void
+  /** Indexer numbers: Users is a sum of hourly distinct wallets, so the true count can be lower. */
+  walletsAreUpperBound?: boolean
 }
 
-export function LeaderboardTable({ items, isLoading, sortKey, onSortChange }: Props) {
+export function LeaderboardTable({ items, isLoading, sortKey, onSortChange, walletsAreUpperBound = false }: Props) {
   const navigate = useNavigate()
 
   return (
@@ -67,7 +69,11 @@ export function LeaderboardTable({ items, isLoading, sortKey, onSortChange }: Pr
             <th className="text-left px-5 py-3.5 arc-eyebrow !text-[10px] !tracking-[0.18em]">App</th>
             <th className="text-left px-5 py-3.5 arc-eyebrow !text-[10px] !tracking-[0.18em] w-24">Category</th>
             {COLS.map(col => (
-              <th key={col.key} className="text-right px-5 py-3.5 w-32">
+              <th
+                key={col.key}
+                className="text-right px-5 py-3.5 w-32"
+                title={col.key === 'activeWallets' && walletsAreUpperBound ? 'Sum of distinct wallets per hour, so the true number of different people can be lower (≤).' : undefined}
+              >
                 <button
                   onClick={() => onSortChange(col.key)}
                   className={clsx(
@@ -135,7 +141,7 @@ export function LeaderboardTable({ items, isLoading, sortKey, onSortChange }: Pr
                       'px-5 py-4 text-right text-[15px] tabular-nums',
                       sortKey === col.key ? 'text-white' : 'text-[var(--muted)]'
                     )}>
-                      {col.render(item)}
+                      {col.key === 'activeWallets' && walletsAreUpperBound && !item.metrics.lifetime ? `≤${fmtNum(item.metrics.activeWallets)}` : col.render(item)}
                     </td>
                   ))}
                   <td className="px-5 py-4 text-right text-[15px] tabular-nums">

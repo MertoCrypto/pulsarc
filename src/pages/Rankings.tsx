@@ -46,7 +46,7 @@ export function Rankings() {
     if (r !== 'all' && timeRange === 'all' && sortKey === 'txCount') setSortKey('activeWallets')
   }
 
-  const { items, isLoading, loaded, total, lastUpdated, totals, refresh } = useAllMetrics(timeRange, sortKey, category, { kind })
+  const { items, isLoading, loaded, total, lastUpdated, totals, refresh, walletsAreUpperBound } = useAllMetrics(timeRange, sortKey, category, { kind })
   const reading = loaded < total
   const windowLabel = { '1h': 'last hour', '24h': 'last 24 hours', '7d': 'last 7 days', '30d': 'last 30 days', all: 'all time' }[timeRange]
 
@@ -177,13 +177,14 @@ export function Rankings() {
           isLoading={isLoading}
           sortKey={sortKey}
           onSortChange={setSortKey}
+          walletsAreUpperBound={walletsAreUpperBound}
         />
         <p className="border-t border-[var(--line)] px-6 py-4 text-sm leading-relaxed text-[var(--faint)]">
           {timeRange === 'all'
             ? 'All time: transactions are lifetime counts from ArcScan; users are token holders, so apps without a token show a dash. Volume and change need a window, so they are blank here. '
             : timeRange === '7d' || timeRange === '30d'
               ? 'Wide windows read as far back as ArcScan allows; very busy apps are projected from their newest activity (≈). '
-              : ''}Users are distinct wallets that used the app in the window. Change compares the window with the one before it; for busy apps it compares the newer half of our sample with the older half, marked ≈. Each app is measured through its real contracts (token transfers for pools, vaults and stablecoins; transactions for infrastructure). Very busy apps are sampled from their newest activity, so their counts are extrapolated — marked ≈, and wallets as ≥. "Dollars moved" only includes USDC-denominated transfers. Rank arrows show change since this browser last saw the ranking.
+              : ''}Users are distinct wallets that used the app in the window. Change compares the window with the one before it; for busy apps it compares the newer half of our sample with the older half, marked ≈. Each app is measured through its real contracts (token transfers for pools, vaults and stablecoins; transactions for infrastructure). Very busy apps are sampled from their newest activity, so their counts are extrapolated — marked ≈, and wallets as ≥. "Dollars moved" only includes USDC-denominated transfers. Rank arrows show change since this browser last saw the ranking. When numbers come from our indexer, Users is marked ≤: it adds up the distinct wallets of each hour, so the real count of different people can be lower.
         </p>
       </div>
       </Reveal>
