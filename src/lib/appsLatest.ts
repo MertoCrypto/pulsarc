@@ -15,6 +15,8 @@ export interface AppWindowStats {
 export interface AppsLatest {
   network: 'mainnet' | 'testnet'
   generatedAt: string
+  /** Hourly buckets the indexer holds (newer files only); a window is real once this reaches its length. */
+  coverageHours?: number
   note?: string
   apps: Record<string, Record<'1h' | '24h' | '7d', AppWindowStats>>
 }
@@ -85,7 +87,10 @@ export function parseAppsLatest(json: unknown): AppsLatest | null {
       apps[appId] = windowMap as Record<Win, AppWindowStats>
     }
 
-    return { network, generatedAt, note, apps }
+    const cov = raw['coverageHours']
+    const coverageHours = isFiniteNum(cov) && cov >= 0 ? cov : undefined
+
+    return { network, generatedAt, coverageHours, note, apps }
   } catch {
     return null
   }

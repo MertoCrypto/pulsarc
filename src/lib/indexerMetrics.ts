@@ -14,6 +14,8 @@ import { isFresh, windowsDiffer, toAppMetricsPatch } from './appsLatest.ts'
 
 /** Ranges the indexer publishes windows for. */
 const INDEXER_RANGES = new Set<string>(['1h', '24h', '7d'])
+/** Hourly buckets needed before a window counts as real (1h needs one closed hour plus the open one). */
+const REQUIRED_HOURS = { '1h': 2, '24h': 24, '7d': 168 } as const
 
 /**
  * True when the indexer snapshot is trustworthy enough to replace ArcScan for
@@ -23,7 +25,7 @@ const INDEXER_RANGES = new Set<string>(['1h', '24h', '7d'])
  *   1. timeRange is one the indexer covers (not '30d' or 'all').
  *   2. snapshot is loaded (non-null).
  *   3. isFresh(snapshot, maxAgeMs, now).
- *   4. windowsDiffer(snapshot) — at least one app shows different 1h/24h/7d numbers,
+ *   4. coverageHours covers the window (or, for older snapshots, windowsDiffer(snapshot) — at least one app shows different 1h/24h/7d numbers,
  *      proving the indexer has actually caught up past the first partial hour.
  */
 export function isIndexerUsable(
@@ -34,8 +36,10 @@ export function isIndexerUsable(
   if (!INDEXER_RANGES.has(timeRange)) return false
   if (!snap) return false
   if (!isFresh(snap, 3 * 3_600_000, now)) return false
-  if (!windowsDiffer(snap)) return false
-  return true
+  // Newer snapshots say how many hourly buckets they hold: a window is real once covered.
+  if (typeof snap.coverageHours === 'number') return snap.coverageHours >= REQUIRED_HOURS[timeRange as '1h' | '24h' | '7d']
+  // Older snapshots: infer from the numbers.
+  return windowsDiffer(snap)
 }
 
 // ── buildIndexerMetrics ───────────────────────────────────────────────────────

@@ -13,6 +13,7 @@
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import type { AppsLatest } from './appsLatest.ts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -190,3 +191,17 @@ test('usersKnown is true', () => {
 
 console.log(`\n=== ${passed} passed, ${failed} failed ===\n`)
 if (failed > 0) process.exit(1)
+
+// ── coverageHours (newer snapshots) ──
+const withCov = (cov: number) => ({ ...CAUGHT_UP_SNAP!, coverageHours: cov }) as AppsLatest
+test('coverage 25h: 1h and 24h usable, 7d not', () => {
+  assert.equal(isIndexerUsable(withCov(25), '1h', NOW), true)
+  assert.equal(isIndexerUsable(withCov(25), '24h', NOW), true)
+  assert.equal(isIndexerUsable(withCov(25), '7d', NOW), false)
+})
+test('coverage 1h: nothing usable', () => {
+  assert.equal(isIndexerUsable(withCov(1), '1h', NOW), false)
+})
+test('coverage wins over identical windows (same numbers but 168h held)', () => {
+  assert.equal(isIndexerUsable({ ...CATCHING_UP_SNAP!, coverageHours: 168 } as AppsLatest, '7d', NOW), true)
+})
