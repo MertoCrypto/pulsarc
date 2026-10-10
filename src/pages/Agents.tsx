@@ -6,12 +6,23 @@ import { StatCard } from '@/components/shared/StatCard'
 import { AGENTIC_COMMERCE, IDENTITY_REGISTRY, VALIDATION_REGISTRY, useAgents } from '@/hooks/useAgents'
 import { count, explorerAddress } from '@/lib/arcscan'
 import { Link } from 'react-router-dom'
+import { NETWORK } from '@/lib/chain'
+import { useAgentsIndex } from '@/hooks/useAgentsIndex'
+import { useAppsLatest } from '@/hooks/useAppsLatest'
+import { AgentsIndexSection, AgentsIndexSkeleton } from '@/components/agents/AgentsIndexSection'
+import { RegistryActivityTiles } from '@/components/agents/RegistryActivityTiles'
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
+
+const net = NETWORK.id === 5042 ? 'mainnet' : 'testnet'
 
 export function Agents() {
   const { data, isLoading, error } = useAgents()
   const [onlyProfiles, setOnlyProfiles] = useState(true)
+
+  // Indexer data — called unconditionally (rules of hooks)
+  const { data: indexData, isLoading: indexLoading } = useAgentsIndex(net)
+  const { data: appsSnap } = useAppsLatest(net)
 
   const agents = useMemo(
     () => (data?.agents ?? []).filter(a => !onlyProfiles || a.name || a.description),
@@ -31,6 +42,7 @@ export function Agents() {
         </section>
       </Reveal>
 
+      {/* ── Existing stat cards (ArcScan) ── */}
       <section>
         <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Agents registered" value={data?.newestId ?? 0} format={n => count(n, 2)} subValue="highest agent ID so far" icon={Bot} isLoading={isLoading} />
@@ -48,6 +60,10 @@ export function Agents() {
         </div>
       </section>
 
+      {/* ── Registry activity tiles (indexer) ── */}
+      <RegistryActivityTiles snap={appsSnap} />
+
+      {/* ── Existing latest registrations (ArcScan) ── */}
       <section>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <p className="arc-eyebrow">Latest registrations</p>
@@ -87,6 +103,13 @@ export function Agents() {
           Profiles are written by whoever registers the agent and are not verified — treat them as claims, not facts. Many registrations have no profile at all, which is why that filter is on by default.
         </p>
       </section>
+
+      {/* ── Registered agents (indexer) ── */}
+      {indexLoading ? (
+        <AgentsIndexSkeleton />
+      ) : indexData ? (
+        <AgentsIndexSection data={indexData} />
+      ) : null}
     </div>
   )
 }

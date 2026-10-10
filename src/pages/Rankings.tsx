@@ -11,6 +11,9 @@ import { gsap, ScrollTrigger } from '@/lib/smoothScroll'
 import { LiveBadge } from '@/components/layout/LiveBadge'
 import { LeaderboardTable } from '@/components/rankings/LeaderboardTable'
 import { PortalApps } from '@/components/shared/PortalApps'
+import { AnomalyStrip } from '@/components/rankings/AnomalyStrip'
+import { useAnomalies } from '@/hooks/useAnomalies'
+import { NETWORK } from '@/lib/chain'
 import { useAllMetrics, type SortKey } from '@/hooks/useAllMetrics'
 import { type RankRange } from '@/lib/appActivity'
 import { type AppKind } from '@/data/apps'
@@ -33,6 +36,8 @@ function fmtNum(n: number): string {
   return Math.round(n).toString()
 }
 
+const anomalyNet = NETWORK.id === 5042 ? 'mainnet' : 'testnet'
+
 export function Rankings() {
   const [timeRange, setTimeRange] = useState<RankRange>('24h')
   const [category, setCategory] = useState('All')
@@ -47,6 +52,7 @@ export function Rankings() {
   }
 
   const { items, isLoading, loaded, total, lastUpdated, totals, refresh, walletsAreUpperBound } = useAllMetrics(timeRange, sortKey, category, { kind })
+  const { data: anomalies } = useAnomalies(anomalyNet)
   const reading = loaded < total
   const windowLabel = { '1h': 'last hour', '24h': 'last 24 hours', '7d': 'last 7 days', '30d': 'last 30 days', all: 'all time' }[timeRange]
 
@@ -107,6 +113,8 @@ export function Rankings() {
       </section>
 
       <Ticker items={items} />
+
+      <AnomalyStrip snap={anomalies} />
 
       {/* Stats row */}
       <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
