@@ -13,6 +13,19 @@ import { AddNetworkButton } from '@/components/shared/AddNetworkButton'
 import { compact } from '@/lib/arcscan'
 import { useIndexer } from '@/hooks/useIndexer'
 import { useLatest, isLatestFresh, networkHealthCards, successRateSeries } from '@/hooks/useLatest'
+import { useSupply } from '@/hooks/useExtras'
+import {
+  automatedShare,
+  smartAccountShare,
+  paymentBuckets,
+  bigTransfers,
+  mintBurn,
+  bridgeSummary,
+  supplyChange,
+  type ExtendedWindow,
+  type SeriesPointMin,
+  type SupplyJson,
+} from '@/lib/activityMix'
 
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
@@ -178,6 +191,335 @@ function TestnetFlows() {
         )}
       </section>
     </>
+  )
+}
+
+// ── Shared window-toggle ──────────────────────────────────────────────────────
+
+function WindowToggle({ win, setWin, keys = ['1h', '24h'] }: {
+  win: string
+  setWin: (k: '1h' | '24h' | '7d') => void
+  keys?: ('1h' | '24h' | '7d')[]
+}) {
+  return (
+    <div className="inline-flex rounded-xl border border-[var(--line)] p-1" role="tablist" aria-label="Window">
+      {keys.map(k => (
+        <button key={k} role="tab" aria-selected={win === k} onClick={() => setWin(k)}
+          className={`rounded-lg px-3.5 py-1.5 text-sm transition-colors ${win === k ? 'bg-white/[0.08] text-white' : 'text-[var(--muted)] hover:text-white'}`}>
+          {k}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ── Utility: format USDC amounts with en-US locale ────────────────────────────
+
+function fmtUsdc(n: number, decimals = 2): string {
+  return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+}
+
+function fmtCount(n: number): string {
+  return n.toLocaleString('en-US', { maximumFractionDigits: 0 })
+}
+
+// ── Activity mix section ──────────────────────────────────────────────────────
+
+function ActivityMixSection({
+  win,
+  setWin,
+  window: w,
+  series,
+}: {
+  win: '1h' | '24h' | '7d'
+  setWin: (k: '1h' | '24h' | '7d') => void
+  window: ExtendedWindow
+  series: SeriesPointMin[]
+}) {
+  const auto = automatedShare(w, series)
+  const sa = smartAccountShare(w, series)
+  const buckets = paymentBuckets(w)
+
+  const hasAny = auto !== null || sa !== null || buckets !== null
+  if (!hasAny) return null
+
+  return (
+    <section>
+      <SectionHead eyebrow="Activity" title="Activity mix">
+        <WindowToggle win={win} setWin={setWin} keys={['1h', '24h', '7d']} />
+      </SectionHead>
+
+      {(auto !== null || sa !== null) && (
+        <Reveal className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+          {auto !== null && (
+            <StatCard
+              label="Automated txs"
+              value={auto.share * 100}
+              format={n => `${n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+              subValue={`${fmtCount(auto.senders)} senders${auto.note ? ` · ${auto.note}` : ''}`}
+              icon={Zap}
+            />
+          )}
+          {sa !== null && (
+            <StatCard
+              label="Smart-account ops"
+              value={sa.share * 100}
+              format={n => `${n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+              subValue={`${fmtCount(sa.aa)} ERC-4337 ops${sa.note ? ` · ${sa.note}` : ''}`}
+              icon={Users}
+            />
+          )}
+        </Reveal>
+      )}
+
+      {buckets !== null && (
+        <Reveal delay={0.04} className="arc-card mt-4 p-5">
+          <p className="arc-eyebrow mb-4">Payment size{buckets.note ? ` · ${buckets.note}` : ''}</p>
+          <div className="space-y-4">
+            {buckets.buckets.map(b => (
+              <div key={b.label}>
+                <div className="mb-1.5 flex items-baseline justify-between">
+                  <span className="text-[15px] font-light text-white">{b.label}</span>
+                  <span className="text-sm tabular-nums text-[var(--muted)]">
+                    {fmtCount(b.count)} txs · ${compact(b.usdcVolume, 2)}
+                  </span>
+                </div>
+                <div className="flex gap-1">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-[var(--line)] flex-1">
+                    <div
+                      className="h-full rounded-full bg-[var(--periwinkle)]"
+                      style={{ width: `${((b.countShare ?? 0) * 100).toFixed(1)}%`, opacity: 0.8 }}
+                    />
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-[var(--line)] flex-1">
+                    <div
+                      className="h-full rounded-full bg-white/60"
+                      style={{ width: `${((b.volumeShare ?? 0) * 100).toFixed(1)}%`, opacity: 0.7 }}
+                    />
+                  </div>
+                </div>
+                <div className="mt-0.5 flex justify-between text-[10px] text-[var(--faint)]">
+                  <span>{b.countShare != null ? `${(b.countShare * 100).toLocaleString('en-US', { maximumFractionDigits: 1 })}% of txs` : ''}</span>
+                  <span>{b.volumeShare != null ? `${(b.volumeShare * 100).toLocaleString('en-US', { maximumFractionDigits: 1 })}% of volume` : ''}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Reveal>
+      )}
+
+      <p className="mt-4 text-sm text-[var(--faint)]">
+        Automated = senders with 60+ transactions in an hour. Payment size = largest USDC transfer per transaction.
+      </p>
+    </section>
+  )
+}
+
+// ── Money flow section ────────────────────────────────────────────────────────
+
+function MoneyFlowSection({
+  win,
+  setWin,
+  window: w,
+  netKey,
+  supplyData,
+}: {
+  win: '1h' | '24h' | '7d'
+  setWin: (k: '1h' | '24h' | '7d') => void
+  window: ExtendedWindow
+  netKey: 'testnet' | 'mainnet'
+  supplyData: SupplyJson | null | undefined
+}) {
+  const EXPLORER = NETWORKS[netKey].explorerUrl
+
+  const mb = mintBurn(w)
+  const big = bigTransfers(w, 10)
+
+  const supplyHours = win === '1h' ? 1 : win === '24h' ? 24 : 168
+  const usdcSupply = supplyData ? supplyChange(supplyData, 'usdc', supplyHours) : null
+  const eurcSupply = supplyData ? supplyChange(supplyData, 'eurc', supplyHours) : null
+
+  const hasAny = mb !== null || big !== null || usdcSupply !== null
+  if (!hasAny) return null
+
+  return (
+    <section>
+      <SectionHead eyebrow="USDC" title="Money flow">
+        <WindowToggle win={win} setWin={setWin} keys={['1h', '24h', '7d']} />
+      </SectionHead>
+
+      {(usdcSupply !== null || eurcSupply !== null) && (
+        <Reveal className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+          {usdcSupply !== null && (
+            <StatCard
+              label="USDC supply"
+              value={usdcSupply.supply}
+              format={n => `$${compact(n, 2)}`}
+              subValue={
+                usdcSupply.change !== 0
+                  ? `${usdcSupply.change > 0 ? '+' : ''}${fmtUsdc(usdcSupply.change, 2)} this ${win}`
+                  : undefined
+              }
+              icon={Layers}
+            />
+          )}
+          {eurcSupply !== null && (
+            <StatCard
+              label="EURC supply"
+              value={eurcSupply.supply}
+              format={n => `€${compact(n, 2)}`}
+              subValue={
+                eurcSupply.change !== 0
+                  ? `${eurcSupply.change > 0 ? '+' : ''}${fmtUsdc(eurcSupply.change, 2)} this ${win}`
+                  : undefined
+              }
+              icon={Layers}
+            />
+          )}
+          {mb !== null && (
+            <>
+              <StatCard
+                label="USDC minted"
+                value={mb.usdcMinted}
+                format={n => `$${compact(n, 2)}`}
+                subValue={mb.note ? mb.note : `this ${win}`}
+                icon={ArrowDownLeft}
+              />
+              <StatCard
+                label="USDC burned"
+                value={mb.usdcBurned}
+                format={n => `$${compact(n, 2)}`}
+                subValue={mb.usdcNet < 0 ? `net −$${compact(Math.abs(mb.usdcNet), 2)}` : `net +$${compact(mb.usdcNet, 2)}`}
+                icon={ArrowUpRight}
+              />
+            </>
+          )}
+        </Reveal>
+      )}
+
+      {big !== null && (
+        <Reveal delay={0.05} className="arc-card mt-4 overflow-hidden">
+          <p className="arc-eyebrow border-b border-[var(--line)] px-5 py-3.5">Largest transfers ≥ $5M</p>
+          <ul>
+            {big.map((t, i) => {
+              const addrRe = /^0x[0-9a-fA-F]{40}$/
+              const txRe = /^0x[0-9a-fA-F]{64}$/
+              const fromLink = addrRe.test(t.from) ? `${EXPLORER}/address/${t.from}` : null
+              const toLink = addrRe.test(t.to) ? `${EXPLORER}/address/${t.to}` : null
+              const txLink = txRe.test(t.tx) ? `${EXPLORER}/tx/${t.tx}` : null
+              return (
+                <li key={`${t.tx}-${i}`} className="arc-row grid grid-cols-[1fr_1fr_auto] items-center gap-3 border-b border-[var(--line)] px-5 py-3 last:border-0">
+                  <div className="min-w-0 flex gap-3 items-center">
+                    <span className="text-sm tabular-nums text-[var(--faint)] w-5 shrink-0">{i + 1}</span>
+                    <div className="min-w-0">
+                      <div className="flex gap-1 text-xs font-['Geist_Mono'] text-[var(--muted)]">
+                        {fromLink
+                          ? <a href={fromLink} target="_blank" rel="noreferrer" className="hover:text-white">{short(t.from)}</a>
+                          : <span>{short(t.from)}</span>
+                        }
+                        <span>→</span>
+                        {toLink
+                          ? <a href={toLink} target="_blank" rel="noreferrer" className="hover:text-white">{short(t.to)}</a>
+                          : <span>{short(t.to)}</span>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-light tabular-nums text-white">${compact(t.amt, 2)}</p>
+                  </div>
+                  <div>
+                    {txLink && (
+                      <a href={txLink} target="_blank" rel="noreferrer" className="text-[var(--faint)] hover:text-[var(--periwinkle)]">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </Reveal>
+      )}
+    </section>
+  )
+}
+
+// ── Bridge (indexer) section — mainnet only ───────────────────────────────────
+
+function IndexerBridgeSection({
+  win,
+  setWin,
+  window: w,
+}: {
+  win: '1h' | '24h' | '7d'
+  setWin: (k: '1h' | '24h' | '7d') => void
+  window: ExtendedWindow
+}) {
+  const br = bridgeSummary(w)
+  if (!br) return null
+
+  const maxDomainUsdc = br.topDomains[0]?.usdc ?? 0
+
+  return (
+    <section>
+      <SectionHead eyebrow="Bridge" title="USDC crossing Arc (indexer)">
+        <WindowToggle win={win} setWin={setWin} keys={['1h', '24h', '7d']} />
+      </SectionHead>
+
+      <Reveal className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <StatCard
+          label="Sent out of Arc"
+          value={br.outUsdc}
+          format={n => `$${compact(n, 2)}`}
+          subValue={`${fmtCount(br.outCount)} burns${br.note ? ` · ${br.note}` : ''}`}
+          icon={ArrowUpRight}
+        />
+        <StatCard
+          label="Received on Arc"
+          value={br.inCount}
+          format={n => fmtCount(n)}
+          subValue={`mints${br.note ? ` · ${br.note}` : ''}`}
+          icon={ArrowDownLeft}
+        />
+        <StatCard
+          label="Bridge fees"
+          value={br.fees}
+          format={n => `$${fmtUsdc(n, 2)}`}
+          subValue="collected on burns"
+          icon={Receipt}
+        />
+        <StatCard
+          label="Net direction"
+          value={Math.abs(br.inCount - br.outCount)}
+          format={n => fmtCount(n)}
+          subValue={br.netDirection === 'in' ? 'more came in' : br.netDirection === 'out' ? 'more left' : 'balanced'}
+          icon={Layers}
+        />
+      </Reveal>
+
+      {br.topDomains.length > 0 && (
+        <Reveal delay={0.05} className="arc-card mt-4 p-5">
+          <p className="arc-eyebrow mb-4">Top destination chains (by USDC)</p>
+          <ul className="space-y-3.5">
+            {br.topDomains.map((d, i) => (
+              <li key={d.domainId}>
+                <div className="mb-1.5 flex items-baseline justify-between">
+                  <span className="text-[15px] font-light text-white">{d.name}</span>
+                  <span className="text-sm tabular-nums text-[var(--muted)]">${compact(d.usdc, 2)} · {fmtCount(d.count)}×</span>
+                </div>
+                <div className="h-px w-full bg-[var(--line)]">
+                  <div
+                    className="h-px bg-[var(--periwinkle)]"
+                    style={{ width: `${maxDomainUsdc > 0 ? ((d.usdc / maxDomainUsdc) * 100).toFixed(1) : 0}%`, opacity: Math.max(0.35, 1 - i * 0.14) }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Reveal>
+      )}
+    </section>
   )
 }
 
@@ -369,6 +711,15 @@ export function Network() {
   const net = useNetworkStats(netKey)
   const loading = net.isLoading
 
+  // Extra data hooks (indexer supply + bridge)
+  const { data: snap } = useLatest(netKey)
+  const { data: supplyData } = useSupply(netKey)
+  const [extraWin, setExtraWin] = useState<'1h' | '24h' | '7d'>('24h')
+
+  const snapFresh = snap && isLatestFresh(snap)
+  const extWindow = snapFresh ? snap.windows[extraWin] as ExtendedWindow : null
+  const extSeries: SeriesPointMin[] = snapFresh && snap.series ? snap.series : []
+
   return (
     <div className="space-y-14">
       <Reveal>
@@ -492,6 +843,32 @@ export function Network() {
       </section>
 
       <NetworkHealthSection netKey={netKey} />
+
+      {/* ---- New indexer sections (hidden when snap is stale or absent) ---- */}
+      {extWindow && (
+        <>
+          <ActivityMixSection
+            win={extraWin}
+            setWin={setExtraWin}
+            window={extWindow}
+            series={extSeries}
+          />
+          <MoneyFlowSection
+            win={extraWin}
+            setWin={setExtraWin}
+            window={extWindow}
+            netKey={netKey}
+            supplyData={supplyData}
+          />
+          {!net_is_testnet && (
+            <IndexerBridgeSection
+              win={extraWin}
+              setWin={setExtraWin}
+              window={extWindow}
+            />
+          )}
+        </>
+      )}
 
       {net_is_testnet ? <TestnetFlows /> : <MainnetIndexed />}
     </div>

@@ -12,6 +12,10 @@ export interface SeriesPoint {
   fees: number
   wallets: number
   blocks: number
+  /** ERC-4337 smart-account count for this hour (optional, new field). */
+  aa?: number
+  /** ERC-4337 user-op tx count for this hour (optional, new field). */
+  aaTx?: number
 }
 
 export interface IndexedWindow {
@@ -22,6 +26,20 @@ export interface IndexedWindow {
   fees: number
   walletHours: number
   top: unknown[]
+  // Optional new fields from the indexer — passed through as-is; activityMix.ts validates them.
+  auto?: unknown
+  autoCoverageHours?: unknown
+  aa?: unknown
+  aaTx?: unknown
+  buckets?: unknown
+  bucketsCoverageHours?: unknown
+  big?: unknown
+  mb?: unknown
+  mbCoverageHours?: unknown
+  blk?: unknown
+  blkAddr?: unknown
+  bridge?: unknown
+  bridgeCoverageHours?: unknown
 }
 
 export interface LatestSnapshot {
@@ -54,12 +72,21 @@ function isFiniteNum(v: unknown): v is number {
   return typeof v === 'number' && isFinite(v)
 }
 
+/** Optional new keys the indexer may include in a window object. Passed through as-is. */
+const WINDOW_OPTIONAL_KEYS = [
+  'auto', 'autoCoverageHours', 'aa', 'aaTx',
+  'buckets', 'bucketsCoverageHours',
+  'big', 'mb', 'mbCoverageHours',
+  'blk', 'blkAddr',
+  'bridge', 'bridgeCoverageHours',
+] as const
+
 function parseWindow(raw: unknown): IndexedWindow | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
   const r = raw as Record<string, unknown>
   if (!isFiniteNum(r['txs']) || !isFiniteNum(r['failed']) || !isFiniteNum(r['fees'])) return null
   if (!isFiniteNum(r['hours']) || !isFiniteNum(r['blocks']) || !isFiniteNum(r['walletHours'])) return null
-  return {
+  const win: IndexedWindow = {
     hours: r['hours'] as number,
     blocks: r['blocks'] as number,
     txs: r['txs'] as number,
@@ -68,6 +95,12 @@ function parseWindow(raw: unknown): IndexedWindow | null {
     walletHours: r['walletHours'] as number,
     top: Array.isArray(r['top']) ? r['top'] : [],
   }
+  for (const key of WINDOW_OPTIONAL_KEYS) {
+    if (key in r) {
+      (win as unknown as Record<string, unknown>)[key] = r[key]
+    }
+  }
+  return win
 }
 
 function parseSeriesPoint(raw: unknown): SeriesPoint | null {
@@ -76,7 +109,7 @@ function parseSeriesPoint(raw: unknown): SeriesPoint | null {
   if (typeof r['hour'] !== 'string') return null
   if (!isFiniteNum(r['txs']) || !isFiniteNum(r['failed']) || !isFiniteNum(r['fees'])) return null
   if (!isFiniteNum(r['wallets']) || !isFiniteNum(r['blocks'])) return null
-  return {
+  const pt: SeriesPoint = {
     hour: r['hour'] as string,
     txs: r['txs'] as number,
     failed: r['failed'] as number,
@@ -84,6 +117,9 @@ function parseSeriesPoint(raw: unknown): SeriesPoint | null {
     wallets: r['wallets'] as number,
     blocks: r['blocks'] as number,
   }
+  if (isFiniteNum(r['aa'])) pt.aa = r['aa'] as number
+  if (isFiniteNum(r['aaTx'])) pt.aaTx = r['aaTx'] as number
+  return pt
 }
 
 // ── parseLatest ───────────────────────────────────────────────────────────────

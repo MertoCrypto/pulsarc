@@ -76,6 +76,76 @@ test('parses series array, skips malformed points', () => {
   assert.equal(snap.series[0].hour, '2026-10-10T01')
 })
 
+test('parseWindow passes through all new optional window fields', () => {
+  const snap = parseLatest(makeSnap({
+    windows: {
+      '1h': makeWindow({
+        auto: { senders: 3, tx: 90 },
+        autoCoverageHours: 1,
+        aa: 5,
+        aaTx: 5,
+        buckets: [[10, 100], [2, 500], [1, 5000]],
+        bucketsCoverageHours: 1,
+        big: [],
+        mb: { usdc: [1000, 2000] },
+        mbCoverageHours: 1,
+        bridge: { out: [0, 0, 0], in: [1], byDomain: {} },
+        bridgeCoverageHours: 1,
+      }),
+      '24h': makeWindow(),
+      '7d': makeWindow(),
+    },
+  }))
+  assert.ok(snap)
+  const w = snap.windows['1h'] as unknown as Record<string, unknown>
+  assert.deepEqual(w['auto'], { senders: 3, tx: 90 })
+  assert.equal(w['autoCoverageHours'], 1)
+  assert.equal(w['aa'], 5)
+  assert.equal(w['aaTx'], 5)
+  assert.ok(Array.isArray(w['buckets']))
+  assert.equal(w['bucketsCoverageHours'], 1)
+  assert.deepEqual(w['mb'], { usdc: [1000, 2000] })
+  assert.equal(w['mbCoverageHours'], 1)
+  assert.ok(w['bridge'] !== undefined)
+  assert.equal(w['bridgeCoverageHours'], 1)
+})
+
+test('parseWindow still returns null for an invalid window (missing required field)', () => {
+  const snap = parseLatest(makeSnap({
+    windows: {
+      '1h': { txs: 'oops' }, // missing required numeric fields
+      '24h': makeWindow(),
+      '7d': makeWindow(),
+    },
+  }))
+  assert.equal(snap, null)
+})
+
+test('series point passes through aa and aaTx when finite', () => {
+  const snap = parseLatest({
+    ...makeSnap(),
+    series: [
+      { hour: '2026-10-11T19', txs: 100, failed: 5, fees: 1.0, wallets: 20, blocks: 200, aa: 36, aaTx: 36 },
+    ],
+  })
+  assert.ok(snap)
+  assert.equal(snap.series.length, 1)
+  assert.equal(snap.series[0].aa, 36)
+  assert.equal(snap.series[0].aaTx, 36)
+})
+
+test('series point without aa/aaTx has them undefined', () => {
+  const snap = parseLatest({
+    ...makeSnap(),
+    series: [
+      { hour: '2026-10-11T18', txs: 50, failed: 2, fees: 0.5, wallets: 10, blocks: 100 },
+    ],
+  })
+  assert.ok(snap)
+  assert.equal(snap.series[0].aa, undefined)
+  assert.equal(snap.series[0].aaTx, undefined)
+})
+
 console.log('\nisLatestFresh')
 
 test('fresh snapshot → true', () => {
