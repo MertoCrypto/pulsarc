@@ -29,6 +29,8 @@ const MORE: NavItem[] = [
   { to: '/deploy', label: 'Deploy', match: p => p.startsWith('/deploy') },
   { to: '/method', label: 'Method', match: p => p.startsWith('/method') },
   { to: '/digest', label: 'Digest', match: p => p.startsWith('/digest') },
+  { to: '/status', label: 'Status', match: p => p.startsWith('/status') },
+  { to: '/discover', label: 'Discover', match: p => p.startsWith('/discover') },
 ]
 
 const ALL_NAV = [...NAV, ...MORE]

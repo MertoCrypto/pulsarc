@@ -22,6 +22,8 @@ import { WalletProfile } from '@/pages/WalletProfile'
 import { Method } from '@/pages/Method'
 import { Brand } from '@/pages/Brand'
 import { Digest } from '@/pages/Digest'
+import { Status } from '@/pages/Status'
+import { Discover } from '@/pages/Discover'
 
 function Layout() {
   useEffect(() => startSmoothScroll(), [])
@@ -54,6 +56,8 @@ function Layout() {
                 <Route path="/method" element={<Method />} />
                 <Route path="/brand" element={<Brand />} />
                 <Route path="/digest" element={<Digest />} />
+                <Route path="/status" element={<Status />} />
+                <Route path="/discover" element={<Discover />} />
               </Routes>
               )}
             </PageTransition>
