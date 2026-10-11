@@ -12,6 +12,7 @@ import { useSearchParams } from 'react-router-dom'
 import { AddNetworkButton } from '@/components/shared/AddNetworkButton'
 import { compact } from '@/lib/arcscan'
 import { useIndexer } from '@/hooks/useIndexer'
+import { useLatest, isLatestFresh, networkHealthCards, successRateSeries } from '@/hooks/useLatest'
 
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
@@ -177,6 +178,106 @@ function TestnetFlows() {
         )}
       </section>
     </>
+  )
+}
+
+// ── Network health cards ──────────────────────────────────────────────────────
+
+function NetworkHealthSection({ netKey }: { netKey: 'testnet' | 'mainnet' }) {
+  const { data: snap } = useLatest(netKey)
+  const [win, setWin] = useState<'1h' | '24h'>('24h')
+
+  if (!snap || !isLatestFresh(snap)) return null
+
+  const w = snap.windows[win]
+  const cards = networkHealthCards(w)
+  const series = successRateSeries(snap.series, 48)
+  const seriesMin = series.reduce((m, p) => p.successRate !== null ? Math.min(m, p.successRate) : m, 100)
+  const yMin = Math.max(0, Math.floor(seriesMin) - 1)
+
+  return (
+    <section>
+      <SectionHead eyebrow="Health" title="Success rate and fees">
+        <div className="inline-flex rounded-xl border border-[var(--line)] p-1" role="tablist" aria-label="Window">
+          {(['1h', '24h'] as const).map(k => (
+            <button key={k} role="tab" aria-selected={win === k} onClick={() => setWin(k)}
+              className={`rounded-lg px-3.5 py-1.5 text-sm transition-colors ${win === k ? 'bg-white/[0.08] text-white' : 'text-[var(--muted)] hover:text-white'}`}>
+              {k}
+            </button>
+          ))}
+        </div>
+      </SectionHead>
+
+      <Reveal className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        {cards.successRate !== null && (
+          <StatCard
+            label="Success rate"
+            value={cards.successRate}
+            format={n => `${n.toFixed(2)}%`}
+            subValue="1 − failed / txs"
+            icon={Activity}
+          />
+        )}
+        <StatCard
+          label="Network fees"
+          value={cards.fees}
+          format={n => `${n.toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 })} USDC`}
+          subValue="gas paid in USDC"
+          icon={Receipt}
+        />
+        {cards.avgFee !== null && (
+          <StatCard
+            label="Average fee"
+            value={cards.avgFee}
+            format={n => `${n.toFixed(4)} USDC`}
+            subValue="per transaction"
+            icon={Receipt}
+          />
+        )}
+        <StatCard
+          label="Transactions"
+          value={cards.txs}
+          format={n => compact(n, 1)}
+          subValue={`in this ${win} window`}
+          icon={Activity}
+        />
+      </Reveal>
+
+      {series.length > 0 && (
+        <Reveal delay={0.04} className="arc-card mt-4 p-5">
+          <div className="h-[180px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={series} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke="rgba(170,196,234,0.1)" />
+                <XAxis dataKey="hour" tick={false} axisLine={false} tickLine={false} />
+                <YAxis
+                  domain={[yMin, 100]}
+                  tick={{ fill: '#8da2c0', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={v => `${v}%`}
+                />
+                <Tooltip
+                  contentStyle={{ background: '#10213b', border: '1px solid rgba(170,196,234,0.28)', borderRadius: 12, color: '#eaf1fb' }}
+                  labelFormatter={v => String(v)}
+                  formatter={(v) => [v !== null ? `${Number(v).toFixed(2)}%` : '—', 'success rate']}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="successRate"
+                  stroke="#a9c4ea"
+                  strokeWidth={1.6}
+                  dot={false}
+                  isAnimationActive={false}
+                  connectNulls={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="arc-eyebrow mt-3 !text-[10px]">Hourly success rate · last 48 hours</p>
+        </Reveal>
+      )}
+    </section>
   )
 }
 
@@ -389,6 +490,8 @@ export function Network() {
           <p className="arc-eyebrow mt-3 !text-[10px]">Each bar is one block · newest on the right</p>
         </Reveal>
       </section>
+
+      <NetworkHealthSection netKey={netKey} />
 
       {net_is_testnet ? <TestnetFlows /> : <MainnetIndexed />}
     </div>
