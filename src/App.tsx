@@ -19,6 +19,7 @@ import { NFTs } from '@/pages/NFTs'
 import { Agents } from '@/pages/Agents'
 import { LeaderboardV2 } from '@/pages/LeaderboardV2'
 import { WalletProfile } from '@/pages/WalletProfile'
+import { WalletCheck } from '@/pages/WalletCheck'
 import { Method } from '@/pages/Method'
 import { Brand } from '@/pages/Brand'
 import { Digest } from '@/pages/Digest'
@@ -58,6 +59,7 @@ function Layout() {
                 <Route path="/digest" element={<Digest />} />
                 <Route path="/status" element={<Status />} />
                 <Route path="/discover" element={<Discover />} />
+                <Route path="/check" element={<WalletCheck />} />
               </Routes>
               )}
             </PageTransition>
