@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useWalletIndex } from '@/hooks/useWalletIndex'
 import { WalletExtras } from '@/components/wallet/WalletExtras'
+import { WalletPercentiles } from '@/components/wallet/WalletPercentiles'
 import { coverageNote } from '@/lib/walletIndex'
 import { isAddress } from '@/lib/arcscan'
 
@@ -373,7 +374,8 @@ export function WalletCheck() {
           )}
         </section>
         {queryAddress && (
-          <div className="mt-6">
+          <div className="mt-6 space-y-6">
+            <WalletPercentiles net={net} summary={summary} />
             <WalletExtras address={queryAddress} net={net} summary={summary} apps={apps} coverage={coverageNote(meta)} />
           </div>
         )}
