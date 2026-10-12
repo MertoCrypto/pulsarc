@@ -285,3 +285,12 @@ assert.equal(formatUsdc(999999999.99), '$1.00B')
 assert.equal(formatUsdc(999.994), '$999.99')
 console.log('formatUsdc: unit boundary OK')
 
+// topHolders: share is rounded to exactly one decimal (1/3 -> 33.3, 2/3 -> 66.7)
+{
+  const d = parseBalances({ network: 'testnet', generatedAt: new Date().toISOString(), total: 3, apps: { b: { usdc: 2 }, a: { usdc: 1 } }, series: [] })
+  assert.ok(d)
+  const t = topHolders(d!, 8)
+  assert.deepEqual(t.map(x => x.sharePct), [66.7, 33.3])
+  console.log('topHolders: one-decimal share OK')
+}
+
