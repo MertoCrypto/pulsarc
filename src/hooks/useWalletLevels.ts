@@ -1,8 +1,8 @@
 import { useQueries } from '@tanstack/react-query'
 import { arcscan } from '@/lib/arcscan'
+import { buildLevels } from '@/lib/walletLevels'
 
-/** A wallet with this many lifetime transactions is treated as automated (bot / keeper / faucet loop). */
-export const HIGH_FREQUENCY = 10_000
+export { HIGH_FREQUENCY } from '@/lib/walletLevels'
 
 interface Counters { transactions_count: string }
 
@@ -16,8 +16,6 @@ export function useWalletLevels(addresses: string[]) {
       retry: 1,
     })),
   })
-  const levels = new Map<string, number>()
-  addresses.forEach((a, i) => { const v = queries[i]?.data; if (v !== undefined) levels.set(a.toLowerCase(), v) })
-  const flagged = new Set([...levels].filter(([, n]) => n >= HIGH_FREQUENCY).map(([a]) => a))
+  const { levels, flagged } = buildLevels(addresses, queries.map(q => q?.data))
   return { levels, flagged, isLoading: queries.some(q => q.isLoading) }
 }
