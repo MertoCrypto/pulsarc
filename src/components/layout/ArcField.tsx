@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { TokenBTC, TokenEURC, TokenUSDC } from '@web3icons/react'
 import { ArcLogo } from '@/components/brand/ArcLogo'
 import { portalLogo } from '@/data/portal'
+import { DISC, makeDust, type Dust } from '@/lib/arcFieldMath.ts'
 
 /**
  * The Arc ecosystem drawn as a galaxy: a tilted spiral of dust around the Arc mark, with the
@@ -10,35 +11,14 @@ import { portalLogo } from '@/data/portal'
  * logos stay crisp and clickable. Moving the pointer over the field energises it.
  */
 
-type Tone = readonly [number, number, number]
-
-const TONES: Tone[] = [
-  [39, 117, 202],   // USDC blue
-  [59, 123, 255],   // Arc blue
-  [169, 196, 234],  // periwinkle
-  [120, 196, 232],  // cyan haze
-  [226, 238, 255],  // near-white
-]
 
 const DUST = 1700
 const HAZE = 60       // soft clouds that give the arms their glow
 const STARS = 150
-const DISC = 400      // outer radius of the disc, in field units
 const CORE_SCALE = 0.88 // the Arc core (disc, halo, rings and mark) is drawn at this share of its design size
 const TILT = 0.42     // how far the disc leans away from the viewer
 const ROLL = -0.3     // rotation of the disc in the screen plane (radians)
-const ARMS = 2
-const TWIST = 1.85    // how tightly the arms wind
 
-interface Dust {
-  r: number
-  a: number      // angle at rest; the whole disc rotates on top of this
-  size: number
-  tone: Tone
-  ring: boolean
-  alpha: number
-  phase: number
-}
 
 const logo = portalLogo
 
@@ -104,29 +84,6 @@ const PLANETS: Planet[] = SEEDS.map(seed => {
   return { kind: 'asset', ...seed, slot: (i / same.length + seed.ring * 0.137) % 1 }
 })
 
-function gauss() {
-  return (Math.random() + Math.random() + Math.random() - 1.5) / 1.5
-}
-
-function makeDust(): Dust {
-  const inArm = Math.random() < 0.74
-  const r = 22 + Math.pow(Math.random(), inArm ? 0.85 : 0.6) * (inArm ? DISC : DISC * 1.12)
-  const arm = ((Math.random() * ARMS) | 0) * ((Math.PI * 2) / ARMS)
-  const spread = inArm ? 0.2 + (r / DISC) * 0.26 : Math.PI
-  const a = inArm ? arm + TWIST * Math.log(r / 22) + gauss() * spread : Math.random() * Math.PI * 2
-  const ring = Math.random() < 0.05
-  const nearCore = 1 - Math.min(1, r / DISC)
-  return {
-    r,
-    a,
-    size: ring ? 3 + Math.random() * 7 : 0.6 + Math.random() * 2 + nearCore * 0.6,
-    // the core runs warm-white, the arms cool blue
-    tone: nearCore > 0.72 && Math.random() < 0.7 ? TONES[4] : TONES[(Math.random() * TONES.length) | 0],
-    ring,
-    alpha: (inArm ? 0.62 : 0.28) + Math.random() * 0.38,
-    phase: Math.random() * Math.PI * 2,
-  }
-}
 
 function Face({ p }: { p: Planet }) {
   const [broken, setBroken] = useState(false)
