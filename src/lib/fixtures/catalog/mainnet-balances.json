@@ -1,0 +1,1 @@
+{"network":"mainnet","generatedAt":"2026-10-12T10:11:05.799Z","token":"USDC","total":12562003.24,"apps":{"gateway":{"usdc":12560870.47},"across":{"usdc":1132.77},"cctp":{"usdc":0},"erc8004":{"usdc":0},"memo":{"usdc":0},"multicall":{"usdc":0},"stablefx":{"usdc":0},"uniswap":{"usdc":0}},"series":[{"hour":"2026-10-12T10","total":12562003.24}]}

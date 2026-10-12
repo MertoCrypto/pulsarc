@@ -9,6 +9,8 @@ import { useAllMetrics } from '@/hooks/useAllMetrics'
 import { useChainDaily } from '@/hooks/useChainDaily'
 import { type TimeRange } from '@/lib/appActivity'
 import { compact, count } from '@/lib/arcscan'
+import { HeldUsdcCard } from '@/components/trends/HeldUsdcCard'
+import { NETWORK } from '@/lib/chain'
 
 type Measure = 'txCount' | 'activeWallets' | 'volume' | 'usdcFees'
 const MEASURES: { key: Measure; label: string; fmt: (v: number) => string }[] = [
@@ -53,6 +55,10 @@ export function Trends() {
           </p>
         </section>
       </Reveal>
+
+      <div className="empty:hidden">
+        <HeldUsdcCard net={NETWORK.id === 5042 ? 'mainnet' : 'testnet'} />
+      </div>
 
       <section>
         <p className="arc-eyebrow mb-4">Chain-wide · transactions per day</p>
