@@ -9,27 +9,12 @@
 import { arcscan, scaled } from '@/lib/arcscan'
 import { type Anchor, type ArcApp } from '@/data/apps'
 import type { ActivityEvent, AnchorSample, AppSample, AppLifetime } from './appMetrics.ts'
+import { transferToEvent, txToEvent, type RawTransfer, type RawTx } from './activityEvents.ts'
 
 export * from './appMetrics.ts'
 
-const ZERO = '0x0000000000000000000000000000000000000000'
 const DAY = 24 * 3600_000
 
-interface Party { hash: string }
-interface RawTransfer {
-  timestamp: string
-  transaction_hash: string
-  from: Party
-  to: Party
-  total?: { value?: string; decimals?: string | null } | null
-}
-interface RawTx {
-  timestamp: string
-  hash: string
-  from: Party
-  value: string
-  fee?: { value?: string } | null
-}
 interface Page<T> { items: T[]; next_page_params: Record<string, unknown> | null }
 
 async function readPages<T extends { timestamp: string }>(path: string, pages: number, horizon: number, priority: number): Promise<{ items: T[]; hasMore: boolean }> {
@@ -55,8 +40,6 @@ async function readPages<T extends { timestamp: string }>(path: string, pages: n
   return { items: out, hasMore }
 }
 
-const live = (a: string | undefined) => (a ? a.toLowerCase() : '')
-
 async function sampleAnchor(anchor: Anchor, pages: number, horizon: number, priority: number): Promise<AnchorSample> {
   const balanceReq = arcscan<{ coin_balance: string | null }>(`/addresses/${anchor.address}`, undefined, { priority, timeoutMs: 6000, attempts: 1 })
     .then(a => scaled(a.coin_balance, 18))
@@ -68,26 +51,11 @@ async function sampleAnchor(anchor: Anchor, pages: number, horizon: number, prio
   if (anchor.kind === 'token') {
     const { items, hasMore: more } = await readPages<RawTransfer>(`/tokens/${anchor.address}/transfers`, pages, horizon, priority)
     hasMore = more
-    events = items.map(t => ({
-      ts: new Date(t.timestamp).getTime(),
-      wallets: [live(t.from?.hash), live(t.to?.hash)].filter(a => a && a !== ZERO && a !== live(anchor.address)),
-      usd: anchor.usd ? scaled(t.total?.value, t.total?.decimals ?? 18) : null,
-      fee: 0,
-      hash: t.transaction_hash,
-    }))
+    events = items.map(t => transferToEvent(anchor, t))
   } else {
     const { items, hasMore: more } = await readPages<RawTx>(`/addresses/${anchor.address}/transactions`, pages, horizon, priority)
     hasMore = more
-    events = items.map(t => {
-      const native = scaled(t.value, 18)
-      return {
-        ts: new Date(t.timestamp).getTime(),
-        wallets: [live(t.from?.hash)].filter(a => a && a !== live(anchor.address)),
-        usd: native > 0 ? native : null,
-        fee: scaled(t.fee?.value, 18),
-        hash: t.hash,
-      }
-    })
+    events = items.map(t => txToEvent(anchor, t))
   }
 
   return { anchor, events, hasMore, balance: await balanceReq }
