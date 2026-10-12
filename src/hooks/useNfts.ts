@@ -1,26 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { arcscan } from '@/lib/arcscan'
+import { sortByHolders, toNftCollection, type NftCollection, type NftKind, type RawNftToken } from '@/lib/nfts'
 
-export type NftKind = 'ERC-721' | 'ERC-1155'
+export type { NftKind, NftCollection } from '@/lib/nfts'
 
-export interface NftCollection {
-  address: string
-  name: string
-  symbol: string
-  kind: NftKind
-  holders: number
-  items: number | null    // total minted, when the contract reports it
-  transfers: number | null // all-time transfers
-}
-
-interface RawToken {
-  address_hash: string
-  name: string | null
-  symbol: string | null
-  holders_count: string | null
-  total_supply: string | null
-}
-interface Page { items: RawToken[]; next_page_params: Record<string, unknown> | null }
+interface Page { items: RawNftToken[]; next_page_params: Record<string, unknown> | null }
 interface Counters { transfers_count: string }
 
 async function top(type: NftKind, pages: number): Promise<NftCollection[]> {
@@ -29,15 +13,7 @@ async function top(type: NftKind, pages: number): Promise<NftCollection[]> {
   for (let i = 0; i < pages; i++) {
     const page: Page = await arcscan<Page>('/tokens', { type, ...(cursor ?? {}) })
     for (const t of page.items) {
-      out.push({
-        address: t.address_hash,
-        name: t.name ?? 'Unnamed collection',
-        symbol: t.symbol ?? '—',
-        kind: type,
-        holders: Number(t.holders_count ?? 0),
-        items: t.total_supply ? Number(t.total_supply) : null,
-        transfers: null,
-      })
+      out.push(toNftCollection(t, type))
     }
     cursor = page.next_page_params
     if (!cursor) break
@@ -47,7 +23,7 @@ async function top(type: NftKind, pages: number): Promise<NftCollection[]> {
 
 async function load(): Promise<NftCollection[]> {
   const [a, b] = await Promise.all([top('ERC-721', 2), top('ERC-1155', 1)])
-  const all = [...a, ...b].sort((x, y) => y.holders - x.holders)
+  const all = sortByHolders([...a, ...b])
   // Transfer counts cost one request each, so only the biggest collections get them.
   await Promise.all(all.slice(0, 30).map(async c => {
     try {
