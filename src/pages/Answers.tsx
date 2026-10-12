@@ -19,9 +19,11 @@ import {
   Tooltip,
 } from 'recharts'
 import { ExternalLink, ArrowLeft } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useLatest } from '@/hooks/useLatest'
 import { useSupply } from '@/hooks/useExtras'
 import { ANSWERS, answerValue, answerSeries } from '@/lib/answers'
+import type { AgentsFile } from '@/lib/answers'
 import { NETWORK } from '@/lib/chain'
 
 // ── Network helper ─────────────────────────────────────────────────────────────
@@ -30,8 +32,38 @@ const net: 'mainnet' | 'testnet' = NETWORK.id === 5042 ? 'mainnet' : 'testnet'
 
 const BASE = 'https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data'
 
-function sourceUrl(sourceFile: 'latest.json' | 'supply.json'): string {
+function sourceUrl(sourceFile: 'latest.json' | 'supply.json' | 'agents.json'): string {
   return `${BASE}/${net}/${sourceFile}`
+}
+
+function parseAgentsFile(json: unknown): AgentsFile | null {
+  if (!json || typeof json !== 'object') return null
+  const j = json as Record<string, unknown>
+  if (typeof j['count'] !== 'number' || !isFinite(j['count'])) return null
+  if (!Array.isArray(j['agents'])) return null
+  return json as AgentsFile
+}
+
+// agents.json is ~400 KB on mainnet but ~27 MB on testnet (and not caught up there),
+// so the agent answers exist on mainnet only.
+function hasAnswer(def: { sourceFile: string }, network: 'mainnet' | 'testnet'): boolean {
+  return def.sourceFile !== 'agents.json' || network === 'mainnet'
+}
+
+function useAgentsFile(network: 'mainnet' | 'testnet') {
+  return useQuery({
+    enabled: network === 'mainnet',
+    queryKey: ['agents-json', network],
+    staleTime: 5 * 60_000,
+    refetchInterval: 10 * 60_000,
+    retry: 1,
+    queryFn: async (): Promise<AgentsFile | null> => {
+      const res = await fetch(`${BASE}/${network}/agents.json`)
+      if (!res.ok) return null
+      const json: unknown = await res.json()
+      return parseAgentsFile(json)
+    },
+  })
 }
 
 // ── Loading placeholder ────────────────────────────────────────────────────────
@@ -51,8 +83,9 @@ function PulsePlaceholder() {
 export function Answers() {
   const { data: latest, isLoading: latestLoading } = useLatest(net)
   const { data: supply, isLoading: supplyLoading } = useSupply(net)
+  const { data: agents, isLoading: agentsLoading } = useAgentsFile(net)
 
-  const isLoading = latestLoading || supplyLoading
+  const isLoading = latestLoading || supplyLoading || agentsLoading
 
   return (
     <div className="space-y-14">
@@ -73,8 +106,8 @@ export function Answers() {
         <PulsePlaceholder />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {ANSWERS.map(def => {
-            const result = answerValue(def.slug, latest ?? null, supply ?? null)
+          {ANSWERS.filter(def => hasAnswer(def, net)).map(def => {
+            const result = answerValue(def.slug, latest ?? null, supply ?? null, agents ?? null)
             return (
               <Link
                 key={def.slug}
@@ -111,10 +144,11 @@ export function AnswerPage() {
   const { slug } = useParams<{ slug: string }>()
   const { data: latest, isLoading: latestLoading } = useLatest(net)
   const { data: supply, isLoading: supplyLoading } = useSupply(net)
+  const { data: agents, isLoading: agentsLoading } = useAgentsFile(net)
 
-  const isLoading = latestLoading || supplyLoading
+  const isLoading = latestLoading || supplyLoading || agentsLoading
 
-  const def = ANSWERS.find(a => a.slug === slug)
+  const def = ANSWERS.find(a => a.slug === slug && hasAnswer(a, net))
 
   // Unknown slug
   if (!def) {
@@ -132,8 +166,8 @@ export function AnswerPage() {
     )
   }
 
-  const result = answerValue(def.slug, latest ?? null, supply ?? null)
-  const series = answerSeries(def.slug, latest ?? null, supply ?? null)
+  const result = answerValue(def.slug, latest ?? null, supply ?? null, agents ?? null)
+  const series = answerSeries(def.slug, latest ?? null, supply ?? null, agents ?? null)
 
   return (
     <div className="space-y-12">

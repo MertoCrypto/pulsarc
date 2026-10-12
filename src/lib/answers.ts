@@ -12,12 +12,22 @@ import type { ExtendedWindow } from './activityMix.ts'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export interface AgentsFile {
+  network: string
+  generatedAt: string
+  registry: string
+  lastId: number
+  caughtUp: boolean
+  count: number
+  agents: Array<{ id: number; owner: string; uri: string }>
+}
+
 export interface AnswerDef {
   slug: string
   question: string
   short: string
   method: string
-  sourceFile: 'latest.json' | 'supply.json'
+  sourceFile: 'latest.json' | 'supply.json' | 'agents.json'
 }
 
 // ── ANSWERS catalog ───────────────────────────────────────────────────────────
@@ -63,6 +73,22 @@ export const ANSWERS: AnswerDef[] = [
       'The indexer flags wallets as automated when they send many transactions per hour from few distinct senders — a heuristic based on send-rate patterns, not a definitive claim about intent. The share shown is the automated transaction count divided by all transactions in the same hours; the indexer measures this over a recent stretch of hours that can be shorter than 24, and the page says how many. This is an estimate, not a claim about anyone\'s intent.',
     sourceFile: 'latest.json',
   },
+  {
+    slug: 'agents-registered',
+    question: 'How many AI agents are registered on Arc?',
+    short: 'Total AI agents recorded in the ERC-8004 identity registry on Arc.',
+    method:
+      'The total comes from the count field in agents.json, which is produced by the Pulsarc indexer by scanning every mint event on the ERC-8004 identity registry contract. Each minted token represents one registered agent. The number is refreshed at the same cadence as the other indexer snapshots.',
+    sourceFile: 'agents.json',
+  },
+  {
+    slug: 'agent-owners',
+    question: 'How many wallets own Arc\'s AI agents?',
+    short: 'The number of distinct wallet addresses that hold at least one ERC-8004 agent token.',
+    method:
+      'Each agent token has an owner address recorded in agents.json. This figure counts the number of distinct owner wallets by lowercasing every address before comparing, so the same wallet is never counted twice regardless of how its address was capitalised. One wallet can own many agents; this number reflects wallets, not agents.',
+    sourceFile: 'agents.json',
+  },
 ]
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
@@ -89,6 +115,7 @@ export function answerValue(
   slug: string,
   latest: LatestSnapshot | null,
   supply: SupplyJson | null,
+  agents?: AgentsFile | null,
 ): { value: string; detail: string } | null {
   switch (slug) {
     case 'transfer-fee': {
@@ -135,6 +162,24 @@ export function answerValue(
       return { value: `≈${formatted}%`, detail: `estimated, over the last ${share.coverageHours} hours the indexer measured` }
     }
 
+    case 'agents-registered': {
+      if (!agents) return null
+      const count = agents.count
+      if (typeof count !== 'number' || !isFinite(count)) return null
+      return { value: fmtInt.format(count), detail: 'registered in the ERC-8004 identity registry' }
+    }
+
+    case 'agent-owners': {
+      if (!agents) return null
+      if (!Array.isArray(agents.agents)) return null
+      const seen = new Set<string>()
+      for (const agent of agents.agents) {
+        if (!agent || typeof agent.owner !== 'string') return null
+        seen.add(agent.owner.toLowerCase())
+      }
+      return { value: fmtInt.format(seen.size), detail: 'distinct owner wallets' }
+    }
+
     default:
       return null
   }
@@ -146,6 +191,7 @@ export function answerSeries(
   slug: string,
   latest: LatestSnapshot | null,
   supply: SupplyJson | null,
+  _agents?: AgentsFile | null,
 ): { points: { label: string; value: number | null }[]; unit: string; source: string } | null {
   const LIMIT = 48
 
@@ -194,7 +240,9 @@ export function answerSeries(
     }
 
     case 'automated-share':
-      // No hourly series available for this metric.
+    case 'agents-registered':
+    case 'agent-owners':
+      // No hourly series available for these metrics.
       return null
 
     default:

@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ANSWERS, answerValue, answerSeries } from './answers.ts'
+import type { AgentsFile } from './answers.ts'
 import { parseLatest } from './networkHealth.ts'
 import { parseSupply } from './activityMix.ts'
 import type { AutoField, SupplySeriesPoint } from './activityMix.ts'
@@ -87,8 +88,8 @@ function test(name: string, fn: () => void) {
 
 console.log('\nANSWERS catalog')
 
-test('has exactly 5 entries', () => {
-  assert.equal(ANSWERS.length, 5)
+test('has exactly 7 entries', () => {
+  assert.equal(ANSWERS.length, 7)
 })
 
 test('slugs are in the required order', () => {
@@ -98,6 +99,8 @@ test('slugs are in the required order', () => {
     'success-rate',
     'usdc-supply',
     'automated-share',
+    'agents-registered',
+    'agent-owners',
   ]
   assert.deepEqual(ANSWERS.map(a => a.slug), expected)
 })
@@ -108,11 +111,12 @@ test('slugs are unique', () => {
 })
 
 test('every entry has question, short, method, sourceFile', () => {
+  const validSourceFiles = new Set(['latest.json', 'supply.json', 'agents.json'])
   for (const a of ANSWERS) {
     assert.ok(a.question.length > 0, `${a.slug}: question is empty`)
     assert.ok(a.short.length > 0, `${a.slug}: short is empty`)
     assert.ok(a.method.length > 0, `${a.slug}: method is empty`)
-    assert.ok(a.sourceFile === 'latest.json' || a.sourceFile === 'supply.json', `${a.slug}: bad sourceFile`)
+    assert.ok(validSourceFiles.has(a.sourceFile), `${a.slug}: bad sourceFile '${a.sourceFile}'`)
   }
 })
 
@@ -319,6 +323,130 @@ test('usdc-supply last point matches last supply series point in sample', () => 
 test('automated-share series is null (no hourly series)', () => {
   const s = answerSeries('automated-share', mainnetLatest.parsed, mainnetSupply.parsed)
   assert.equal(s, null)
+})
+
+// ── answerValue: agents-registered ───────────────────────────────────────────
+
+console.log('\nanswerValue: agents-registered')
+
+const goodAgents: AgentsFile = {
+  network: 'mainnet',
+  generatedAt: '2026-10-12T00:00:00Z',
+  registry: '0x8004',
+  lastId: 2373,
+  caughtUp: true,
+  count: 2373,
+  agents: [
+    { id: 1, owner: '0xAAA', uri: 'ipfs://a' },
+    { id: 2, owner: '0xBBB', uri: 'ipfs://b' },
+  ],
+}
+
+test('agents-registered → null when agents arg is null', () => {
+  assert.equal(answerValue('agents-registered', null, null, null), null)
+})
+
+test('agents-registered → null when agents arg is undefined (omitted)', () => {
+  assert.equal(answerValue('agents-registered', null, null), null)
+})
+
+test('agents-registered count 2373 formats as "2,373"', () => {
+  const result = answerValue('agents-registered', null, null, goodAgents)
+  assert.ok(result, 'result is null')
+  assert.equal(result.value, '2,373')
+  assert.equal(result.detail, 'registered in the ERC-8004 identity registry')
+})
+
+test('agents-registered → null when count is NaN', () => {
+  const bad: AgentsFile = { ...goodAgents, count: NaN }
+  assert.equal(answerValue('agents-registered', null, null, bad), null)
+})
+
+test('agents-registered → null when count is Infinity', () => {
+  const bad: AgentsFile = { ...goodAgents, count: Infinity }
+  assert.equal(answerValue('agents-registered', null, null, bad), null)
+})
+
+// ── answerValue: agent-owners ─────────────────────────────────────────────────
+
+console.log('\nanswerValue: agent-owners')
+
+test('agent-owners → null when agents arg is null', () => {
+  assert.equal(answerValue('agent-owners', null, null, null), null)
+})
+
+test('agent-owners → null when agents arg is undefined (omitted)', () => {
+  assert.equal(answerValue('agent-owners', null, null), null)
+})
+
+test('agent-owners counts distinct owners (case-insensitive)', () => {
+  const data: AgentsFile = {
+    ...goodAgents,
+    agents: [
+      { id: 1, owner: '0xAaBb', uri: '' },
+      { id: 2, owner: '0xaabb', uri: '' }, // same address, different case
+      { id: 3, owner: '0xCCCC', uri: '' },
+      { id: 4, owner: '0xcccc', uri: '' }, // same as above
+      { id: 5, owner: '0xDDDD', uri: '' }, // third distinct owner
+    ],
+  }
+  const result = answerValue('agent-owners', null, null, data)
+  assert.ok(result, 'result is null')
+  assert.equal(result.value, '3') // 0xaabb, 0xcccc, 0xdddd
+  assert.equal(result.detail, 'distinct owner wallets')
+})
+
+test('agent-owners with empty agents list returns "0"', () => {
+  const data: AgentsFile = { ...goodAgents, agents: [] }
+  const result = answerValue('agent-owners', null, null, data)
+  assert.ok(result, 'result is null')
+  assert.equal(result.value, '0')
+})
+
+test('agent-owners → null when agents array is missing (malformed)', () => {
+  const bad = { ...goodAgents, agents: null } as unknown as AgentsFile
+  assert.equal(answerValue('agent-owners', null, null, bad), null)
+})
+
+test('agent-owners → null when an owner is not a string (malformed)', () => {
+  const bad = {
+    ...goodAgents,
+    agents: [{ id: 1, owner: 42 as unknown as string, uri: '' }],
+  }
+  assert.equal(answerValue('agent-owners', null, null, bad), null)
+})
+
+test('agent-owners → null when an entry is null (malformed, must not throw)', () => {
+  const bad = { ...goodAgents, agents: [null] } as unknown as AgentsFile
+  assert.equal(answerValue('agent-owners', null, null, bad), null)
+})
+
+// ── answerSeries: agent slugs return null ─────────────────────────────────────
+
+console.log('\nanswerSeries: agent slug edge cases')
+
+test('agents-registered series is null (no hourly series)', () => {
+  assert.equal(answerSeries('agents-registered', mainnetLatest.parsed, null, goodAgents), null)
+})
+
+test('agent-owners series is null (no hourly series)', () => {
+  assert.equal(answerSeries('agent-owners', mainnetLatest.parsed, null, goodAgents), null)
+})
+
+// ── existing slugs unchanged by agents parameter ──────────────────────────────
+
+console.log('\nexisting slugs: agents arg is ignored')
+
+test('transfer-fee result unchanged when agents is passed', () => {
+  const without = answerValue('transfer-fee', mainnetLatest.parsed, null)
+  const with_ = answerValue('transfer-fee', mainnetLatest.parsed, null, goodAgents)
+  assert.deepEqual(without, with_)
+})
+
+test('usdc-supply result unchanged when agents is passed', () => {
+  const without = answerValue('usdc-supply', null, mainnetSupply.parsed)
+  const with_ = answerValue('usdc-supply', null, mainnetSupply.parsed, goodAgents)
+  assert.deepEqual(without, with_)
 })
 
 // ── Summary ───────────────────────────────────────────────────────────────────
