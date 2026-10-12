@@ -26,6 +26,13 @@ those counts across the window. This is an upper bound (noted as ≤) on
 unique wallets — a wallet active in multiple hours is counted more than once.
 The files include a `note` field where this applies.
 
+## Answer pages
+
+Short, sourced answers read live from the files below (each page names its source file and method):
+    https://pulsarc.vercel.app/answers
+Questions: transaction cost, daily transactions, success rate, USDC supply, automated share of activity, USDC held by tracked apps, and (mainnet only) registered ERC-8004 agents and distinct owner wallets.
+USDC held by tracked apps is the sum of USDC balances of the contracts of apps Pulsarc tracks; it is not the whole USDC supply.
+
 ## Files
 
 ### latest.json — Network snapshot
