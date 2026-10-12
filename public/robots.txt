@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://pulsarc.vercel.app/sitemap.xml

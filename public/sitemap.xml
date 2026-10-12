@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.w3.org/2006/sitemap-schema/sitemap/0.9">
+  <url><loc>https://pulsarc.vercel.app/</loc></url>
+  <url><loc>https://pulsarc.vercel.app/network</loc></url>
+  <url><loc>https://pulsarc.vercel.app/tokens</loc></url>
+  <url><loc>https://pulsarc.vercel.app/wallets</loc></url>
+  <url><loc>https://pulsarc.vercel.app/compare</loc></url>
+  <url><loc>https://pulsarc.vercel.app/trends</loc></url>
+  <url><loc>https://pulsarc.vercel.app/nfts</loc></url>
+  <url><loc>https://pulsarc.vercel.app/agents</loc></url>
+  <url><loc>https://pulsarc.vercel.app/leaderboard</loc></url>
+  <url><loc>https://pulsarc.vercel.app/method</loc></url>
+  <url><loc>https://pulsarc.vercel.app/digest</loc></url>
+  <url><loc>https://pulsarc.vercel.app/status</loc></url>
+  <url><loc>https://pulsarc.vercel.app/discover</loc></url>
+  <url><loc>https://pulsarc.vercel.app/check</loc></url>
+  <url><loc>https://pulsarc.vercel.app/data</loc></url>
+  <url><loc>https://pulsarc.vercel.app/answers</loc></url>
+  <url><loc>https://pulsarc.vercel.app/answers/transfer-fee</loc></url>
+  <url><loc>https://pulsarc.vercel.app/answers/daily-transactions</loc></url>
+  <url><loc>https://pulsarc.vercel.app/answers/success-rate</loc></url>
+  <url><loc>https://pulsarc.vercel.app/answers/usdc-supply</loc></url>
+  <url><loc>https://pulsarc.vercel.app/answers/automated-share</loc></url>
+  <url><loc>https://pulsarc.vercel.app/answers/usdc-held</loc></url>
+</urlset>
