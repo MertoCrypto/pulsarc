@@ -50,12 +50,16 @@ export function loadStoredCredential(): P256Credential | null {
  * TODO (production): replace with an httpOnly cookie.
  */
 export function saveCredential(cred: P256Credential): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(cred))
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cred))
+  } catch { /* storage blocked: the session works, it just will not persist */ }
 }
 
 /** Clears the persisted credential (disconnect). */
 export function clearCredential(): void {
-  localStorage.removeItem(STORAGE_KEY)
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+  } catch { /* storage blocked: nothing to clear */ }
 }
 
 const ACTIVE_KEY = 'pulsarc:passkey:active'
