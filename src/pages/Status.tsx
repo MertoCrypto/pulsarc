@@ -3,6 +3,7 @@ import { Reveal } from '@/components/shared/Reveal'
 import { SplitLines } from '@/components/shared/SplitLines'
 import { useIndexerState, deriveStatus, timeAgo } from '@/hooks/useIndexerState'
 import { NETWORK } from '@/lib/chain'
+import { DataFreshnessCard } from '@/components/status/DataFreshnessCard'
 
 const net = NETWORK.id === 5042 ? 'mainnet' : 'testnet'
 
@@ -75,6 +76,8 @@ export function Status() {
           Status not available right now.
         </p>
       )}
+
+      <DataFreshnessCard net={net} />
 
       {!isLoading && derived && (
         <Reveal className="space-y-6">
