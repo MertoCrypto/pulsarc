@@ -12,6 +12,7 @@ import { NETWORKS } from '@/lib/chain'
 import { useSearchParams } from 'react-router-dom'
 import { AddNetworkButton } from '@/components/shared/AddNetworkButton'
 import { compact } from '@/lib/arcscan'
+import { barWidth, bridgeSpanMinutes, chartYMin, minutesAgo, netFlow, percentOf, windowIncomplete } from '@/lib/networkView'
 import { useIndexer } from '@/hooks/useIndexer'
 import { useLatest, isLatestFresh, networkHealthCards, successRateSeries } from '@/hooks/useLatest'
 import { useSupply } from '@/hooks/useExtras'
@@ -76,7 +77,7 @@ function TestnetFlows() {
             <Reveal className="grid grid-cols-2 gap-4 xl:grid-cols-4">
               <StatCard label="Sent out of Arc" value={bridge.data.outUsdc} format={n => `$${compact(n, 2)}`} subValue={`${bridge.data.outCount} burns`} icon={ArrowUpRight} />
               <StatCard label="Received on Arc" value={bridge.data.inUsdc} format={n => `$${compact(n, 2)}`} subValue={`${bridge.data.inCount} mints`} icon={ArrowDownLeft} />
-              <StatCard label="Net flow" value={Math.abs(bridge.data.inUsdc - bridge.data.outUsdc)} format={n => `${bridge.data!.inUsdc >= bridge.data!.outUsdc ? '+' : '−'}$${compact(n, 2)}`} subValue={bridge.data.inUsdc >= bridge.data!.outUsdc ? 'more came in than left' : 'more left than came in'} icon={Layers} />
+              <StatCard label="Net flow" value={netFlow(bridge.data.inUsdc, bridge.data.outUsdc).amount} format={n => `${netFlow(bridge.data!.inUsdc, bridge.data!.outUsdc).incoming ? '+' : '−'}$${compact(n, 2)}`} subValue={netFlow(bridge.data.inUsdc, bridge.data.outUsdc).incoming ? 'more came in than left' : 'more left than came in'} icon={Layers} />
               <StatCard label="Bridge fees" value={bridge.data.feesUsdc} format={n => `$${n.toFixed(2)}`} subValue="collected on inbound mints" icon={Receipt} />
             </Reveal>
 
@@ -99,7 +100,7 @@ function TestnetFlows() {
               </Reveal>
             )}
             <p className="mt-4 text-sm text-[var(--faint)]">
-              Read from the newest {bridge.data.blockSpan.toLocaleString()} blocks (about {Math.max(1, Math.round((bridge.data.blockSpan * 0.5) / 60))} minutes) of CCTP events. Inbound transfers do not say where they came from, so only outbound destinations are broken down.
+              Read from the newest {bridge.data.blockSpan.toLocaleString()} blocks (about {bridgeSpanMinutes(bridge.data.blockSpan)} minutes) of CCTP events. Inbound transfers do not say where they came from, so only outbound destinations are broken down.
             </p>
           </>
         ) : (
@@ -512,7 +513,7 @@ function IndexerBridgeSection({
                 <div className="h-px w-full bg-[var(--line)]">
                   <div
                     className="h-px bg-[var(--periwinkle)]"
-                    style={{ width: `${maxDomainUsdc > 0 ? ((d.usdc / maxDomainUsdc) * 100).toFixed(1) : 0}%`, opacity: Math.max(0.35, 1 - i * 0.14) }}
+                    style={{ width: barWidth(d.usdc, maxDomainUsdc), opacity: Math.max(0.35, 1 - i * 0.14) }}
                   />
                 </div>
               </li>
@@ -536,8 +537,7 @@ function NetworkHealthSection({ netKey }: { netKey: 'testnet' | 'mainnet' }) {
   const w = snap.windows[win]
   const cards = networkHealthCards(w)
   const series = successRateSeries(snap.series, 48)
-  const seriesMin = series.reduce((m, p) => p.successRate !== null ? Math.min(m, p.successRate) : m, 100)
-  const yMin = Math.max(0, Math.floor(seriesMin) - 1)
+  const yMin = chartYMin(series)
 
   return (
     <section>
@@ -664,11 +664,11 @@ function MainnetIndexed() {
   if (!data) return <MainnetNotice />
 
   const w = data.windows[win]
-  const failRate = w.txs ? (w.failed / w.txs) * 100 : 0
+  const failRate = percentOf(w.failed, w.txs)
   const EXPLORER = NETWORKS.mainnet.explorerUrl
   const aaTxs = w.top.reduce((n, c) => n + (data.labels?.[c.address]?.kind === 'account-abstraction' ? c.txs : 0), 0)
-  const aaShare = w.txs ? (aaTxs / w.txs) * 100 : 0
-  const covered = w.hours < (win === '1h' ? 1 : win === '24h' ? 24 : 168)
+  const aaShare = percentOf(aaTxs, w.txs)
+  const covered = windowIncomplete(w.hours, win)
 
   return (
     <section>
@@ -718,7 +718,7 @@ function MainnetIndexed() {
         </ul>
       </Reveal>
       <p className="mt-4 text-sm text-[var(--faint)]">
-        Counted from every block by Pulsarc's own indexer, about {Math.max(1, Math.round((Date.now() - new Date(data.generatedAt).getTime()) / 60000))} minutes ago.
+        Counted from every block by Pulsarc's own indexer, about {minutesAgo(Date.now(), data.generatedAt)} minutes ago.
         {covered ? ' The indexer is still catching up, so this window is not complete yet.' : ''} Wallet-hours add up the distinct wallets seen in each hour, so one wallet active for 3 hours counts 3 times. Names come from the contracts themselves or a short list of well-known ones; unnamed contracts show their address.
       </p>
     </section>
