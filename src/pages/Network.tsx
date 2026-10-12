@@ -431,7 +431,7 @@ function MoneyFlowSection({
                   </div>
                   <div>
                     {txLink && (
-                      <a href={txLink} target="_blank" rel="noreferrer" className="text-[var(--faint)] hover:text-[var(--periwinkle)]">
+                      <a href={txLink} target="_blank" rel="noreferrer" aria-label="View transaction on the explorer" className="text-[var(--faint)] hover:text-[var(--periwinkle)]">
                         <ExternalLink className="h-3.5 w-3.5" />
                       </a>
                     )}

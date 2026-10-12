@@ -105,6 +105,7 @@ export function UpvoteButton({ dappId, className }: Props) {
           href={`${explorerChain.explorerBase}/tx/${hash}`}
           target="_blank"
           rel="noopener noreferrer"
+          aria-label="View transaction on the explorer"
           onClick={e => e.stopPropagation()}
           className="text-[var(--periwinkle)] hover:text-[var(--periwinkle)] ml-0.5"
         >↗</a>
