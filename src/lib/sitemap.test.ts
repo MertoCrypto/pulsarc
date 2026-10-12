@@ -49,7 +49,8 @@ while ((m = routePathRe.exec(appTsx)) !== null) {
 assert.ok(allRoutePaths.length > 0, 'No <Route path=…> found in App.tsx — regex may be broken')
 
 // Static routes: no ":" in the path
-const staticRoutes = allRoutePaths.filter(p => !p.includes(':'))
+// A wildcard catch-all (the 404 page) is not a real page, so it never belongs in the sitemap.
+const staticRoutes = allRoutePaths.filter(p => !p.includes(':') && !p.includes('*'))
 
 // Routes intentionally excluded from the sitemap
 const EXCLUDED_ROUTES = new Set(['/deploy', '/brand'])

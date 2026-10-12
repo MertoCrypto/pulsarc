@@ -28,6 +28,7 @@ import { Status } from '@/pages/Status'
 import { Discover } from '@/pages/Discover'
 import { DataCatalog } from '@/pages/DataCatalog'
 import { Answers, AnswerPage } from '@/pages/Answers'
+import { NotFound } from '@/pages/NotFound'
 
 function Layout() {
   usePageMeta()
@@ -67,6 +68,7 @@ function Layout() {
                 <Route path="/data" element={<DataCatalog />} />
                 <Route path="/answers" element={<Answers />} />
                 <Route path="/answers/:slug" element={<AnswerPage />} />
+                <Route path="*" element={<NotFound />} />
               </Routes>
               )}
             </PageTransition>
