@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { NetworkBar } from '@/components/layout/NetworkBar'
 import { startSmoothScroll } from '@/lib/smoothScroll'
 import { usePageMeta } from '@/hooks/usePageMeta'
@@ -8,27 +8,30 @@ import { TipBox } from '@/components/interact/TipBox'
 import { GmButton } from '@/components/interact/GmButton'
 import { NewAndRising } from '@/components/shared/NewAndRising'
 import { EcosystemDominance } from '@/components/shared/EcosystemDominance'
-import { Rankings } from '@/pages/Rankings'
-import { Network } from '@/pages/Network'
-import { Tokens } from '@/pages/Tokens'
-import { Wallets } from '@/pages/Wallets'
-import { DeployStudio } from '@/pages/DeployStudio'
-import { DApp } from '@/pages/DApp'
-import { Compare } from '@/pages/Compare'
-import { Trends } from '@/pages/Trends'
-import { NFTs } from '@/pages/NFTs'
-import { Agents } from '@/pages/Agents'
-import { LeaderboardV2 } from '@/pages/LeaderboardV2'
-import { WalletProfile } from '@/pages/WalletProfile'
-import { WalletCheck } from '@/pages/WalletCheck'
-import { Method } from '@/pages/Method'
-import { Brand } from '@/pages/Brand'
-import { Digest } from '@/pages/Digest'
-import { Status } from '@/pages/Status'
-import { Discover } from '@/pages/Discover'
-import { DataCatalog } from '@/pages/DataCatalog'
-import { Answers, AnswerPage } from '@/pages/Answers'
-import { NotFound } from '@/pages/NotFound'
+
+// Each page is its own chunk, so the first visit only downloads the page it opens.
+const Rankings    = lazy(() => import('@/pages/Rankings').then(m => ({ default: m.Rankings })))
+const Network     = lazy(() => import('@/pages/Network').then(m => ({ default: m.Network })))
+const Tokens      = lazy(() => import('@/pages/Tokens').then(m => ({ default: m.Tokens })))
+const Wallets     = lazy(() => import('@/pages/Wallets').then(m => ({ default: m.Wallets })))
+const DeployStudio = lazy(() => import('@/pages/DeployStudio').then(m => ({ default: m.DeployStudio })))
+const DApp        = lazy(() => import('@/pages/DApp').then(m => ({ default: m.DApp })))
+const Compare     = lazy(() => import('@/pages/Compare').then(m => ({ default: m.Compare })))
+const Trends      = lazy(() => import('@/pages/Trends').then(m => ({ default: m.Trends })))
+const NFTs        = lazy(() => import('@/pages/NFTs').then(m => ({ default: m.NFTs })))
+const Agents      = lazy(() => import('@/pages/Agents').then(m => ({ default: m.Agents })))
+const LeaderboardV2 = lazy(() => import('@/pages/LeaderboardV2').then(m => ({ default: m.LeaderboardV2 })))
+const WalletProfile = lazy(() => import('@/pages/WalletProfile').then(m => ({ default: m.WalletProfile })))
+const WalletCheck = lazy(() => import('@/pages/WalletCheck').then(m => ({ default: m.WalletCheck })))
+const Method      = lazy(() => import('@/pages/Method').then(m => ({ default: m.Method })))
+const Brand       = lazy(() => import('@/pages/Brand').then(m => ({ default: m.Brand })))
+const Digest      = lazy(() => import('@/pages/Digest').then(m => ({ default: m.Digest })))
+const Status      = lazy(() => import('@/pages/Status').then(m => ({ default: m.Status })))
+const Discover    = lazy(() => import('@/pages/Discover').then(m => ({ default: m.Discover })))
+const DataCatalog = lazy(() => import('@/pages/DataCatalog').then(m => ({ default: m.DataCatalog })))
+const Answers     = lazy(() => import('@/pages/Answers').then(m => ({ default: m.Answers })))
+const AnswerPage  = lazy(() => import('@/pages/Answers').then(m => ({ default: m.AnswerPage })))
+const NotFound    = lazy(() => import('@/pages/NotFound').then(m => ({ default: m.NotFound })))
 
 function Layout() {
   usePageMeta()
@@ -46,30 +49,36 @@ function Layout() {
           <div className="flex-1 min-w-0">
             <PageTransition>
               {(location) => (
-              <Routes location={location}>
-                <Route path="/" element={<Rankings />} />
-                <Route path="/dapp/:id" element={<DApp />} />
-                <Route path="/network" element={<Network />} />
-                <Route path="/tokens" element={<Tokens />} />
-                <Route path="/wallets" element={<Wallets />} />
-                <Route path="/deploy" element={<DeployStudio />} />
-                <Route path="/compare" element={<Compare />} />
-                <Route path="/trends" element={<Trends />} />
-                <Route path="/nfts" element={<NFTs />} />
-                <Route path="/agents" element={<Agents />} />
-                <Route path="/leaderboard" element={<LeaderboardV2 />} />
-                <Route path="/wallet/:address" element={<WalletProfile />} />
-                <Route path="/method" element={<Method />} />
-                <Route path="/brand" element={<Brand />} />
-                <Route path="/digest" element={<Digest />} />
-                <Route path="/status" element={<Status />} />
-                <Route path="/discover" element={<Discover />} />
-                <Route path="/check" element={<WalletCheck />} />
-                <Route path="/data" element={<DataCatalog />} />
-                <Route path="/answers" element={<Answers />} />
-                <Route path="/answers/:slug" element={<AnswerPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+              <Suspense fallback={
+                <div className="min-h-[40vh]">
+                  <div className="arc-card h-24 animate-pulse" />
+                </div>
+              }>
+                <Routes location={location}>
+                  <Route path="/" element={<Rankings />} />
+                  <Route path="/dapp/:id" element={<DApp />} />
+                  <Route path="/network" element={<Network />} />
+                  <Route path="/tokens" element={<Tokens />} />
+                  <Route path="/wallets" element={<Wallets />} />
+                  <Route path="/deploy" element={<DeployStudio />} />
+                  <Route path="/compare" element={<Compare />} />
+                  <Route path="/trends" element={<Trends />} />
+                  <Route path="/nfts" element={<NFTs />} />
+                  <Route path="/agents" element={<Agents />} />
+                  <Route path="/leaderboard" element={<LeaderboardV2 />} />
+                  <Route path="/wallet/:address" element={<WalletProfile />} />
+                  <Route path="/method" element={<Method />} />
+                  <Route path="/brand" element={<Brand />} />
+                  <Route path="/digest" element={<Digest />} />
+                  <Route path="/status" element={<Status />} />
+                  <Route path="/discover" element={<Discover />} />
+                  <Route path="/check" element={<WalletCheck />} />
+                  <Route path="/data" element={<DataCatalog />} />
+                  <Route path="/answers" element={<Answers />} />
+                  <Route path="/answers/:slug" element={<AnswerPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
               )}
             </PageTransition>
           </div>
