@@ -42,10 +42,11 @@ function Layout() {
 
   return (
     <div className="min-h-dvh">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-[var(--periwinkle)] focus:px-4 focus:py-2 focus:text-sm focus:text-[#0a1424]">Skip to content</a>
       <NetworkBar />
 
       {/* Page content */}
-      <main className="max-w-[1400px] mx-auto px-6 pt-[144px] pb-16 sm:pt-[156px] lg:pt-[112px]">
+      <main id="main-content" tabIndex={-1} className="max-w-[1400px] mx-auto px-6 pt-[144px] pb-16 sm:pt-[156px] lg:pt-[112px]">
         <div className="flex gap-6">
           <div className="flex-1 min-w-0">
             <PageTransition>
