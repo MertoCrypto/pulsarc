@@ -5,11 +5,12 @@ import { SplitLines } from '@/components/shared/SplitLines'
 import { StatCard } from '@/components/shared/StatCard'
 import { useChainOverview, useTokens, type TokenGroup } from '@/hooks/useTokens'
 import { compact, explorerToken } from '@/lib/arcscan'
+import { tokenGroupCounts, visibleTokens, type TokenFilter, type TokenSortKey } from '@/lib/catalogView'
 import { FxRateCard } from '@/components/tokens/FxRateCard'
 import { NETWORK } from '@/lib/chain'
 
-type Filter = 'All' | TokenGroup
-type SortKey = 'holders' | 'supply' | 'name'
+type Filter = TokenFilter
+type SortKey = TokenSortKey
 
 const FILTERS: Filter[] = ['All', 'Stablecoin', 'RWA', 'LP & Vaults', 'Other']
 const SORTS: { key: SortKey; label: string }[] = [
@@ -27,22 +28,9 @@ export function Tokens() {
   const [sort, setSort] = useState<SortKey>('holders')
   const [query, setQuery] = useState('')
 
-  const rows = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    const list = (tokens ?? []).filter(t =>
-      (filter === 'All' || t.group === filter) &&
-      (!q || t.name.toLowerCase().includes(q) || t.symbol.toLowerCase().includes(q) || t.address.toLowerCase().includes(q)),
-    )
-    return [...list].sort((a, b) =>
-      sort === 'name' ? a.name.localeCompare(b.name) : b[sort] - a[sort],
-    )
-  }, [tokens, filter, sort, query])
+  const rows = useMemo(() => visibleTokens(tokens ?? [], filter, sort, query), [tokens, filter, sort, query])
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { All: tokens?.length ?? 0 }
-    for (const t of tokens ?? []) c[t.group] = (c[t.group] ?? 0) + 1
-    return c
-  }, [tokens])
+  const counts = useMemo(() => tokenGroupCounts(tokens ?? []), [tokens])
 
   const topHolders = tokens?.[0]?.holders ?? 0
 

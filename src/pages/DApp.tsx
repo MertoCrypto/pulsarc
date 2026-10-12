@@ -19,6 +19,7 @@ import { useAppHistory } from '@/hooks/useAppHistory'
 import { computeMetrics, describeSpan, RANGE_MS, type TimeRange } from '@/lib/appActivity'
 import { HIGH_FREQUENCY, useWalletLevels } from '@/hooks/useWalletLevels'
 import { compact, count, explorerAddress } from '@/lib/arcscan'
+import { topWalletsOf } from '@/lib/catalogView'
 
 const TABS = ['Overview', 'Top wallets'] as const
 type Tab = (typeof TABS)[number]
@@ -36,21 +37,7 @@ export function DApp() {
   const { history, metrics: rawMetrics, sample, isLoading, isError } = useAppHistory(id, timeRange)
   const [hideAutomated, setHideAutomated] = useState(false)
 
-  const topWallets = useMemo(() => {
-    if (!sample) return []
-    const by = new Map<string, { n: number; usd: number }>()
-    for (const a of sample.anchors) {
-      for (const e of a.events) {
-        for (const w of e.wallets) {
-          const row = by.get(w) ?? { n: 0, usd: 0 }
-          row.n++
-          row.usd += e.usd ?? 0
-          by.set(w, row)
-        }
-      }
-    }
-    return [...by.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 15)
-  }, [sample])
+  const topWallets = useMemo(() => topWalletsOf(sample), [sample])
 
   const { levels, flagged } = useWalletLevels(topWallets.map(([a]) => a))
   const metrics = useMemo(

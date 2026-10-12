@@ -3,11 +3,12 @@ import { ArrowDown, ArrowUpRight, Image, Search, Users } from 'lucide-react'
 import { Reveal } from '@/components/shared/Reveal'
 import { SplitLines } from '@/components/shared/SplitLines'
 import { StatCard } from '@/components/shared/StatCard'
+import { visibleNfts, type NftFilter, type NftSortKey } from '@/lib/catalogView'
 import { useNfts, type NftKind } from '@/hooks/useNfts'
 import { count, explorerToken } from '@/lib/arcscan'
 
-type Filter = 'All' | NftKind
-type SortKey = 'holders' | 'items' | 'transfers'
+type Filter = NftFilter
+type SortKey = NftSortKey
 
 const SORTS: { key: SortKey; label: string }[] = [
   { key: 'holders', label: 'Holders' },
@@ -23,13 +24,7 @@ export function NFTs() {
   const [sort, setSort] = useState<SortKey>('holders')
   const [query, setQuery] = useState('')
 
-  const rows = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return (data ?? [])
-      .filter(c => (filter === 'All' || c.kind === filter) &&
-        (!q || c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q) || c.address.toLowerCase().includes(q)))
-      .sort((a, b) => (b[sort] ?? -1) - (a[sort] ?? -1))
-  }, [data, filter, sort, query])
+  const rows = useMemo(() => visibleNfts(data ?? [], filter, sort, query), [data, filter, sort, query])
 
   const totalHolders = (data ?? []).reduce((s, c) => s + c.holders, 0)
 
