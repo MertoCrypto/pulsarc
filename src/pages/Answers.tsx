@@ -8,7 +8,7 @@
  * Runtime deps needed (install before use):
  *   bun add react-router-dom recharts
  */
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   ResponsiveContainer,
@@ -29,6 +29,8 @@ import { parseBalances } from '@/lib/balances'
 import type { BalancesDoc } from '@/lib/balances'
 import { NETWORK } from '@/lib/chain'
 import { faqJsonLd, serializeJsonLd } from '@/lib/answersJsonLd'
+import { DownloadMenu } from '@/components/shared/DownloadMenu'
+import { answerCsvRows } from '@/lib/answerCsv'
 
 // ── Network helper ─────────────────────────────────────────────────────────────
 
@@ -166,6 +168,7 @@ export function AnswerPage() {
   const { data: supply, isLoading: supplyLoading } = useSupply(net)
   const { data: agents, isLoading: agentsLoading } = useAgentsFile(net)
   const { data: balances, isLoading: balancesLoading } = useBalancesFile(net)
+  const chartContainerRef = useRef<HTMLDivElement>(null)
 
   const isLoading = latestLoading || supplyLoading || agentsLoading || balancesLoading
 
@@ -243,42 +246,57 @@ export function AnswerPage() {
       )}
 
       {/* Chart */}
-      {!isLoading && series && series.points.length > 0 && (
-        <div className="arc-card px-4 py-5">
-          <p className="arc-eyebrow mb-4">Last {series.points.length} hours</p>
-          <ResponsiveContainer width="100%" height={180}>
-            <LineChart
-              data={series.points}
-              margin={{ top: 4, right: 8, bottom: 4, left: 0 }}
-            >
-              <CartesianGrid
-                strokeDasharray="0"
-                stroke="rgba(170,196,234,0.1)"
-                vertical={false}
+      {!isLoading && series && series.points.length > 0 && (() => {
+        const { columns, rows } = answerCsvRows(series)
+        return (
+          <div className="arc-card px-4 py-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <p className="arc-eyebrow">Last {series.points.length} hours</p>
+              <DownloadMenu
+                page={`answer-${def.slug}`}
+                net={net}
+                source={`Pulsarc indexer (${def.sourceFile})`}
+                chartRef={chartContainerRef}
+                columns={columns}
+                rows={rows}
               />
-              <XAxis dataKey="label" hide />
-              <YAxis hide width={0} />
-              <Tooltip
-                contentStyle={{ background: '#10213b', border: '1px solid rgba(170,196,234,0.28)', borderRadius: 12, color: '#eaf1fb' }}
-                labelFormatter={v => String(v)}
-                formatter={(v) => [v === null || v === undefined ? '—' : `${new Intl.NumberFormat('en-US', { maximumSignificantDigits: 6 }).format(Number(v))} ${series.unit}`, 'value']}
-              />
-              <Line
-                type="monotone"
-                dataKey="value"
-                stroke="#a9c4ea"
-                strokeWidth={1.6}
-                dot={false}
-                isAnimationActive={false}
-                connectNulls={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-          <p className="mt-1 text-right text-xs text-[var(--faint)]">
-            Unit: {series.unit}
-          </p>
-        </div>
-      )}
+            </div>
+            <div ref={chartContainerRef}>
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart
+                  data={series.points}
+                  margin={{ top: 4, right: 8, bottom: 4, left: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="0"
+                    stroke="rgba(170,196,234,0.1)"
+                    vertical={false}
+                  />
+                  <XAxis dataKey="label" hide />
+                  <YAxis hide width={0} />
+                  <Tooltip
+                    contentStyle={{ background: '#10213b', border: '1px solid rgba(170,196,234,0.28)', borderRadius: 12, color: '#eaf1fb' }}
+                    labelFormatter={v => String(v)}
+                    formatter={(v) => [v === null || v === undefined ? '—' : `${new Intl.NumberFormat('en-US', { maximumSignificantDigits: 6 }).format(Number(v))} ${series.unit}`, 'value']}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#a9c4ea"
+                    strokeWidth={1.6}
+                    dot={false}
+                    isAnimationActive={false}
+                    connectNulls={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="mt-1 text-right text-xs text-[var(--faint)]">
+              Unit: {series.unit}
+            </p>
+          </div>
+        )
+      })()}
 
       {/* Method */}
       <div className="arc-card px-5 py-5 space-y-3">
