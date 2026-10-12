@@ -36,6 +36,7 @@ export function FilterBar({
         <select
           value={timeRange}
           onChange={e => onTimeRangeChange(e.target.value as RankRange)}
+          aria-label="Time range"
           className="appearance-none pl-8 pr-8 py-2 text-[13px] font-medium text-[var(--text)] bg-transparent border border-[var(--line)] rounded-[10px] hover:border-[var(--line-strong)] transition-colors cursor-pointer focus:outline-none focus:border-[var(--periwinkle)]"
         >
           {TIME_RANGES.filter(r => !ranges || ranges.includes(r.value)).map(r => (

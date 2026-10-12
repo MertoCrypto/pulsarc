@@ -65,6 +65,7 @@ export function CommentsPanel({ dappId }: Props) {
               onChange={e => setText(e.target.value)}
               maxLength={500}
               placeholder="Share your thoughts about this dApp…"
+              aria-label="Write a comment"
               className="flex-1 bg-white/[0.05] border border-[var(--line)] rounded-lg px-3 py-2 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[var(--periwinkle)]/40 focus:bg-white/[0.05] transition-all"
             />
             <button

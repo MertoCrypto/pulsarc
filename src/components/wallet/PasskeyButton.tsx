@@ -148,6 +148,7 @@ export function PasskeyButton() {
               onChange={(e) => setUsername(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && username.trim()) handleConnect(username.trim()) }}
               placeholder="Name (e.g. alice_arc)"
+              aria-label="Passkey name"
               autoFocus
               className="mb-4 w-full rounded-xl border border-[var(--line)] bg-[var(--bg)] px-3 py-2.5 text-[13px] text-white placeholder:text-[var(--faint)] outline-none focus:border-[var(--line-strong)] transition-colors"
             />

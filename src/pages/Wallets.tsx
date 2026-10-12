@@ -74,6 +74,7 @@ export function Wallets() {
               value={address}
               onChange={e => setAddress(e.target.value)}
               placeholder="Wallet address (0x…)"
+              aria-label="Wallet address"
               spellCheck={false}
               className="arc-panel min-w-0 flex-1 px-4 py-3 font-['Geist_Mono'] text-sm text-white outline-none placeholder:font-sans placeholder:text-[var(--faint)] focus:border-[var(--periwinkle)]"
             />
@@ -81,6 +82,7 @@ export function Wallets() {
               value={label}
               onChange={e => setLabel(e.target.value)}
               placeholder="Label (optional)"
+              aria-label="Wallet label (optional)"
               maxLength={32}
               className="arc-panel px-4 py-3 text-sm text-white outline-none placeholder:text-[var(--faint)] focus:border-[var(--periwinkle)] sm:w-[200px]"
             />

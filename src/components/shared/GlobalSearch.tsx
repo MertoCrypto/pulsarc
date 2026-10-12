@@ -107,6 +107,7 @@ export function GlobalSearch() {
               onChange={e => setQuery(e.target.value)}
               onKeyDown={handleKey}
               placeholder="Search apps, wallets…"
+              aria-label="Search apps and wallets"
               className="w-full bg-white/[0.05] border border-[var(--periwinkle)]/30 rounded-lg pl-8 pr-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[var(--periwinkle)]/60"
               autoComplete="off"
             />
