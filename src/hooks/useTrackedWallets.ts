@@ -1,21 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useQueries } from '@tanstack/react-query'
-import { arcscan, scaled, isAddress } from '@/lib/arcscan'
+import { arcscan, scaled } from '@/lib/arcscan'
+import { addTracked, parseTracked, removeTracked, type AddResult, type TrackedWallet } from '@/lib/trackedWallets'
 
 const KEY = 'pulsarc.trackedWallets.v1'
-export const MAX_WALLETS = 25
-
-export interface TrackedWallet {
-  address: string
-  label: string
-  addedAt: number
-}
+export { MAX_WALLETS, type TrackedWallet } from '@/lib/trackedWallets'
 
 function read(): TrackedWallet[] {
   try {
-    const raw = localStorage.getItem(KEY)
-    const parsed = raw ? (JSON.parse(raw) as TrackedWallet[]) : []
-    return Array.isArray(parsed) ? parsed.filter(w => isAddress(w.address)) : []
+    return parseTracked(localStorage.getItem(KEY))
   } catch {
     return []
   }
@@ -29,19 +22,14 @@ export function useTrackedWallets() {
     try { localStorage.setItem(KEY, JSON.stringify(wallets)) } catch { /* private mode */ }
   }, [wallets])
 
-  const add = useCallback((address: string, label: string): 'ok' | 'invalid' | 'duplicate' | 'full' => {
-    if (!isAddress(address)) return 'invalid'
-    let result: 'ok' | 'duplicate' | 'full' = 'ok'
-    setWallets(prev => {
-      if (prev.some(w => w.address.toLowerCase() === address.toLowerCase())) { result = 'duplicate'; return prev }
-      if (prev.length >= MAX_WALLETS) { result = 'full'; return prev }
-      return [{ address, label: label.trim(), addedAt: Date.now() }, ...prev]
-    })
+  const add = useCallback((address: string, label: string): AddResult => {
+    const { next, result } = addTracked(wallets, address, label, Date.now())
+    if (result === 'ok') setWallets(next)
     return result
-  }, [])
+  }, [wallets])
 
   const remove = useCallback((address: string) => {
-    setWallets(prev => prev.filter(w => w.address.toLowerCase() !== address.toLowerCase()))
+    setWallets(prev => removeTracked(prev, address))
   }, [])
 
   return { wallets, add, remove }

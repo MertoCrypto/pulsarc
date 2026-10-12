@@ -76,7 +76,7 @@ function check(description: string, fn: () => void) {
   })
   ;(globalThis as Record<string, unknown>).localStorage = ls
 
-  await import('./migrateStorage.ts?case=1')
+  await import(('./migrateStorage.ts?case=1') as string)
 
   const s = snapshot(ls)
 
@@ -107,7 +107,7 @@ function check(description: string, fn: () => void) {
   })
   ;(globalThis as Record<string, unknown>).localStorage = ls
 
-  await import('./migrateStorage.ts?case=2')
+  await import(('./migrateStorage.ts?case=2') as string)
 
   const s = snapshot(ls)
 
@@ -133,7 +133,7 @@ function check(description: string, fn: () => void) {
   })
   ;(globalThis as Record<string, unknown>).localStorage = ls
 
-  await import('./migrateStorage.ts?case=3')
+  await import(('./migrateStorage.ts?case=3') as string)
 
   const s = snapshot(ls)
 
@@ -160,7 +160,7 @@ function check(description: string, fn: () => void) {
   })
   ;(globalThis as Record<string, unknown>).localStorage = ls
 
-  await import('./migrateStorage.ts?case=4')
+  await import(('./migrateStorage.ts?case=4') as string)
 
   const s = snapshot(ls)
 
@@ -182,7 +182,7 @@ function check(description: string, fn: () => void) {
   const ls = makeFakeStorage({})
   ;(globalThis as Record<string, unknown>).localStorage = ls
 
-  await import('./migrateStorage.ts?case=5')
+  await import(('./migrateStorage.ts?case=5') as string)
 
   const s = snapshot(ls)
 
@@ -210,7 +210,7 @@ function check(description: string, fn: () => void) {
   // The module's try/catch must swallow the error from key().
   let threw = false
   try {
-    await import('./migrateStorage.ts?case=6')
+    await import(('./migrateStorage.ts?case=6') as string)
   } catch {
     threw = true
   }
@@ -229,7 +229,7 @@ function check(description: string, fn: () => void) {
   })
   ;(globalThis as Record<string, unknown>).localStorage = ls
 
-  await import('./migrateStorage.ts?case=7')
+  await import(('./migrateStorage.ts?case=7') as string)
 
   const s = snapshot(ls)
 
