@@ -7,6 +7,7 @@
  */
 import { useQuery } from '@tanstack/react-query'
 import { clientFor } from '@/lib/arcRpc'
+import { keepReadBalances, type TokenBalance } from '@/lib/walletBalances'
 
 // Minimal ERC-20 ABI — only the functions we need.
 const ERC20_ABI = [
@@ -26,11 +27,7 @@ const ERC20_ABI = [
   },
 ] as const
 
-export interface TokenBalance {
-  id: string
-  raw: bigint
-  decimals: number
-}
+export type { TokenBalance } from '@/lib/walletBalances'
 
 export interface UseWalletBalancesResult {
   data: TokenBalance[] | undefined
@@ -82,13 +79,7 @@ export function useWalletBalances(
         }),
       )
 
-      return results
-        .map((r, i) =>
-          r.status === 'fulfilled'
-            ? r.value
-            : { id: tokens[i].id, raw: null as unknown as bigint, decimals: 0, error: true },
-        )
-        .filter((r): r is TokenBalance => (r as { error?: boolean }).error !== true)
+      return keepReadBalances(tokens, results)
     },
   })
 
