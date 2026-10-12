@@ -24,6 +24,8 @@ import { useLatest } from '@/hooks/useLatest'
 import { useSupply } from '@/hooks/useExtras'
 import { ANSWERS, answerValue, answerSeries } from '@/lib/answers'
 import type { AgentsFile } from '@/lib/answers'
+import { parseBalances } from '@/lib/balances'
+import type { BalancesDoc } from '@/lib/balances'
 import { NETWORK } from '@/lib/chain'
 
 // ── Network helper ─────────────────────────────────────────────────────────────
@@ -32,7 +34,7 @@ const net: 'mainnet' | 'testnet' = NETWORK.id === 5042 ? 'mainnet' : 'testnet'
 
 const BASE = 'https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data'
 
-function sourceUrl(sourceFile: 'latest.json' | 'supply.json' | 'agents.json'): string {
+function sourceUrl(sourceFile: 'latest.json' | 'supply.json' | 'agents.json' | 'balances.json'): string {
   return `${BASE}/${net}/${sourceFile}`
 }
 
@@ -66,6 +68,21 @@ function useAgentsFile(network: 'mainnet' | 'testnet') {
   })
 }
 
+function useBalancesFile(network: 'mainnet' | 'testnet') {
+  return useQuery<BalancesDoc | null>({
+    queryKey: ['balances-json', network],
+    staleTime: 5 * 60_000,
+    refetchInterval: 10 * 60_000,
+    retry: 1,
+    queryFn: async (): Promise<BalancesDoc | null> => {
+      const res = await fetch(`${BASE}/${network}/balances.json`)
+      if (!res.ok) return null
+      const json: unknown = await res.json()
+      return parseBalances(json)
+    },
+  })
+}
+
 // ── Loading placeholder ────────────────────────────────────────────────────────
 
 function PulsePlaceholder() {
@@ -84,8 +101,9 @@ export function Answers() {
   const { data: latest, isLoading: latestLoading } = useLatest(net)
   const { data: supply, isLoading: supplyLoading } = useSupply(net)
   const { data: agents, isLoading: agentsLoading } = useAgentsFile(net)
+  const { data: balances, isLoading: balancesLoading } = useBalancesFile(net)
 
-  const isLoading = latestLoading || supplyLoading || agentsLoading
+  const isLoading = latestLoading || supplyLoading || agentsLoading || balancesLoading
 
   return (
     <div className="space-y-14">
@@ -107,7 +125,7 @@ export function Answers() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {ANSWERS.filter(def => hasAnswer(def, net)).map(def => {
-            const result = answerValue(def.slug, latest ?? null, supply ?? null, agents ?? null)
+            const result = answerValue(def.slug, latest ?? null, supply ?? null, agents ?? null, balances ?? null)
             return (
               <Link
                 key={def.slug}
@@ -145,8 +163,9 @@ export function AnswerPage() {
   const { data: latest, isLoading: latestLoading } = useLatest(net)
   const { data: supply, isLoading: supplyLoading } = useSupply(net)
   const { data: agents, isLoading: agentsLoading } = useAgentsFile(net)
+  const { data: balances, isLoading: balancesLoading } = useBalancesFile(net)
 
-  const isLoading = latestLoading || supplyLoading || agentsLoading
+  const isLoading = latestLoading || supplyLoading || agentsLoading || balancesLoading
 
   const def = ANSWERS.find(a => a.slug === slug && hasAnswer(a, net))
 
@@ -166,8 +185,8 @@ export function AnswerPage() {
     )
   }
 
-  const result = answerValue(def.slug, latest ?? null, supply ?? null, agents ?? null)
-  const series = answerSeries(def.slug, latest ?? null, supply ?? null, agents ?? null)
+  const result = answerValue(def.slug, latest ?? null, supply ?? null, agents ?? null, balances ?? null)
+  const series = answerSeries(def.slug, latest ?? null, supply ?? null, agents ?? null, balances ?? null)
 
   return (
     <div className="space-y-12">

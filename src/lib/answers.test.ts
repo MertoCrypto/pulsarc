@@ -8,6 +8,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ANSWERS, answerValue, answerSeries } from './answers.ts'
 import type { AgentsFile } from './answers.ts'
+import { parseBalances, formatUsdc } from './balances.ts'
+import type { BalancesDoc } from './balances.ts'
 import { parseLatest } from './networkHealth.ts'
 import { parseSupply } from './activityMix.ts'
 import type { AutoField, SupplySeriesPoint } from './activityMix.ts'
@@ -88,8 +90,8 @@ function test(name: string, fn: () => void) {
 
 console.log('\nANSWERS catalog')
 
-test('has exactly 7 entries', () => {
-  assert.equal(ANSWERS.length, 7)
+test('has exactly 8 entries', () => {
+  assert.equal(ANSWERS.length, 8)
 })
 
 test('slugs are in the required order', () => {
@@ -101,6 +103,7 @@ test('slugs are in the required order', () => {
     'automated-share',
     'agents-registered',
     'agent-owners',
+    'usdc-held',
   ]
   assert.deepEqual(ANSWERS.map(a => a.slug), expected)
 })
@@ -111,12 +114,21 @@ test('slugs are unique', () => {
 })
 
 test('every entry has question, short, method, sourceFile', () => {
-  const validSourceFiles = new Set(['latest.json', 'supply.json', 'agents.json'])
+  const validSourceFiles = new Set(['latest.json', 'supply.json', 'agents.json', 'balances.json'])
   for (const a of ANSWERS) {
     assert.ok(a.question.length > 0, `${a.slug}: question is empty`)
     assert.ok(a.short.length > 0, `${a.slug}: short is empty`)
     assert.ok(a.method.length > 0, `${a.slug}: method is empty`)
     assert.ok(validSourceFiles.has(a.sourceFile), `${a.slug}: bad sourceFile '${a.sourceFile}'`)
+  }
+})
+
+test('no ANSWERS text contains "TVL" or "total value locked"', () => {
+  for (const a of ANSWERS) {
+    for (const field of [a.question, a.short, a.method] as string[]) {
+      assert.ok(!field.includes('TVL'), `${a.slug}: field contains "TVL"`)
+      assert.ok(!/value locked/i.test(field), `${a.slug}: field mentions "value locked"`)
+    }
   }
 })
 
@@ -419,6 +431,109 @@ test('agent-owners → null when an owner is not a string (malformed)', () => {
 test('agent-owners → null when an entry is null (malformed, must not throw)', () => {
   const bad = { ...goodAgents, agents: [null] } as unknown as AgentsFile
   assert.equal(answerValue('agent-owners', null, null, bad), null)
+})
+
+// ── answerValue / answerSeries: usdc-held ─────────────────────────────────────
+
+console.log('\nanswerValue/answerSeries: usdc-held')
+
+// A real-looking sample doc matching the spec
+const sampleBalancesRaw = {
+  network: 'mainnet',
+  generatedAt: '2026-10-12T11:25:56Z',
+  token: 'USDC',
+  total: 11334767.13,
+  apps: { gateway: { usdc: 11332217.43 } },
+  series: [
+    { hour: '2026-10-12T09', total: 11400000.00 },
+    { hour: '2026-10-12T10', total: 11503512.16 },
+  ],
+}
+
+const goodBalances = parseBalances(sampleBalancesRaw) as BalancesDoc
+
+test('parseBalances parses the real-looking sample', () => {
+  assert.ok(goodBalances !== null, 'parseBalances returned null on valid sample')
+})
+
+test('usdc-held value formats as formatUsdc(11334767.13) → "$11.33M"', () => {
+  const expected = formatUsdc(11334767.13)
+  assert.equal(expected, '$11.33M')
+  const result = answerValue('usdc-held', null, null, null, goodBalances)
+  assert.ok(result, 'result is null')
+  assert.equal(result.value, '$11.33M')
+  assert.equal(result.detail, 'USDC held by tracked apps')
+})
+
+test('usdc-held → null when balances arg is null', () => {
+  assert.equal(answerValue('usdc-held', null, null, null, null), null)
+})
+
+test('usdc-held → null when balances arg is omitted', () => {
+  assert.equal(answerValue('usdc-held', null, null, null), null)
+})
+
+test('usdc-held → null when doc is malformed (parseBalances returns null)', () => {
+  const malformed = parseBalances({ network: 'mainnet', generatedAt: '2026-10-12T00:00:00Z', total: -1, apps: {} })
+  assert.equal(malformed, null, 'parseBalances should return null for malformed doc')
+  assert.equal(answerValue('usdc-held', null, null, null, malformed), null)
+})
+
+test('usdc-held series with 2 points returns 2 points', () => {
+  const s = answerSeries('usdc-held', null, null, null, goodBalances)
+  assert.ok(s, 'series is null')
+  assert.equal(s.points.length, 2)
+  assert.equal(s.unit, 'USDC')
+  assert.equal(s.source, 'balances.json')
+  assert.equal(s.points[0].label, '2026-10-12T09')
+  assert.equal(s.points[0].value, 11400000.00)
+  assert.equal(s.points[1].label, '2026-10-12T10')
+  assert.equal(s.points[1].value, 11503512.16)
+})
+
+test('usdc-held series with 1 point returns null', () => {
+  const onePointRaw = {
+    ...sampleBalancesRaw,
+    series: [{ hour: '2026-10-12T10', total: 11503512.16 }],
+  }
+  const onePointDoc = parseBalances(onePointRaw) as BalancesDoc
+  assert.ok(onePointDoc, 'parseBalances returned null for one-point doc')
+  const s = answerSeries('usdc-held', null, null, null, onePointDoc)
+  assert.equal(s, null)
+})
+
+test('usdc-held series keeps only the newest 48 hours', () => {
+  const series = Array.from({ length: 50 }, (_, i) => ({
+    hour: `2026-10-${String(1 + Math.floor(i / 24)).padStart(2, '0')}T${String(i % 24).padStart(2, '0')}`,
+    total: 1000 + i,
+  }))
+  const doc = parseBalances({ ...sampleBalancesRaw, series }) as BalancesDoc
+  const s = answerSeries('usdc-held', null, null, null, doc)
+  assert.ok(s, 'series is null')
+  assert.equal(s.points.length, 48)
+  assert.equal(s.points[0].value, 1002)
+  assert.equal(s.points[47].value, 1049)
+})
+
+test('usdc-held series when balances is null returns null', () => {
+  const s = answerSeries('usdc-held', null, null, null, null)
+  assert.equal(s, null)
+})
+
+// ── existing slugs unchanged by balances parameter ────────────────────────────
+
+console.log('\nexisting slugs: balances arg is ignored')
+
+test('transfer-fee result unchanged when balances is passed', () => {
+  const without = answerValue('transfer-fee', mainnetLatest.parsed, null)
+  const with_ = answerValue('transfer-fee', mainnetLatest.parsed, null, null, goodBalances)
+  assert.deepEqual(without, with_)
+})
+
+test('usdc-supply result unchanged when balances is passed', () => {
+  const without = answerValue('usdc-supply', null, mainnetSupply.parsed)
+  const with_ = answerValue('usdc-supply', null, mainnetSupply.parsed, null, goodBalances)
+  assert.deepEqual(without, with_)
 })
 
 // ── answerSeries: agent slugs return null ─────────────────────────────────────

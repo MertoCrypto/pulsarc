@@ -9,6 +9,8 @@ import { networkHealthCards } from './networkHealth.ts'
 import type { SupplyJson } from './activityMix.ts'
 import { automatedShare } from './activityMix.ts'
 import type { ExtendedWindow } from './activityMix.ts'
+import type { BalancesDoc } from './balances.ts'
+import { formatUsdc } from './balances.ts'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -27,7 +29,7 @@ export interface AnswerDef {
   question: string
   short: string
   method: string
-  sourceFile: 'latest.json' | 'supply.json' | 'agents.json'
+  sourceFile: 'latest.json' | 'supply.json' | 'agents.json' | 'balances.json'
 }
 
 // ── ANSWERS catalog ───────────────────────────────────────────────────────────
@@ -89,6 +91,14 @@ export const ANSWERS: AnswerDef[] = [
       'Each agent token has an owner address recorded in agents.json. This figure counts the number of distinct owner wallets by lowercasing every address before comparing, so the same wallet is never counted twice regardless of how its address was capitalised. One wallet can own many agents; this number reflects wallets, not agents.',
     sourceFile: 'agents.json',
   },
+  {
+    slug: 'usdc-held',
+    question: 'How much USDC do Arc\'s tracked apps hold?',
+    short: 'Combined USDC balance held by the contracts of apps that Pulsarc tracks, as of the last balances.json snapshot.',
+    method:
+      'This figure is the sum of the USDC balances held directly by the on-chain contracts of the apps Pulsarc tracks, read from the chain and recorded in balances.json. It covers only the apps the indexer is configured to watch — it is not the whole USDC supply on Arc, and it says nothing about an app\'s quality or usage.',
+    sourceFile: 'balances.json',
+  },
 ]
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
@@ -116,6 +126,7 @@ export function answerValue(
   latest: LatestSnapshot | null,
   supply: SupplyJson | null,
   agents?: AgentsFile | null,
+  balances?: BalancesDoc | null,
 ): { value: string; detail: string } | null {
   switch (slug) {
     case 'transfer-fee': {
@@ -180,6 +191,11 @@ export function answerValue(
       return { value: fmtInt.format(seen.size), detail: 'distinct owner wallets' }
     }
 
+    case 'usdc-held': {
+      if (!balances) return null
+      return { value: formatUsdc(balances.total), detail: 'USDC held by tracked apps' }
+    }
+
     default:
       return null
   }
@@ -192,6 +208,7 @@ export function answerSeries(
   latest: LatestSnapshot | null,
   supply: SupplyJson | null,
   _agents?: AgentsFile | null,
+  balances?: BalancesDoc | null,
 ): { points: { label: string; value: number | null }[]; unit: string; source: string } | null {
   const LIMIT = 48
 
@@ -244,6 +261,17 @@ export function answerSeries(
     case 'agent-owners':
       // No hourly series available for these metrics.
       return null
+
+    case 'usdc-held': {
+      if (!balances) return null
+      const slice = balances.series.slice(-LIMIT)
+      if (slice.length < 2) return null
+      const points = slice.map(pt => ({
+        label: pt.hour,
+        value: pt.total,
+      }))
+      return { points, unit: 'USDC', source: 'balances.json' }
+    }
 
     default:
       return null
