@@ -367,6 +367,18 @@ test('parses meta with gaps and lite=true', () => {
   assert.deepEqual(m!.gaps, [10, 11])
 })
 
+test('real testnet meta without a lite field parses as not partial', () => {
+  const m = parseMeta({ network: 'testnet', version: 1, since: 283, through: 283, gaps: [], walletCount: 38196, updatedAt: '2026-10-12T00:03:43.474Z' })
+  assert.ok(m !== null)
+  assert.equal(m!.lite, false)
+})
+
+test('meta.lite as { from, through } object (backfill) counts as partial', () => {
+  const m = parseMeta({ since: 0, through: 283, gaps: [], walletCount: 3, lite: { from: 0, through: 270 } })
+  assert.ok(m !== null)
+  assert.equal(m!.lite, true)
+})
+
 test('returns null for null', () => {
   assert.equal(parseMeta(null), null)
 })

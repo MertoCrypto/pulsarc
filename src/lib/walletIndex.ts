@@ -128,7 +128,8 @@ export function parseMeta(raw: unknown): MetaJson | null {
   if (!isFiniteNonNeg(r['through'])) return null
   if (!Array.isArray(r['gaps'])) return null
   if (!isFiniteNonNeg(r['walletCount'])) return null
-  if (typeof r['lite'] !== 'boolean') return null
+  const liteRaw = r['lite']
+  if (liteRaw !== undefined && typeof liteRaw !== 'boolean' && (typeof liteRaw !== 'object' || Array.isArray(liteRaw))) return null
   const gaps: number[] = []
   for (const g of r['gaps'] as unknown[]) {
     if (!isFiniteNonNeg(g)) return null
@@ -139,7 +140,9 @@ export function parseMeta(raw: unknown): MetaJson | null {
     through: r['through'] as number,
     gaps,
     walletCount: r['walletCount'] as number,
-    lite: r['lite'] as boolean,
+    // Indexer writes meta.lite as { from, through } once a log-based history backfill ran, and omits it otherwise.
+    // An older boolean form is still accepted.
+    lite: liteRaw === true || (typeof liteRaw === 'object' && liteRaw !== null),
   }
 }
 

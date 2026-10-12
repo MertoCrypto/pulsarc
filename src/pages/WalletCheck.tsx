@@ -55,7 +55,7 @@ function Fact({
     <div>
       <p className="arc-eyebrow !text-[10px]">{label}</p>
       {loading ? (
-        <div className="mt-2 h-8 w-24 animate-pulse rounded bg-white/8" />
+        <div className="mt-2 h-8 w-24 animate-pulse rounded bg-white/[0.08]" />
       ) : (
         <>
           <p className="mt-2 text-[26px] font-light leading-none tracking-tight tabular-nums text-white">
@@ -75,12 +75,12 @@ function Fact({
 function SkeletonGrid() {
   return (
     <div className="arc-card p-6 sm:p-8">
-      <div className="mb-6 h-4 w-40 animate-pulse rounded bg-white/8" />
+      <div className="mb-6 h-4 w-40 animate-pulse rounded bg-white/[0.08]" />
       <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">
         {Array.from({ length: 12 }, (_, i) => (
           <div key={i}>
-            <div className="h-3 w-20 animate-pulse rounded bg-white/6" />
-            <div className="mt-2 h-8 w-24 animate-pulse rounded bg-white/8" />
+            <div className="h-3 w-20 animate-pulse rounded bg-white/[0.06]" />
+            <div className="mt-2 h-8 w-24 animate-pulse rounded bg-white/[0.08]" />
           </div>
         ))}
       </div>
@@ -180,7 +180,7 @@ export function WalletCheck() {
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
-              className="w-full rounded-lg border border-[var(--line)] bg-white/4 px-4 py-3 font-['Geist_Mono'] text-sm text-white placeholder-[var(--muted)] outline-none focus:border-[var(--accent)] focus:ring-0 transition-colors"
+              className="w-full rounded-lg border border-[var(--line)] bg-white/[0.05] px-4 py-3 font-['Geist_Mono'] text-sm text-white placeholder-[var(--muted)] outline-none focus:border-[var(--periwinkle)] focus:ring-0 transition-colors"
               placeholder="0x…"
               value={inputValue}
               onChange={e => {
@@ -346,7 +346,7 @@ export function WalletCheck() {
                   {summary.apps.map(id => (
                     <span
                       key={id}
-                      className="rounded border border-[var(--line)] bg-white/4 px-2.5 py-1 font-['Geist_Mono'] text-xs text-white"
+                      className="rounded border border-[var(--line)] bg-white/[0.05] px-2.5 py-1 font-['Geist_Mono'] text-xs text-white"
                     >
                       {/* Rendered as React text; never injected as HTML */}
                       {id}
