@@ -27,6 +27,7 @@ const ALLOWED = [
   'amoy.polygonscan.com',
   'api.avax-test.network',
   'api.avax.network',
+  'api.frankfurter.dev',
   'arb1.arbitrum.io',
   'arbiscan.io',
   'basescan.org',

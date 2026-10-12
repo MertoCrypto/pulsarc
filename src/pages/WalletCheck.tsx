@@ -12,6 +12,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useWalletIndex } from '@/hooks/useWalletIndex'
 import { WalletExtras } from '@/components/wallet/WalletExtras'
 import { WalletPercentiles } from '@/components/wallet/WalletPercentiles'
+import { WalletMilestones } from '@/components/wallet/WalletMilestones'
 import { coverageNote } from '@/lib/walletIndex'
 import { isAddress } from '@/lib/arcscan'
 
@@ -152,7 +153,7 @@ export function WalletCheck() {
 
   // Hook — validate address before passing (only pass a valid address)
   const queryAddress = checkedAddress && isAddress(checkedAddress) ? checkedAddress : null
-  const { state, meta, summary, apps, errorMessage } = useWalletIndex(queryAddress, net)
+  const { state, meta, record, summary, apps, errorMessage } = useWalletIndex(queryAddress, net)
 
   return (
     <div className="space-y-10">
@@ -373,6 +374,11 @@ export function WalletCheck() {
             </p>
           )}
         </section>
+        {record && (
+          <div className="mt-6">
+            <WalletMilestones record={record} through={meta.through} summary={summary} />
+          </div>
+        )}
         {queryAddress && (
           <div className="mt-6 space-y-6">
             <WalletPercentiles net={net} summary={summary} />

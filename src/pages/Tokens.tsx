@@ -7,6 +7,7 @@ import { useChainOverview, useTokens, type TokenGroup } from '@/hooks/useTokens'
 import { compact, explorerToken } from '@/lib/arcscan'
 import { tokenGroupCounts, visibleTokens, type TokenFilter, type TokenSortKey } from '@/lib/catalogView'
 import { FxRateCard } from '@/components/tokens/FxRateCard'
+import { EcbRateCard } from '@/components/tokens/EcbRateCard'
 import { NETWORK } from '@/lib/chain'
 
 type Filter = TokenFilter
@@ -97,6 +98,7 @@ export function Tokens() {
 
         <div className="mb-6 empty:hidden">
           <FxRateCard net={NETWORK.id === 5042 ? 'mainnet' : 'testnet'} />
+          <EcbRateCard enabled={NETWORK.id === 5042} />
         </div>
 
         <Reveal className="arc-card overflow-hidden">
