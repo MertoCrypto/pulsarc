@@ -6,7 +6,7 @@
 // Verbatim from index.html
 const DEFAULT_TITLE = 'Pulsarc · Analytics for the Arc Network'
 const DEFAULT_DESCRIPTION =
-  'Pulsarc is an independent analytics project for the Arc Network: live rankings of apps, tokens and wallets, scored on verified on-chain activity.'
+  'Pulsarc is an independent analytics project for the Arc Network: live rankings of apps, tokens and wallets, ranked by verified on-chain activity.'
 
 /** Normalise a pathname: lowercase, strip one trailing slash except for "/". */
 function normalise(pathname: string): string {

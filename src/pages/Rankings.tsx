@@ -106,7 +106,7 @@ export function Rankings() {
           />
           <Reveal delay={0.16}>
             <p className="mt-6 max-w-[520px] text-[18px] font-light leading-relaxed text-[var(--muted)]">
-              Live rankings of the apps building on Arc, scored on verified activity: transactions, wallets and USDC moved. Every figure is read from the chain and traces back to a real contract.
+              Live rankings of the apps building on Arc, ranked by verified activity: transactions, wallets and USDC moved. Every figure is read from the chain and traces back to a real contract.
             </p>
           </Reveal>
           <Reveal delay={0.24}>
