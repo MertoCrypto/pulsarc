@@ -517,3 +517,15 @@ console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`)
 if (failed > 0) {
   process.exit(1)
 }
+
+// summarize: idleLine is hidden when every measured owner has sent a transaction
+{
+  const doc = parseAgentsActivity({
+    network: 'testnet', generatedAt: new Date().toISOString(), totalAgents: 10, owners: 2, ownersMeasured: 2,
+    agentsMeasured: 10, ownersWithTx: 2, ownersWithUsdc: 1, agentsOfOwnersWithoutTx: 0, top: [],
+  })
+  assert.ok(doc)
+  assert.equal(summarize(doc!).idleLine, null)
+  console.log('summarize: idleLine hidden when nobody is idle: OK')
+}
+

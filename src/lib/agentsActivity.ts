@@ -175,7 +175,7 @@ export interface ActivitySummary {
    */
   measuredLine: string | null
   /**
-   * Only when ownersMeasured > 0: how many measured owners have never sent
+   * Only when at least one measured owner has never sent a transaction: how many measured owners have never sent
    * a transaction and how many agents they hold.
    */
   idleLine: string | null
@@ -191,7 +191,7 @@ export function summarize(doc: AgentsActivity): ActivitySummary {
       : null
 
   const idleLine =
-    doc.ownersMeasured > 0
+    doc.ownersMeasured - doc.ownersWithTx > 0
       ? `${fmt(doc.ownersMeasured - doc.ownersWithTx)} of ${fmt(doc.ownersMeasured)} measured owners have never sent a transaction (${fmt(doc.agentsOfOwnersWithoutTx)} agents)`
       : null
 
