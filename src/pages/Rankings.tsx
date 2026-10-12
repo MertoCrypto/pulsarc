@@ -9,6 +9,7 @@ import { Reveal } from '@/components/shared/Reveal'
 import { SplitLines } from '@/components/shared/SplitLines'
 import { gsap, ScrollTrigger } from '@/lib/smoothScroll'
 import { LiveBadge } from '@/components/layout/LiveBadge'
+import { DownloadMenu } from '@/components/shared/DownloadMenu'
 import { LeaderboardTable } from '@/components/rankings/LeaderboardTable'
 import { PortalApps } from '@/components/shared/PortalApps'
 import { AnomalyStrip } from '@/components/rankings/AnomalyStrip'
@@ -37,6 +38,19 @@ function fmtNum(n: number): string {
 }
 
 const anomalyNet = NETWORK.id === 5042 ? 'mainnet' : 'testnet'
+
+const CSV_COLUMNS = [
+  { key: 'rank', label: 'Rank' },
+  { key: 'app', label: 'App' },
+  { key: 'category', label: 'Category' },
+  { key: 'transactions', label: 'Transactions' },
+  { key: 'users', label: 'Users' },
+  { key: 'users_note', label: 'Users note (≤ upper bound, ≥ extrapolated lower bound)' },
+  { key: 'volume_usd', label: 'Volume USD' },
+  { key: 'tvl_usd', label: 'TVL USD' },
+  { key: 'fees_usdc', label: 'Fees USDC' },
+  { key: 'estimated', label: 'Counts extrapolated (≈)' },
+]
 
 export function Rankings() {
   const [timeRange, setTimeRange] = useState<RankRange>('24h')
@@ -177,7 +191,27 @@ export function Rankings() {
             onCategoryChange={setCategory}
           />
           </div>
+          <div className="flex items-center gap-3">
+          <DownloadMenu
+            page="rankings"
+            net={anomalyNet}
+            source={`Pulsarc rankings, ${windowLabel}${walletsAreUpperBound ? ', indexer data' : ''}`}
+            columns={CSV_COLUMNS}
+            rows={items.map(it => ({
+              rank: it.rank,
+              app: it.app.name,
+              category: it.app.category,
+              transactions: it.metrics.txCount,
+              users: it.metrics.usersKnown === false ? null : it.metrics.activeWallets,
+              users_note: it.metrics.usersKnown === false ? '' : walletsAreUpperBound ? '≤' : it.metrics.estimated ? '≥' : '',
+              volume_usd: it.metrics.volume,
+              tvl_usd: it.metrics.tvl,
+              fees_usdc: it.metrics.usdcFees,
+              estimated: it.metrics.estimated ? 'yes' : '',
+            }))}
+          />
           <LiveBadge lastUpdated={lastUpdated} onRefresh={() => { void refresh() }} isLoading={reading} progress={reading ? `Reading apps ${loaded}/${total}…` : undefined} />
+          </div>
         </div>
 
         <LeaderboardTable
