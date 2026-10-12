@@ -12,6 +12,7 @@
     "fetch:abi": "bun run ./scripts/fetch-abi.ts",
     "lint": "oxlint --type-aware --quiet src scripts --fix; s=$?; oxlint --quiet --fix .; exit $((s>0?s:$?))",
     "typecheck": "tsc --noEmit",
+    "test": "bash scripts/test-lib.sh",
     "check": "bash scripts/check.sh",
     "contracts:build": "forge build",
     "contracts:test": "forge test",
