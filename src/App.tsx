@@ -4,6 +4,7 @@ import { NetworkBar } from '@/components/layout/NetworkBar'
 import { startSmoothScroll } from '@/lib/smoothScroll'
 import { usePageMeta } from '@/hooks/usePageMeta'
 import { PageTransition } from '@/components/layout/PageTransition'
+import { RouteErrorBoundary } from '@/components/layout/RouteErrorBoundary'
 import { TipBox } from '@/components/interact/TipBox'
 import { GmButton } from '@/components/interact/GmButton'
 import { NewAndRising } from '@/components/shared/NewAndRising'
@@ -49,6 +50,7 @@ function Layout() {
           <div className="flex-1 min-w-0">
             <PageTransition>
               {(location) => (
+              <RouteErrorBoundary resetKey={location.pathname}>
               <Suspense fallback={
                 <div className="min-h-[40vh]">
                   <div className="arc-card h-24 animate-pulse" />
@@ -79,6 +81,7 @@ function Layout() {
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
+              </RouteErrorBoundary>
               )}
             </PageTransition>
           </div>
