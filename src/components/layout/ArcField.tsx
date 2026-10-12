@@ -24,6 +24,7 @@ const DUST = 1700
 const HAZE = 60       // soft clouds that give the arms their glow
 const STARS = 150
 const DISC = 400      // outer radius of the disc, in field units
+const CORE_SCALE = 0.88 // the Arc core (disc, halo, rings and mark) is drawn at this share of its design size
 const TILT = 0.42     // how far the disc leans away from the viewer
 const ROLL = -0.3     // rotation of the disc in the screen plane (radians)
 const ARMS = 2
@@ -316,7 +317,7 @@ export function ArcField({ className = '' }: { className?: string }) {
 
       // core (DOM): the Arc mark stays untouched; only the halo around it moves
       if (coreRef.current) {
-        coreRef.current.style.transform = `translate3d(${cx}px, ${cy}px, 0) translate(-50%, -50%) scale(${Math.max(0.6, zoom)})`
+        coreRef.current.style.transform = `translate3d(${cx}px, ${cy}px, 0) translate(-50%, -50%) scale(${Math.max(0.6, zoom) * CORE_SCALE})`
       }
       if (haloRef.current) {
         const beat = reduced ? 0 : (Math.sin(t * 0.045) + 1) / 2

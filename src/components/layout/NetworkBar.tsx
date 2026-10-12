@@ -84,9 +84,9 @@ export function NetworkBar() {
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-[var(--line)] bg-[#0b182c]/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-[72px] max-w-[1400px] items-center gap-3 px-4 sm:px-6">
-        <Link to="/" className="flex items-center gap-3 text-white shrink-0">
-          <PulsarcMark className="h-12 w-12 sm:h-[58px] sm:w-[58px]" animated title="Pulsarc" />
+      <div className="mx-auto flex h-[72px] sm:h-[84px] max-w-[1400px] items-center gap-3 px-4 sm:px-6">
+        <Link to="/" className="pm-roundtrip flex items-center gap-3 text-white shrink-0">
+          <PulsarcMark className="h-[54px] w-[54px] sm:h-[76px] sm:w-[76px]" animated title="Pulsarc" />
           <PulsarcWordmark className="text-[23px] sm:text-[28px]" />
         </Link>
 

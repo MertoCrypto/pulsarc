@@ -45,7 +45,7 @@ function Layout() {
       <NetworkBar />
 
       {/* Page content */}
-      <main className="max-w-[1400px] mx-auto px-6 pt-[144px] pb-16 lg:pt-[100px]">
+      <main className="max-w-[1400px] mx-auto px-6 pt-[144px] pb-16 sm:pt-[156px] lg:pt-[112px]">
         <div className="flex gap-6">
           <div className="flex-1 min-w-0">
             <PageTransition>
@@ -88,7 +88,7 @@ function Layout() {
 
           {/* Sidebar — hidden on mobile/tablet */}
           <aside className="hidden xl:block w-64 shrink-0" style={home ? { paddingTop: 'calc(var(--hero-h) + 2rem)' } : undefined}>
-            <div className="sticky top-[92px] space-y-4">
+            <div className="sticky top-[104px] space-y-4">
               <GmButton variant="hero" />
               <EcosystemDominance />
               <NewAndRising />

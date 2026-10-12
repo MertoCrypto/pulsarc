@@ -156,6 +156,42 @@ body {
 @keyframes pm-wave { 0% { opacity: .12; } 22% { opacity: 1; } 70%, 100% { opacity: .22; } }
 
 
+/* Pulsarc wordmark. One light makes a round trip, 5.6 s per cycle:
+   mark left -> right, out through the right side, into the P and across the word to the c,
+   touches the c, back across the word to the P, into the mark from the right and right -> left
+   to the very start, then the loop begins again. The header link carries .pm-roundtrip. */
+.pm-wordmark {
+  background-image:
+    linear-gradient(105deg, transparent 32%, rgba(255,255,255,1) 50%, transparent 68%),
+    linear-gradient(100deg, #98b6e2 0%, #bfd3f1 45%, #98b6e2 100%);
+  background-size: 260% 100%, 100% 100%;
+  background-repeat: no-repeat;
+  background-position: 100% 0, 0 0;
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 10px rgba(169,196,234,.32));
+}
+.pm-roundtrip .pm-beat { animation: pm-beat-rt 5.6s cubic-bezier(.4,.1,.3,1) infinite; }
+.pm-roundtrip .pm-wordmark { animation: pm-wordmark-rt 5.6s cubic-bezier(.4,.1,.3,1) infinite, pm-wordmark-glow-rt 5.6s ease-in-out infinite; }
+@keyframes pm-beat-rt {
+  0% { stroke-dashoffset: 9; opacity: 0; }
+  2% { opacity: 1; }
+  22% { stroke-dashoffset: -91; opacity: 1; }
+  24%, 64% { stroke-dashoffset: -91; opacity: 0; }
+  66% { stroke-dashoffset: -91; opacity: 1; }
+  88% { stroke-dashoffset: 9; opacity: 1; }
+  90%, 100% { stroke-dashoffset: 9; opacity: 0; }
+}
+@keyframes pm-wordmark-rt {
+  0%, 22% { background-position: 100% 0, 0 0; }
+  44% { background-position: 12% 0, 0 0; }
+  66%, 100% { background-position: 100% 0, 0 0; }
+}
+@keyframes pm-wordmark-glow-rt {
+  0%, 20%, 70%, 100% { filter: drop-shadow(0 0 10px rgba(169,196,234,.32)); }
+  44% { filter: drop-shadow(0 0 18px rgba(195,214,242,.7)); }
+}
+
 /* Arc core: the mark itself is never altered; the light behind it and the rings around it beat. */
 .arc-core-beat { background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.55), rgba(140,190,255,.0) 62%); opacity: 0; animation: arc-core-beat 2.6s cubic-bezier(.45,.05,.3,1) infinite; }
 @keyframes arc-core-beat { 0% { opacity: 0; transform: scale(.7); } 14% { opacity: .85; transform: scale(1); } 60%, 100% { opacity: 0; transform: scale(1.25); } }

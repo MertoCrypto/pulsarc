@@ -61,7 +61,7 @@ export function PulsarcMark({ variant = 'ring', className, animated = false, tit
 /** Wordmark set in the display face; `arc` carries the accent. */
 export function PulsarcWordmark({ className = '' }: { className?: string }) {
   return (
-    <span className={`font-light tracking-[-0.02em] text-white ${className}`}>
+    <span className={`pm-wordmark font-medium tracking-[-0.03em] ${className}`}>
       Pulsarc
     </span>
   )
