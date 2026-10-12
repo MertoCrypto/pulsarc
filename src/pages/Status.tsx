@@ -4,6 +4,7 @@ import { SplitLines } from '@/components/shared/SplitLines'
 import { useIndexerState, deriveStatus, timeAgo } from '@/hooks/useIndexerState'
 import { NETWORK } from '@/lib/chain'
 import { DataFreshnessCard } from '@/components/status/DataFreshnessCard'
+import { WalletIndexCard } from '@/components/status/WalletIndexCard'
 
 const net = NETWORK.id === 5042 ? 'mainnet' : 'testnet'
 
@@ -78,6 +79,7 @@ export function Status() {
       )}
 
       <DataFreshnessCard net={net} />
+      <WalletIndexCard net={net} />
 
       {!isLoading && derived && (
         <Reveal className="space-y-6">
