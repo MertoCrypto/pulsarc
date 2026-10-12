@@ -9,6 +9,7 @@ import { useAllMetrics } from '@/hooks/useAllMetrics'
 import { useChainDaily } from '@/hooks/useChainDaily'
 import { type TimeRange } from '@/lib/appActivity'
 import { compact, count } from '@/lib/arcscan'
+import { peakAndAverage } from '@/lib/chainDaily'
 import { HeldUsdcCard } from '@/components/trends/HeldUsdcCard'
 import { NETWORK } from '@/lib/chain'
 
@@ -40,8 +41,7 @@ export function Trends() {
   }, [items])
 
   const week = daily.data?.slice(-30) ?? []
-  const peak = week.reduce((m, p) => Math.max(m, p.transactions), 0)
-  const avg = week.length ? week.reduce((s, p) => s + p.transactions, 0) / week.length : 0
+  const { peak, avg } = peakAndAverage(week)
 
   return (
     <div className="space-y-14">

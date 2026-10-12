@@ -16,3 +16,10 @@ export function toDailyPoints(raw: RawDaily): DailyPoint[] {
     })
     .sort((a, b) => a.date.localeCompare(b.date))
 }
+
+export function peakAndAverage(points: readonly { transactions: number }[]): { peak: number; avg: number } {
+  return {
+    peak: points.reduce((m, p) => Math.max(m, p.transactions), 0),
+    avg: points.length ? points.reduce((s, p) => s + p.transactions, 0) / points.length : 0,
+  }
+}

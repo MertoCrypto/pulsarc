@@ -7,6 +7,7 @@ import { SplitLines } from '@/components/shared/SplitLines'
 import { StatCard } from '@/components/shared/StatCard'
 import { MAX_WALLETS, useTrackedWallets, useWalletSnapshots } from '@/hooks/useTrackedWallets'
 import { compact, explorerAddress, timeAgo } from '@/lib/arcscan'
+import { balanceShares } from '@/lib/shares'
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
@@ -43,12 +44,8 @@ export function Wallets() {
   const anyLoading = rows.some(r => r.q?.isLoading)
 
   const shares = useMemo(() => {
-    const items = loaded
-      .map(r => ({ key: r.wallet.address, name: r.wallet.label || short(r.wallet.address), value: r.q.data?.balance ?? 0 }))
-      .filter(x => x.value > 0)
-      .sort((a, b) => b.value - a.value)
-    const total = items.reduce((s, x) => s + x.value, 0)
-    return items.map(x => ({ ...x, pct: total ? (x.value / total) * 100 : 0 }))
+    return balanceShares(loaded
+      .map(r => ({ key: r.wallet.address, name: r.wallet.label || short(r.wallet.address), value: r.q.data?.balance ?? 0 })))
   }, [loaded])
 
   return (

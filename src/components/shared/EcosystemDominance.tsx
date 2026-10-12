@@ -1,9 +1,8 @@
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { ARC_APPS, type AppCategory } from '@/data/apps'
+import { ARC_APPS } from '@/data/apps'
+import { categoryShares } from '@/lib/shares'
 import { useAllMetrics } from '@/hooks/useAllMetrics'
-
-interface Share { category: AppCategory; tx: number; pct: number }
 
 /**
  * Where on-chain activity goes, by category (last 24h). One hue, stepped by rank — rank
@@ -12,14 +11,7 @@ interface Share { category: AppCategory; tx: number; pct: number }
 export function EcosystemDominance() {
   const { items, isLoading } = useAllMetrics('24h', 'txCount', 'All', { defer: true })
 
-  const shares = useMemo<Share[]>(() => {
-    const by = new Map<AppCategory, number>()
-    for (const { app, metrics } of items) by.set(app.category, (by.get(app.category) ?? 0) + metrics.txCount)
-    const total = [...by.values()].reduce((a, b) => a + b, 0) || 1
-    return [...by.entries()]
-      .map(([category, tx]) => ({ category, tx, pct: (tx / total) * 100 }))
-      .sort((a, b) => b.tx - a.tx)
-  }, [items])
+  const shares = useMemo(() => categoryShares(items), [items])
 
   const max = shares[0]?.pct || 1
 
