@@ -13,6 +13,7 @@ import { useWalletIndex } from '@/hooks/useWalletIndex'
 import { WalletExtras } from '@/components/wallet/WalletExtras'
 import { WalletPercentiles } from '@/components/wallet/WalletPercentiles'
 import { WalletMilestones } from '@/components/wallet/WalletMilestones'
+import { WalletLiveFacts } from '@/components/wallet/WalletLiveFacts'
 import { coverageNote } from '@/lib/walletIndex'
 import { isAddress } from '@/lib/arcscan'
 
@@ -374,6 +375,11 @@ export function WalletCheck() {
             </p>
           )}
         </section>
+        {queryAddress && (
+          <div className="mt-6">
+            <WalletLiveFacts address={queryAddress} net={net} record={record} />
+          </div>
+        )}
         {record && (
           <div className="mt-6">
             <WalletMilestones record={record} through={meta.through} summary={summary} />
