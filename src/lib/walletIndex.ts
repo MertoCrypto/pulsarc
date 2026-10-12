@@ -69,6 +69,24 @@ export interface WalletRecord {
   bo: number
   /** Bridge-in count */
   bi: number
+  /** Optional live-indexed extras (only wallets seen since the extension shipped carry it) */
+  ext?: WalletExt
+}
+
+/** Extra activity facts the indexer adds from live blocks; every field is optional. */
+export interface WalletExt {
+  /** Contract deployments sent */
+  dp?: number
+  /** Sent transactions by UTC hour bucket: [00-06, 06-12, 12-18, 18-24) */
+  h?: [number, number, number, number]
+  /** ERC-20 / ERC-721 transfer logs involving the wallet */
+  tt?: number
+  /** Distinct ERC-20 contracts (8-hex prefixes, capped by the indexer) */
+  ut?: string[]
+  /** Distinct ERC-721 contracts (8-hex prefixes, capped) */
+  un?: string[]
+  /** Distinct contracts called that emitted events (8-hex prefixes, capped) */
+  uc?: string[]
 }
 
 export interface WalletSummary {
@@ -157,9 +175,27 @@ export function parseShard(raw: unknown): Record<string, WalletRecord> {
   return result
 }
 
-/** Decode an 11-element array into a WalletRecord. Returns null on any validation failure. */
+const PREFIX_RE = /^[0-9a-f]{8}$/
+
+/** Keep only well-formed extension fields; returns undefined when nothing valid remains. */
+export function decodeExt(raw: unknown): WalletExt | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const r = raw as Record<string, unknown>
+  const ext: WalletExt = {}
+  if (isFiniteNonNeg(r['dp'])) ext.dp = r['dp']
+  if (isFiniteNonNeg(r['tt'])) ext.tt = r['tt']
+  const h = r['h']
+  if (Array.isArray(h) && h.length === 4 && h.every(isFiniteNonNeg)) ext.h = [h[0], h[1], h[2], h[3]]
+  for (const k of ['ut', 'un', 'uc'] as const) {
+    const v = r[k]
+    if (Array.isArray(v) && v.every(x => typeof x === 'string' && PREFIX_RE.test(x))) ext[k] = v as string[]
+  }
+  return Object.keys(ext).length > 0 ? ext : undefined
+}
+
+/** Decode an 11-element array (12 with the optional extension) into a WalletRecord. Returns null on any validation failure. */
 export function decodeRecord(arr: unknown): WalletRecord | null {
-  if (!Array.isArray(arr) || arr.length !== 11) return null
+  if (!Array.isArray(arr) || (arr.length !== 11 && arr.length !== 12)) return null
   const [f, l, d, t, x, e, o, i, a, bo, bi] = arr as unknown[]
   if (!isFiniteNonNeg(f)) return null
   if (!isFiniteNonNeg(l)) return null
@@ -172,6 +208,7 @@ export function decodeRecord(arr: unknown): WalletRecord | null {
   if (!isHexString(a)) return null
   if (!isFiniteNonNeg(bo)) return null
   if (!isFiniteNonNeg(bi)) return null
+  const ext = arr.length === 12 ? decodeExt(arr[11]) : undefined
   return {
     f: f as number,
     l: l as number,
@@ -184,6 +221,7 @@ export function decodeRecord(arr: unknown): WalletRecord | null {
     a: a as string,
     bo: bo as number,
     bi: bi as number,
+    ...(ext ? { ext } : {}),
   }
 }
 

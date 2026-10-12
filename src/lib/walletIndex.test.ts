@@ -10,6 +10,7 @@ import {
   parseMeta,
   parseShard,
   decodeRecord,
+  decodeExt,
   activeDays,
   longestStreak,
   appIds,
@@ -484,6 +485,41 @@ test('note contains the from/to dates in YYYY-MM-DD format', () => {
   // since=5 → 2026-01-06; through=283 → 2026-10-11
   assert.ok(note.includes('2026-01-06'), `Missing since date in: ${note}`)
   assert.ok(note.includes('2026-10-11'), `Missing through date in: ${note}`)
+})
+
+// ── optional extension (12th element) ─────────────────────────────────────────
+
+console.log('\ndecodeRecord ext')
+
+const BASE11 = [5, 283, '1', 1200, 36, 0.512, 15230.5, 9800.25, '5', 2, 1]
+
+test('11-element record has no ext key', () => {
+  const rec = decodeRecord(BASE11)
+  assert.ok(rec !== null)
+  assert.equal('ext' in rec!, false)
+})
+
+test('12-element record carries a validated ext', () => {
+  const rec = decodeRecord([...BASE11, { dp: 2, h: [1, 2, 3, 4], tt: 9, ut: ['aabbccdd'], un: [], uc: ['00112233', 'deadbeef'] }])
+  assert.ok(rec !== null)
+  assert.deepEqual(rec!.ext, { dp: 2, h: [1, 2, 3, 4], tt: 9, ut: ['aabbccdd'], un: [], uc: ['00112233', 'deadbeef'] })
+})
+
+test('12-element record with null / array / garbage ext still decodes, without ext', () => {
+  for (const bad of [null, [], 'x', 7, {}, { dp: -1 }, { h: [1, 2, 3] }, { ut: ['zz'] }]) {
+    const rec = decodeRecord([...BASE11, bad])
+    assert.ok(rec !== null, String(bad))
+    assert.equal('ext' in rec!, false, JSON.stringify(bad))
+  }
+})
+
+test('bad ext fields are dropped one by one, good ones kept', () => {
+  const ext = decodeExt({ dp: 1, tt: NaN, h: [1, 2, 3, -4], ut: ['AABBCCDD'], un: ['aabbccdd'] })
+  assert.deepEqual(ext, { dp: 1, un: ['aabbccdd'] })
+})
+
+test('13-element array is rejected', () => {
+  assert.equal(decodeRecord([...BASE11, {}, {}]), null)
 })
 
 // ── Summary ────────────────────────────────────────────────────────────────────
