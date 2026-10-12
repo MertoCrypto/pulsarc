@@ -185,14 +185,20 @@ if (config.outputDirectory !== "dist") {
   );
 }
 
-// Rule 4 – No "unsafe-inline" anywhere in header values
-// -------------------------------------------------------
+// Rule 4 – No "unsafe-inline" in script-capable directives
+// --------------------------------------------------------
+// style-src may keep it: React renders style={{}} props as inline style attributes.
+// script-src / default-src (the fallback for scripts) / script-src-elem / script-src-attr must not.
 for (const block of config.headers ?? []) {
   for (const h of block.headers) {
-    if (h.value.includes("unsafe-inline")) {
-      failures.push(
-        `Rule 4 [no unsafe-inline]: header ${JSON.stringify(h.key)} in block source=${JSON.stringify(block.source)} contains "unsafe-inline"`
-      );
+    for (const directive of h.value.split(";")) {
+      const name = directive.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+      if (name === "style-src" || name === "style-src-elem" || name === "style-src-attr") continue;
+      if (directive.includes("unsafe-inline")) {
+        failures.push(
+          `Rule 4 [no unsafe-inline]: header ${JSON.stringify(h.key)} in block source=${JSON.stringify(block.source)} contains "unsafe-inline" in ${JSON.stringify(name || directive.trim())}`
+        );
+      }
     }
   }
 }
