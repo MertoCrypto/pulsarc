@@ -126,9 +126,13 @@ export function svgToPngDataUrl(
   const background = opts?.background ?? '#0b1a30'
 
   // Measure the rendered size: Recharts SVGs often have width="100%", where baseVal.value is unreliable.
+  // Prefer the SVG's own viewBox size (a card scaled down on a phone still exports at full size);
+  // fall back to the rendered size when there is no usable viewBox.
+  const vb = svg.viewBox?.baseVal
   const rect = svg.getBoundingClientRect()
-  const w = Math.round(rect.width)
-  const h = Math.round(rect.height)
+  const useVb = !!vb && vb.width > 0 && vb.height > 0
+  const w = Math.round(useVb ? vb.width : rect.width)
+  const h = Math.round(useVb ? vb.height : rect.height)
 
   if (w === 0 || h === 0) {
     return Promise.reject(

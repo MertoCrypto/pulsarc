@@ -293,7 +293,7 @@ function ShareCardPanel({ address, net, summary, apps, coverage }: ShareCardPane
       {/* SVG preview — explicit CSS max-w-full so it scales in narrow containers */}
       <div
         ref={svgRef}
-        className="max-w-full overflow-hidden rounded-lg"
+        className="max-w-full overflow-hidden rounded-lg [&>svg]:h-auto [&>svg]:w-full [&>svg]:max-w-[720px]"
         style={{ lineHeight: 0 }}
         // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={{ __html: svgString }}
