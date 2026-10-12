@@ -10,6 +10,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useWalletIndex } from '@/hooks/useWalletIndex'
+import { WalletExtras } from '@/components/wallet/WalletExtras'
 import { coverageNote } from '@/lib/walletIndex'
 import { isAddress } from '@/lib/arcscan'
 
@@ -150,7 +151,7 @@ export function WalletCheck() {
 
   // Hook — validate address before passing (only pass a valid address)
   const queryAddress = checkedAddress && isAddress(checkedAddress) ? checkedAddress : null
-  const { state, meta, summary, errorMessage } = useWalletIndex(queryAddress, net)
+  const { state, meta, summary, apps, errorMessage } = useWalletIndex(queryAddress, net)
 
   return (
     <div className="space-y-10">
@@ -277,6 +278,7 @@ export function WalletCheck() {
 
       {/* Found */}
       {state === 'found' && summary && meta && (
+        <>
         <section className="arc-card p-6 sm:p-8">
           <p className="arc-eyebrow mb-6 !text-[10px]">
             {net === 'mainnet' ? 'Arc Mainnet' : 'Arc Testnet'} · wallet history
@@ -370,6 +372,12 @@ export function WalletCheck() {
             </p>
           )}
         </section>
+        {queryAddress && (
+          <div className="mt-6">
+            <WalletExtras address={queryAddress} net={net} summary={summary} apps={apps} coverage={coverageNote(meta)} />
+          </div>
+        )}
+        </>
       )}
     </div>
   )
