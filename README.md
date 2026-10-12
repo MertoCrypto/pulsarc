@@ -30,9 +30,10 @@ Set `VITE_ARC_NETWORK=mainnet` to start on Arc Mainnet instead of Testnet.
 ## Checks
 
 ```bash
-npm test            # plain-node tests: ~50 files, no framework, no network
+npm test            # plain-node tests: ~75 files, no framework, no network
 npm run typecheck
 npm run build
+forge test          # contract tests (TipJar, GmBoard); needs Foundry installed
 ```
 
 `npm test` also runs drift guards that fail when a rule is broken by a later change: every page keeps its own title and a single main heading, links and buttons keep accessible names, external links carry `rel="noreferrer"`, data requests go through the timeout helper, browser storage is only touched inside `try`, external hosts must be on a reviewed allowlist, banned wording (TVL, airdrop) stays out, and the independent-project disclaimer stays in place. CI runs the same tests and the build on every push.
