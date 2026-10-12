@@ -5,8 +5,9 @@ import { computeMetrics, lifetimeMetrics, RANK_RANGE_MS, type AppMetrics, type R
 import { useAppsLatest, getAppWindow } from '@/hooks/useAppsLatest'
 import { isIndexerUsable, buildIndexerMetrics } from '@/lib/indexerMetrics'
 import { NETWORK } from '@/lib/chain'
+import { rankApps, sumTotals, type SortKey } from '@/lib/ranking'
 
-export type SortKey = 'txCount' | 'activeWallets' | 'volume' | 'tvl' | 'usdcFees'
+export type { SortKey } from '@/lib/ranking'
 
 export interface RankedApp {
   app: ArcApp
@@ -43,8 +44,6 @@ function readSnapshot(range: string, sort: string): Snapshot | null {
     return raw ? (JSON.parse(raw) as Snapshot) : null
   } catch { return null }
 }
-
-const sortValue = (m: AppMetrics, key: SortKey) => m[key] ?? -1
 
 /**
  * Real activity for every tracked app. When the indexer snapshot is usable
@@ -130,18 +129,7 @@ export function useAllMetrics(
       })
     }
 
-    scored.sort((a, b) => sortValue(b.metrics, sortKey) - sortValue(a.metrics, sortKey))
-
-    const ranksAll: Record<string, number> = {}
-    scored.forEach((s, i) => { ranksAll[s.app.id] = i + 1 })
-
-    const visible = scored
-      .filter(s => (!opts.kind || opts.kind === 'all' || s.app.kind === opts.kind) && (categoryFilter === 'All' || s.app.category === categoryFilter))
-      .map((s, i) => {
-        const before = rankUsable?.ranks[s.app.id]
-        const rank = i + 1
-        return { ...s, rank, metrics: { ...s.metrics, rankChange: before ? before - ranksAll[s.app.id] : 0 } }
-      })
+    const { items: visible, ranksAll } = rankApps(scored, sortKey, { kind: opts.kind, category: categoryFilter }, rankUsable?.ranks ?? null)
     return { items: visible as RankedApp[], ranksAll }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stamp, timeRange, sortKey, categoryFilter, opts.kind, usable])
@@ -156,15 +144,7 @@ export function useAllMetrics(
     } catch { /* storage unavailable */ }
   }, [loaded, ranksAll, timeRange, sortKey])
 
-  const totals = items.reduce(
-    (acc, { metrics }) => ({
-      volume: acc.volume + (metrics.volume ?? 0),
-      activeWallets: acc.activeWallets + metrics.activeWallets,
-      txCount: acc.txCount + metrics.txCount,
-      tvl: acc.tvl + (metrics.tvl ?? 0),
-    }),
-    { volume: 0, activeWallets: 0, txCount: 0, tvl: 0 },
-  )
+  const totals = sumTotals(items)
 
   const newest = usable
     ? (snap?.generatedAt ? new Date(snap.generatedAt).getTime() : 0)
