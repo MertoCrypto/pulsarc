@@ -1,5 +1,6 @@
+import { DownloadMenu } from '@/components/shared/DownloadMenu'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Activity, ArrowDownLeft, ArrowUpRight, ExternalLink, Gauge, Layers, Receipt, Timer, Users, Zap } from 'lucide-react'
 import { Reveal } from '@/components/shared/Reveal'
 import { SplitLines } from '@/components/shared/SplitLines'
@@ -528,6 +529,7 @@ function IndexerBridgeSection({
 function NetworkHealthSection({ netKey }: { netKey: 'testnet' | 'mainnet' }) {
   const { data: snap } = useLatest(netKey)
   const [win, setWin] = useState<'1h' | '24h'>('24h')
+  const chartRef = useRef<HTMLDivElement>(null)
 
   if (!snap || !isLatestFresh(snap)) return null
 
@@ -587,7 +589,7 @@ function NetworkHealthSection({ netKey }: { netKey: 'testnet' | 'mainnet' }) {
 
       {series.length > 0 && (
         <Reveal delay={0.04} className="arc-card mt-4 p-5">
-          <div className="h-[180px]">
+          <div className="h-[180px]" ref={chartRef}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={series} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
                 <CartesianGrid vertical={false} stroke="rgba(170,196,234,0.1)" />
@@ -616,7 +618,27 @@ function NetworkHealthSection({ netKey }: { netKey: 'testnet' | 'mainnet' }) {
               </LineChart>
             </ResponsiveContainer>
           </div>
-          <p className="arc-eyebrow mt-3 !text-[10px]">Hourly success rate · last 48 hours</p>
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <p className="arc-eyebrow !text-[10px]">Hourly success rate · last 48 hours</p>
+            <DownloadMenu
+              page="network-success-rate"
+              net={netKey}
+              source="Pulsarc indexer, hourly series (latest.json)"
+              chartRef={chartRef}
+              columns={[
+                { key: 'hour', label: 'Hour (UTC)' },
+                { key: 'txs', label: 'Transactions' },
+                { key: 'failed', label: 'Failed' },
+                { key: 'success_rate_pct', label: 'Success rate %' },
+              ]}
+              rows={snap.series.slice(-48).map(pt => ({
+                hour: pt.hour,
+                txs: pt.txs,
+                failed: pt.failed,
+                success_rate_pct: pt.txs === 0 ? null : parseFloat(((1 - pt.failed / pt.txs) * 100).toFixed(2)),
+              }))}
+            />
+          </div>
         </Reveal>
       )}
     </section>
