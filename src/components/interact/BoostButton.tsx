@@ -122,7 +122,7 @@ export function BoostButton({ dappId, dappName, className }: Props) {
         <div className="absolute top-full right-0 mt-2 w-56 rounded-xl bg-[#10213b] border border-[var(--line)] shadow-2xl p-4 z-50">
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-semibold text-white">Boost {dappName}</p>
-            <button onClick={() => setOpen(false)}><X className="w-3.5 h-3.5 text-[var(--faint)] hover:text-white" /></button>
+            <button onClick={() => setOpen(false)} aria-label="Close boost menu"><X aria-hidden="true" className="w-3.5 h-3.5 text-[var(--faint)] hover:text-white" /></button>
           </div>
 
           <div className="grid grid-cols-2 gap-1.5 mb-3">
