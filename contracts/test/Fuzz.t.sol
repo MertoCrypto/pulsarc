@@ -210,6 +210,7 @@ contract TipJarHandler is Test {
 
     function withdraw(uint256 amount, address to) external {
         to = address(uint160(bound(uint160(to), 1, type(uint160).max)));
+        if (to == address(jar)) return; // sending the jar its own tokens is not a withdrawal
         uint256 bal = token.balanceOf(address(jar));
         if (bal == 0) return;
         amount = bound(amount, 1, bal);
@@ -221,6 +222,7 @@ contract TipJarHandler is Test {
 
     function withdrawAll(address to) external {
         to = address(uint160(bound(uint160(to), 1, type(uint160).max)));
+        if (to == address(jar)) return; // sending the jar its own tokens is not a withdrawal
         uint256 bal = token.balanceOf(address(jar));
         if (bal == 0) return;
         totalWithdrawn += bal;
@@ -578,6 +580,7 @@ contract ArcBoostFuzzTest is Test {
 
     function testFuzz_boost_transfersToTreasury(address caller, string calldata dappId, uint256 amount) public {
         vm.assume(caller != address(0));
+        vm.assume(caller != treasury); // paying yourself nets out
         vm.assume(bytes(dappId).length > 0);
         amount = bound(amount, arcBoost.MIN_BOOST(), 1_000_000e6);
 
@@ -678,6 +681,7 @@ contract ArcWatchlistNFTFuzzTest is Test {
 
     function testFuzz_mintWatchlist_oncePerAddressDappId(address caller, string calldata dappId) public {
         vm.assume(caller != address(0));
+        vm.assume(caller.code.length == 0); // safeMint to a contract (e.g. the Vm cheatcode address) reverts
         vm.assume(bytes(dappId).length > 0);
 
         vm.prank(caller);
@@ -690,6 +694,7 @@ contract ArcWatchlistNFTFuzzTest is Test {
 
     function testFuzz_mintWatchlist_setsWatchlistFlag(address caller, string calldata dappId) public {
         vm.assume(caller != address(0));
+        vm.assume(caller.code.length == 0); // safeMint to a contract (e.g. the Vm cheatcode address) reverts
         vm.assume(bytes(dappId).length > 0);
 
         assertFalse(nft.hasWatchlisted(caller, dappId));
