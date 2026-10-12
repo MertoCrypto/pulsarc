@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react'
 import { ExternalLink, Copy, Check, Rss } from 'lucide-react'
 import { CATALOG, catalogUrl, DATA_BASE } from '@/lib/dataCatalog'
+import { quickStartSnippets, type Snippet } from '@/lib/dataSnippets'
 
 // ── network detection ─────────────────────────────────────────────────────────
 // Arc mainnet chainId is 5042; testnet is 5042002.
@@ -20,7 +21,7 @@ function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false)
 
   function handleCopy() {
-    navigator.clipboard.writeText(value).then(() => {
+    void navigator.clipboard.writeText(value).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
@@ -30,7 +31,7 @@ function CopyButton({ value }: { value: string }) {
     <button
       onClick={handleCopy}
       title="Copy URL"
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-xs text-[var(--muted)] transition-colors hover:border-[var(--periwinkle)]/40 hover:text-[var(--periwinkle)]"
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-xs text-[var(--muted)] transition-colors hover:border-[var(--periwinkle)] hover:text-[var(--periwinkle)]"
     >
       {copied ? (
         <>
@@ -44,6 +45,79 @@ function CopyButton({ value }: { value: string }) {
         </>
       )}
     </button>
+  )
+}
+
+// ── quick-start block ─────────────────────────────────────────────────────────
+
+const SNIPPET_TABS: Snippet['id'][] = ['curl', 'javascript', 'python']
+
+function QuickStart({ url }: { url: string }) {
+  const snippets = quickStartSnippets(url)
+  const [activeTab, setActiveTab] = useState<Snippet['id']>('curl')
+  const [copiedId, setCopiedId] = useState<Snippet['id'] | null>(null)
+
+  const active = snippets.find(s => s.id === activeTab) ?? snippets[0]
+
+  function handleCopy(snippet: Snippet) {
+    navigator.clipboard.writeText(snippet.code).then(() => {
+      setCopiedId(snippet.id)
+      setTimeout(() => setCopiedId(null), 1500)
+    }).catch(() => {/* silent — clipboard unavailable in some contexts */})
+  }
+
+  return (
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">
+      {/* header row */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.08] px-4 py-3">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--faint)]">
+          Quick start
+        </p>
+        {/* language tabs */}
+        <div className="inline-flex rounded-md border border-white/[0.08] bg-white/[0.04] p-0.5">
+          {SNIPPET_TABS.map(id => {
+            const s = snippets.find(x => x.id === id)!
+            return (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={`rounded px-3 py-1 text-xs transition-colors ${
+                  activeTab === id
+                    ? 'bg-[var(--periwinkle)] text-white'
+                    : 'text-[var(--muted)] hover:text-white'
+                }`}
+              >
+                {s.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* code block */}
+      <div className="relative px-4 py-3">
+        <pre className="overflow-x-auto whitespace-pre font-['Geist_Mono'] text-xs leading-relaxed text-[var(--muted)]">
+          <code>{active.code}</code>
+        </pre>
+        <button
+          onClick={() => handleCopy(active)}
+          title="Copy snippet"
+          className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-xs text-[var(--muted)] transition-colors hover:border-[var(--periwinkle)] hover:text-[var(--periwinkle)]"
+        >
+          {copiedId === active.id ? (
+            <>
+              <Check className="h-3 w-3" />
+              Copied
+            </>
+          ) : (
+            <>
+              <Copy className="h-3 w-3" />
+              Copy
+            </>
+          )}
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -94,6 +168,10 @@ export function DataCatalog() {
 
   const rssUrl = `${DATA_BASE}/${net}/feed.xml`
   const llmsTxtUrl = '/llms.txt'
+
+  // URL used for the Quick Start snippets: latest.json for the current network
+  const latestEntry = CATALOG.find(e => e.file === 'latest.json')!
+  const quickStartUrl = catalogUrl(latestEntry, net)
 
   return (
     <div className="space-y-14">
@@ -148,6 +226,11 @@ export function DataCatalog() {
             Last indexer run: {fmtDate(lastUpdated)}
           </p>
         )}
+
+        {/* quick-start */}
+        <div className="mt-8">
+          <QuickStart url={quickStartUrl} />
+        </div>
       </section>
 
       {/* ── catalog cards ── */}
@@ -209,7 +292,7 @@ export function DataCatalog() {
                     href={url}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-xs text-[var(--muted)] transition-colors hover:border-[var(--periwinkle)]/40 hover:text-[var(--periwinkle)]"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-xs text-[var(--muted)] transition-colors hover:border-[var(--periwinkle)] hover:text-[var(--periwinkle)]"
                   >
                     <ExternalLink className="h-3 w-3" />
                     Open
