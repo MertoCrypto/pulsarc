@@ -1,28 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { arcscan, scaled } from '@/lib/arcscan'
+import { arcscan } from '@/lib/arcscan'
+import { toArcToken, type ArcToken, type RawToken } from '@/lib/tokens'
 
-export type TokenGroup = 'Stablecoin' | 'RWA' | 'LP & Vaults' | 'Other'
-
-export interface ArcToken {
-  address: string
-  name: string
-  symbol: string
-  decimals: number
-  holders: number
-  supply: number
-  group: TokenGroup
-  iconUrl: string | null
-}
-
-interface RawToken {
-  address_hash: string
-  name: string | null
-  symbol: string | null
-  decimals: string | null
-  holders_count: string | null
-  total_supply: string | null
-  icon_url: string | null
-}
+export { groupOf, type TokenGroup, type ArcToken } from '@/lib/tokens'
 
 interface Page {
   items: RawToken[]
@@ -31,33 +11,13 @@ interface Page {
 
 const PAGES = 4 // 200 tokens, ordered by holders
 
-const STABLE = /^(w|a|x)?(usdc|eurc|usdt)(\.a)?$/i
-
-/** Our own labels, derived from names. ArcScan does not classify tokens. */
-export function groupOf(name: string, symbol: string): TokenGroup {
-  if (/^usyc$/i.test(symbol)) return 'RWA'
-  if (STABLE.test(symbol) || /^(circle )?(usd coin|euro coin)$/i.test(name)) return 'Stablecoin'
-  if (/\blp\b|-lp|lp$|vault|gauge|staked|pool/i.test(`${name} ${symbol}`)) return 'LP & Vaults'
-  return 'Other'
-}
-
 async function loadTokens(): Promise<ArcToken[]> {
   const out: ArcToken[] = []
   let cursor: Record<string, unknown> | null = null
   for (let i = 0; i < PAGES; i++) {
     const page: Page = await arcscan<Page>('/tokens', { type: 'ERC-20', ...(cursor ?? {}) })
     for (const t of page.items) {
-      const decimals = Number(t.decimals ?? 0)
-      out.push({
-        address: t.address_hash,
-        name: t.name ?? 'Unnamed',
-        symbol: t.symbol ?? '—',
-        decimals,
-        holders: Number(t.holders_count ?? 0),
-        supply: scaled(t.total_supply, decimals),
-        group: groupOf(t.name ?? '', t.symbol ?? ''),
-        iconUrl: t.icon_url,
-      })
+      out.push(toArcToken(t))
     }
     cursor = page.next_page_params
     if (!cursor) break
