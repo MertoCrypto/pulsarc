@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import { ExternalLink, Copy, Check, Rss } from 'lucide-react'
 import { CATALOG, catalogUrl, DATA_BASE } from '@/lib/dataCatalog'
 import { quickStartSnippets, type Snippet } from '@/lib/dataSnippets'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 
 // ── network detection ─────────────────────────────────────────────────────────
 // Arc mainnet chainId is 5042; testnet is 5042002.
@@ -129,7 +130,7 @@ function useLastUpdated(net: 'mainnet' | 'testnet'): string | null {
   useEffect(() => {
     let cancelled = false
     const url = `${DATA_BASE}/${net}/state.json`
-    fetch(url)
+    fetchWithTimeout(url)
       .then(r => r.json())
       .then((data: unknown) => {
         if (cancelled) return
