@@ -25,6 +25,7 @@ const REPO_ROOT = join(__filename, '..', '..', '..')
 const EXCLUDED_FILES = new Set([
   join(REPO_ROOT, 'src', 'lib', 'fetchWithTimeout.ts'),
   join(REPO_ROOT, 'src', 'lib', 'arcscan.ts'),
+  join(REPO_ROOT, 'src', 'lib', 'arcscanCore.ts'),
 ])
 
 // ── Allow-list ────────────────────────────────────────────────────────────────
