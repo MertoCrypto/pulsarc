@@ -11,6 +11,7 @@ import { useAgentsIndex } from '@/hooks/useAgentsIndex'
 import { useAppsLatest } from '@/hooks/useAppsLatest'
 import { AgentsIndexSection, AgentsIndexSkeleton } from '@/components/agents/AgentsIndexSection'
 import { RegistryActivityTiles } from '@/components/agents/RegistryActivityTiles'
+import { OwnerActivityCard } from '@/components/agents/OwnerActivityCard'
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
@@ -105,6 +106,10 @@ export function Agents() {
       </section>
 
       {/* ── Registered agents (indexer) ── */}
+      <div className="empty:hidden">
+        <OwnerActivityCard net={net} />
+      </div>
+
       {indexLoading ? (
         <AgentsIndexSkeleton />
       ) : indexData ? (

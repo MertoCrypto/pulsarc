@@ -93,6 +93,24 @@ URL pattern: https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/
 Hand-maintained map from lowercase Ethereum address to a label object containing
 contract flag, name, symbol, and kind. Top-level keys are addresses.
 
+### balances.json — USDC held by tracked apps
+URL pattern: https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/<net>/balances.json
+Top-level keys: network, generatedAt, token, total, apps, series
+Sum of USDC balances at the contract addresses Pulsarc tracks for each app (largest first) and an hourly series
+of the total. Not every address of an app is tracked, so these are not the apps' total value.
+
+### agents-activity.json — Agent owner activity
+URL pattern: https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/<net>/agents-activity.json
+Top-level keys: network, generatedAt, registry, totalAgents, owners, ownersMeasured, agentsMeasured, ownersWithTx, ownersWithUsdc, agentsOfOwnersWithoutTx, top
+Lifetime transactions sent and USDC balance of the owner wallets of registered ERC-8004 agents. Measured on the
+owner wallet, not on the agent. On testnet only the 600 owners with the most agents are measured. About hourly.
+
+### fx.json — EURC/USDC pool rate (testnet only)
+URL pattern: https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/<net>/fx.json
+Top-level keys: network, generatedAt, source, usdcPerEurc, eurcPerUsdc, change24hPct, series
+Marginal price of one EURC in USDC in the Curve USDC/EURC pool, with 24h change and an hourly series. A pool
+price, not an official FX rate. No verified mainnet source yet.
+
 ### feed.xml — RSS feed
 URL pattern: https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/<net>/feed.xml
 RSS 2.0 feed of the apps that are moving now: hourly activity far above or below the 24h median. Updated every ~7–10 minutes.

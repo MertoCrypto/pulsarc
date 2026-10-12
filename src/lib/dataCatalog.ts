@@ -144,6 +144,39 @@ export const CATALOG: CatalogEntry[] = [
     keys: [],
   },
   {
+    file: 'balances.json',
+    title: 'USDC held by tracked apps',
+    description:
+      'Sum of USDC balances at the contract addresses Pulsarc tracks for each app: total, per-app amounts ' +
+      '(largest first) and an hourly series of the total. Not every address of an app is tracked, so these ' +
+      'are not the apps\' total value.',
+    updates: 'Every ~7–10 minutes',
+    nets: ['mainnet', 'testnet'],
+    keys: ['network', 'generatedAt', 'token', 'total', 'apps', 'series'],
+  },
+  {
+    file: 'agents-activity.json',
+    title: 'Agent owner activity',
+    description:
+      'For the owner wallets of registered ERC-8004 agents: lifetime transactions sent and USDC balance, ' +
+      'with counts of owners measured and owners that never sent a transaction. Measured on the owner ' +
+      'wallet, not on the agent. On testnet only the 600 owners with the most agents are measured.',
+    updates: 'About hourly',
+    nets: ['mainnet', 'testnet'],
+    keys: ['network', 'generatedAt', 'registry', 'totalAgents', 'owners', 'ownersMeasured', 'agentsMeasured', 'ownersWithTx', 'ownersWithUsdc', 'agentsOfOwnersWithoutTx', 'top'],
+  },
+  {
+    file: 'fx.json',
+    title: 'EURC/USDC pool rate',
+    description:
+      'Marginal price of one EURC in USDC (and the reverse) in the Curve USDC/EURC pool, with the 24h change ' +
+      'and an hourly series. It is a pool price, not an official FX rate. Testnet only: there is no verified ' +
+      'mainnet source yet.',
+    updates: 'Every ~7–10 minutes',
+    nets: ['testnet'],
+    keys: ['network', 'generatedAt', 'source', 'usdcPerEurc', 'eurcPerUsdc', 'change24hPct', 'series'],
+  },
+  {
     file: 'feed.xml',
     title: 'RSS feed',
     description: 'RSS 2.0 feed of the apps that are moving now: hourly activity far above or below the 24h median.',
