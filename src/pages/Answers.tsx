@@ -8,6 +8,7 @@
  * Runtime deps needed (install before use):
  *   bun add react-router-dom recharts
  */
+import { useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   ResponsiveContainer,
@@ -27,6 +28,7 @@ import type { AgentsFile } from '@/lib/answers'
 import { parseBalances } from '@/lib/balances'
 import type { BalancesDoc } from '@/lib/balances'
 import { NETWORK } from '@/lib/chain'
+import { faqJsonLd, serializeJsonLd } from '@/lib/answersJsonLd'
 
 // ── Network helper ─────────────────────────────────────────────────────────────
 
@@ -168,6 +170,25 @@ export function AnswerPage() {
   const isLoading = latestLoading || supplyLoading || agentsLoading || balancesLoading
 
   const def = ANSWERS.find(a => a.slug === slug && hasAnswer(a, net))
+
+  // FAQ structured data. Built as a string before any early return so hook order stays stable
+  // and the effect only re-runs when the published text really changes.
+  const ldJson = (() => {
+    if (!def) return null
+    const r = answerValue(def.slug, latest ?? null, supply ?? null, agents ?? null, balances ?? null)
+    const ld = faqJsonLd(def, r, net, `https://pulsarc.vercel.app/answers/${def.slug}`)
+    return ld ? serializeJsonLd(ld) : null
+  })()
+
+  useEffect(() => {
+    if (!ldJson) return
+    const tag = document.createElement('script')
+    tag.type = 'application/ld+json'
+    tag.id = 'answer-jsonld'
+    tag.textContent = ldJson
+    document.head.appendChild(tag)
+    return () => tag.remove()
+  }, [ldJson])
 
   // Unknown slug
   if (!def) {
