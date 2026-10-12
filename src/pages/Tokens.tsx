@@ -5,6 +5,8 @@ import { SplitLines } from '@/components/shared/SplitLines'
 import { StatCard } from '@/components/shared/StatCard'
 import { useChainOverview, useTokens, type TokenGroup } from '@/hooks/useTokens'
 import { compact, explorerToken } from '@/lib/arcscan'
+import { FxRateCard } from '@/components/tokens/FxRateCard'
+import { NETWORK } from '@/lib/chain'
 
 type Filter = 'All' | TokenGroup
 type SortKey = 'holders' | 'supply' | 'name'
@@ -103,6 +105,10 @@ export function Tokens() {
               ))}
             </div>
           </div>
+        </div>
+
+        <div className="mb-6 empty:hidden">
+          <FxRateCard net={NETWORK.id === 5042 ? 'mainnet' : 'testnet'} />
         </div>
 
         <Reveal className="arc-card overflow-hidden">
