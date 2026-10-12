@@ -47,7 +47,7 @@ const CSV_COLUMNS = [
   { key: 'users', label: 'Users' },
   { key: 'users_note', label: 'Users note (≤ upper bound, ≥ extrapolated lower bound)' },
   { key: 'volume_usd', label: 'Volume USD' },
-  { key: 'tvl_usd', label: 'TVL USD' },
+  { key: 'tvl_usd', label: 'USDC held (USD)' },
   { key: 'fees_usdc', label: 'Fees USDC' },
   { key: 'estimated', label: 'Counts extrapolated (≈)' },
 ]

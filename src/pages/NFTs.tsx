@@ -125,7 +125,7 @@ export function NFTs() {
           </div>
         </Reveal>
         <p className="mt-4 max-w-[640px] text-sm leading-relaxed text-[var(--faint)]">
-          "Items" is the total the contract reports (ERC-1155 contracts usually do not). Transfer counts are all-time and are loaded for the 30 largest collections only. Many testnet collections are free airdrops, so holder counts show reach, not demand.
+          "Items" is the total the contract reports (ERC-1155 contracts usually do not). Transfer counts are all-time and are loaded for the 30 largest collections only. Many testnet collections are free to mint, so holder counts show reach, not demand.
         </p>
       </section>
     </div>
