@@ -1,0 +1,24 @@
+{
+ "network": "testnet",
+ "generatedAt": "2026-10-12T07:36:41.702Z",
+ "contracts": [
+  {
+   "address": "0x5794a8284a29493871fbfa3c4f343d42001424d6",
+   "txs": 87199,
+   "walletHours": 26305,
+   "fees": 391.1031
+  },
+  {
+   "address": "0x49f9636fe15883e16d5e356a4ea08c9fe6bc219b",
+   "txs": 81746,
+   "walletHours": 24505,
+   "fees": 380.1642
+  },
+  {
+   "address": "0xc5567a5e3370d4dbfb0540025078e283e36a363d",
+   "txs": 61221,
+   "walletHours": 61083,
+   "fees": 163.0006
+  }
+ ]
+}

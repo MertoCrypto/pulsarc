@@ -1,0 +1,268 @@
+{
+ "network": "mainnet",
+ "generatedAt": "2026-10-12T07:36:24.212Z",
+ "coverageHours": 83,
+ "note": "walletHours sums distinct wallets per hour \u2014 an upper bound on unique wallets over the window",
+ "apps": {
+  "usdc": {
+   "1h": {
+    "txs": 3461,
+    "walletHours": 1310,
+    "volume": 3006367.9616,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 136292,
+    "walletHours": 38854,
+    "volume": 150624064.7807,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 236012,
+    "walletHours": 72514,
+    "volume": 231435505.1654,
+    "fees": 0
+   }
+  },
+  "eurc": {
+   "1h": {
+    "txs": 181,
+    "walletHours": 98,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 10292,
+    "walletHours": 4791,
+    "volume": 0,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 19313,
+    "walletHours": 9177,
+    "volume": 0,
+    "fees": 0
+   }
+  },
+  "usyc": {
+   "1h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   }
+  },
+  "cirbtc": {
+   "1h": {
+    "txs": 630,
+    "walletHours": 101,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 17392,
+    "walletHours": 5140,
+    "volume": 0,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 26700,
+    "walletHours": 9595,
+    "volume": 0,
+    "fees": 0
+   }
+  },
+  "weth": {
+   "1h": {
+    "txs": 404,
+    "walletHours": 33,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 10243,
+    "walletHours": 1123,
+    "volume": 0,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 15420,
+    "walletHours": 1935,
+    "volume": 0,
+    "fees": 0
+   }
+  },
+  "stablefx": {
+   "1h": {
+    "txs": 4,
+    "walletHours": 1,
+    "volume": 0,
+    "fees": 0.023833
+   },
+   "24h": {
+    "txs": 27,
+    "walletHours": 6,
+    "volume": 0,
+    "fees": 0.152683
+   },
+   "7d": {
+    "txs": 27,
+    "walletHours": 6,
+    "volume": 0,
+    "fees": 0.152683
+   }
+  },
+  "memo": {
+   "1h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 22,
+    "walletHours": 12,
+    "volume": 0,
+    "fees": 0.11845
+   },
+   "7d": {
+    "txs": 41,
+    "walletHours": 23,
+    "volume": 0,
+    "fees": 0.145422
+   }
+  },
+  "multicall": {
+   "1h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 138,
+    "walletHours": 89,
+    "volume": 0,
+    "fees": 10.533028
+   },
+   "7d": {
+    "txs": 257,
+    "walletHours": 145,
+    "volume": 0,
+    "fees": 11.591157
+   }
+  },
+  "cctp": {
+   "1h": {
+    "txs": 4,
+    "walletHours": 4,
+    "volume": 0,
+    "fees": 0.009957
+   },
+   "24h": {
+    "txs": 122,
+    "walletHours": 84,
+    "volume": 0,
+    "fees": 0.30484
+   },
+   "7d": {
+    "txs": 200,
+    "walletHours": 142,
+    "volume": 0,
+    "fees": 0.491551
+   }
+  },
+  "gateway": {
+   "1h": {
+    "txs": 7,
+    "walletHours": 2,
+    "volume": 0,
+    "fees": 0.021656
+   },
+   "24h": {
+    "txs": 310,
+    "walletHours": 74,
+    "volume": 0,
+    "fees": 0.923292
+   },
+   "7d": {
+    "txs": 601,
+    "walletHours": 139,
+    "volume": 0,
+    "fees": 1.785251
+   }
+  },
+  "erc8004": {
+   "1h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 15,
+    "walletHours": 13,
+    "volume": 0,
+    "fees": 0.067798
+   },
+   "7d": {
+    "txs": 65,
+    "walletHours": 41,
+    "volume": 0,
+    "fees": 0.201957
+   }
+  },
+  "uniswap": {
+   "1h": {
+    "txs": 1630,
+    "walletHours": 719,
+    "volume": 0,
+    "fees": 5.326859
+   },
+   "24h": {
+    "txs": 63648,
+    "walletHours": 14654,
+    "volume": 0,
+    "fees": 180.09339
+   },
+   "7d": {
+    "txs": 114081,
+    "walletHours": 30204,
+    "volume": 0,
+    "fees": 320.725691
+   }
+  },
+  "across": {
+   "1h": {
+    "txs": 8,
+    "walletHours": 6,
+    "volume": 0,
+    "fees": 0.081952
+   },
+   "24h": {
+    "txs": 341,
+    "walletHours": 196,
+    "volume": 0,
+    "fees": 2.380376
+   },
+   "7d": {
+    "txs": 659,
+    "walletHours": 373,
+    "volume": 0,
+    "fees": 3.361802
+   }
+  }
+ }
+}

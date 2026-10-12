@@ -1,0 +1,24 @@
+{
+ "network": "mainnet",
+ "generatedAt": "2026-10-12T07:36:24.213Z",
+ "contracts": [
+  {
+   "address": "0xddcdb85d4c1a133cd5c9ac473164ea08e10c2543",
+   "txs": 167053,
+   "walletHours": 24,
+   "fees": 266.7837
+  },
+  {
+   "address": "0x80d0c6a9da75dd4448f73a6c1d0232e2402bdf7d",
+   "txs": 61947,
+   "walletHours": 480,
+   "fees": 35.0437
+  },
+  {
+   "address": "0x81451c4695291365c744c3e46ab85a2152085b1d",
+   "txs": 49599,
+   "walletHours": 7,
+   "fees": 78.0224
+  }
+ ]
+}

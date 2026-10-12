@@ -1,0 +1,15 @@
+{
+ "next": 25547288,
+ "tip": 25547287,
+ "network": "mainnet",
+ "chainId": 5042,
+ "openHour": "2026-10-12T07",
+ "openHourStart": 25543005,
+ "skipped": [
+  [
+   24841996,
+   25053371
+  ]
+ ],
+ "updatedAt": "2026-10-12T07:36:24.127Z"
+}

@@ -1,0 +1,24 @@
+{
+ "network": "testnet",
+ "generatedAt": "2026-10-12T07:36:57.868Z",
+ "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+ "lastId": 314000,
+ "caughtUp": false,
+ "count": 314000,
+ "agents": [
+  {
+   "id": 1,
+   "owner": "0xb7acac0ffe24a867f86d2de5e03e98c839a41553"
+  },
+  {
+   "id": 2,
+   "owner": "0x7954350d124ff904f0d4d89cceb4499c852c4628",
+   "uri": "ipfs://bafkreibdi6623n3xpf7ymk62ckb4bo75o3qemwkpfvp5i25j66itxvsoei"
+  },
+  {
+   "id": 3,
+   "owner": "0x7954350d124ff904f0d4d89cceb4499c852c4628",
+   "uri": "ipfs://bafkreid2mxclj5xbcculgn64lqvdaahymag7s7il3ges7zoppxiqruqbgm"
+  }
+ ]
+}

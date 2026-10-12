@@ -1,0 +1,25 @@
+{
+ "network": "mainnet",
+ "generatedAt": "2026-10-12T07:36:26.502Z",
+ "registry": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+ "lastId": 2371,
+ "caughtUp": true,
+ "count": 2371,
+ "agents": [
+  {
+   "id": 1,
+   "owner": "0x024b82335c29fa5606a8ea5c1d24fc9ead50700c",
+   "uri": "https://apexfaucet.xyz/.well-known/erc8004.json"
+  },
+  {
+   "id": 2,
+   "owner": "0x9f408de79d38257dfb6d73c9da7d9c81d744377c",
+   "uri": "https://kleos.network/agents/ledger-scribe.json"
+  },
+  {
+   "id": 3,
+   "owner": "0x9f408de79d38257dfb6d73c9da7d9c81d744377c",
+   "uri": "https://kleos.network/agents/contract-reader.json"
+  }
+ ]
+}

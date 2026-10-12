@@ -1,0 +1,104 @@
+# Pulsarc — Open data for the Arc network
+
+> Pulsarc is an independent analytics site for Arc, a layer-1 blockchain by
+> Circle. Pulsarc is NOT affiliated with, endorsed by, or
+> sponsored by Circle Internet Group. Site URL: https://pulsarc.vercel.app
+
+## About this dataset
+
+The Pulsarc indexer runs as a GitHub Action on the repository
+MertoCrypto/pulsarc-indexer and writes JSON files to the `data` branch.
+Every file is publicly readable, CORS-open, and requires no API key. GitHub's CDN caches files for about 5 minutes.
+
+Base URL: https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data
+
+Files are partitioned by network. Replace <net> with `mainnet` or `testnet`:
+
+    https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/<net>/<file>
+
+The data catalog page on this site:
+    https://pulsarc.vercel.app/data
+
+## Important: wallet counts are upper bounds
+
+Fields named `walletHours` count distinct active wallets per hour and sum
+those counts across the window. This is an upper bound (noted as ≤) on
+unique wallets — a wallet active in multiple hours is counted more than once.
+The files include a `note` field where this applies.
+
+## Files
+
+### latest.json — Network snapshot
+URL pattern: https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/<net>/latest.json
+Top-level keys: network, generatedAt, windows, series
+Rolling 1h / 24h / 7d windows: hours covered, blocks, transactions, failed
+transactions, fees, walletHours, top, auto, account-abstraction (aa, aaTx),
+buckets and mb counters, plus an hourly series of txs, failed, fees, wallets
+and blocks. Updated every ~7–10 minutes.
+
+### apps-latest.json — App activity
+URL pattern: https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/<net>/apps-latest.json
+Top-level keys: network, generatedAt, coverageHours, note, apps
+Per-app transaction counts, walletHours (≤ unique wallets), volume, and fees
+across 1h / 24h / 7d windows. Apps include: USDC, EURC, USYC, cirBTC, WETH,
+StableFX, Memo, Multicall, CCTP, Gateway, ERC-8004, Uniswap, Across, and others.
+Updated every ~7–10 minutes.
+
+### anomalies.json — Anomaly detection
+URL pattern: https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/<net>/anomalies.json
+Top-level keys: network, generatedAt, items, status, hour
+Apps whose activity in the last UTC hour moved sharply against their 24h
+median. status is "ok" when the items list is empty. Updated every ~7–10 minutes.
+
+### digest-latest.json — Digest
+URL pattern: https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/<net>/digest-latest.json
+Top-level keys: network, generatedAt, status, readyAt, hoursHeld, hoursNeeded
+Precomputed digest. status is "warming-up" until 14 days (336 hours) of
+indexer data have been collected. readyAt gives the estimated availability time.
+
+### discover.json — Top contracts
+URL pattern: https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/<net>/discover.json
+Top-level keys: network, generatedAt, contracts
+Top contracts by transaction count over the last 24 hours, with walletHours
+(≤ unique wallets) and fees paid. Updated every ~7–10 minutes.
+
+### agents.json — ERC-8004 agent registry
+URL pattern: https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/<net>/agents.json
+Top-level keys: network, generatedAt, registry, lastId, caughtUp, count, agents
+Snapshot of the on-chain ERC-8004 identity registry: registry address, last
+minted id, caughtUp flag, total count, and a list of agent records (id, owner,
+uri). A limited number of ids are processed per run when caughtUp is false.
+
+### bridge.json — CCTP bridge flows
+URL pattern: https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/<net>/bridge.json
+Top-level keys: network, generatedAt, windows, series
+CCTP bridge in/out counts and USDC volume by CCTP domain across 1h / 24h / 7d
+windows, plus an hourly series. Updated every ~7–10 minutes.
+
+### supply.json — Token supply
+URL pattern: https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/<net>/supply.json
+Top-level keys: generatedAt, network, tokens
+Current circulating supply for USDC and EURC with an hourly series of supply,
+mint, and burn amounts. Updated every ~7–10 minutes.
+
+### state.json — Indexer state
+URL pattern: https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/<net>/state.json
+Top-level keys: next, tip, network, chainId, openHour, openHourStart, skipped, updatedAt
+Internal indexer state: next block to process, chain tip, network, chainId,
+open hour and its start block, skipped block ranges, and the timestamp of the
+last successful run.
+
+### labels.json — Address labels
+URL pattern: https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/<net>/labels.json
+Hand-maintained map from lowercase Ethereum address to a label object containing
+contract flag, name, symbol, and kind. Top-level keys are addresses.
+
+### feed.xml — RSS feed
+URL pattern: https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/<net>/feed.xml
+RSS 2.0 feed of the apps that are moving now: hourly activity far above or below the 24h median. Updated every ~7–10 minutes.
+
+### hourly/<YYYY-MM-DD>.json — Hourly archive
+URL pattern: https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/<net>/hourly/<YYYY-MM-DD>.json
+One file per UTC day. The object is keyed by hour string in the form
+"YYYY-MM-DDTHH" (e.g. "2026-10-11T00"). Each value contains the stats for
+that hour.

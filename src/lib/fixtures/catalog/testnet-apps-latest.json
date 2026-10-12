@@ -1,0 +1,428 @@
+{
+ "network": "testnet",
+ "generatedAt": "2026-10-12T07:36:41.701Z",
+ "coverageHours": 71,
+ "note": "walletHours sums distinct wallets per hour \u2014 an upper bound on unique wallets over the window",
+ "apps": {
+  "usdc": {
+   "1h": {
+    "txs": 17143,
+    "walletHours": 4215,
+    "volume": 2064187.8151,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 639121,
+    "walletHours": 145423,
+    "volume": 6560913.3003,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 1704672,
+    "walletHours": 386615,
+    "volume": 20397010.6293,
+    "fees": 0
+   }
+  },
+  "eurc": {
+   "1h": {
+    "txs": 2466,
+    "walletHours": 952,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 81843,
+    "walletHours": 34406,
+    "volume": 0,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 213131,
+    "walletHours": 87204,
+    "volume": 0,
+    "fees": 0
+   }
+  },
+  "usyc": {
+   "1h": {
+    "txs": 464,
+    "walletHours": 286,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 19400,
+    "walletHours": 11211,
+    "volume": 0,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 44389,
+    "walletHours": 25878,
+    "volume": 0,
+    "fees": 0
+   }
+  },
+  "cirbtc": {
+   "1h": {
+    "txs": 61,
+    "walletHours": 29,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 1200,
+    "walletHours": 636,
+    "volume": 0,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 2448,
+    "walletHours": 1562,
+    "volume": 0,
+    "fees": 0
+   }
+  },
+  "stablefx": {
+   "1h": {
+    "txs": 771,
+    "walletHours": 2,
+    "volume": 0,
+    "fees": 6.737811
+   },
+   "24h": {
+    "txs": 30386,
+    "walletHours": 48,
+    "volume": 0,
+    "fees": 254.346713
+   },
+   "7d": {
+    "txs": 104652,
+    "walletHours": 142,
+    "volume": 0,
+    "fees": 796.808376
+   }
+  },
+  "memo": {
+   "1h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 20,
+    "walletHours": 20,
+    "volume": 0,
+    "fees": 0.025439
+   },
+   "7d": {
+    "txs": 65,
+    "walletHours": 62,
+    "volume": 0,
+    "fees": 0.085128
+   }
+  },
+  "multicall": {
+   "1h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 51,
+    "walletHours": 12,
+    "volume": 0,
+    "fees": 0.415866
+   },
+   "7d": {
+    "txs": 233,
+    "walletHours": 43,
+    "volume": 0,
+    "fees": 1.74404
+   }
+  },
+  "cctp": {
+   "1h": {
+    "txs": 1,
+    "walletHours": 1,
+    "volume": 0,
+    "fees": 0.003751
+   },
+   "24h": {
+    "txs": 2379,
+    "walletHours": 1852,
+    "volume": 0,
+    "fees": 7.198904
+   },
+   "7d": {
+    "txs": 8371,
+    "walletHours": 6655,
+    "volume": 0,
+    "fees": 25.271591
+   }
+  },
+  "gateway": {
+   "1h": {
+    "txs": 4,
+    "walletHours": 2,
+    "volume": 0,
+    "fees": 0.018623
+   },
+   "24h": {
+    "txs": 178,
+    "walletHours": 67,
+    "volume": 0,
+    "fees": 0.810043
+   },
+   "7d": {
+    "txs": 461,
+    "walletHours": 176,
+    "volume": 0,
+    "fees": 1.852055
+   }
+  },
+  "erc8004": {
+   "1h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 10,
+    "walletHours": 10,
+    "volume": 0,
+    "fees": 0.048978
+   },
+   "7d": {
+    "txs": 62,
+    "walletHours": 38,
+    "volume": 0,
+    "fees": 0.396805
+   }
+  },
+  "erc8183": {
+   "1h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 54,
+    "walletHours": 17,
+    "volume": 0,
+    "fees": 0.166667
+   },
+   "7d": {
+    "txs": 91,
+    "walletHours": 36,
+    "volume": 0,
+    "fees": 0.290572
+   }
+  },
+  "wusdc": {
+   "1h": {
+    "txs": 916,
+    "walletHours": 541,
+    "volume": 2867.5101,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 37366,
+    "walletHours": 20898,
+    "volume": 112995.4109,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 90473,
+    "walletHours": 51265,
+    "volume": 274489.5083,
+    "fees": 0
+   }
+  },
+  "arc-dollar": {
+   "1h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 556,
+    "walletHours": 96,
+    "volume": 900.0414,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 1666,
+    "walletHours": 299,
+    "volume": 3400.1235,
+    "fees": 0
+   }
+  },
+  "xylonet": {
+   "1h": {
+    "txs": 191,
+    "walletHours": 140,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 3613,
+    "walletHours": 3189,
+    "volume": 0,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 12268,
+    "walletHours": 10279,
+    "volume": 0,
+    "fees": 0
+   }
+  },
+  "curve-usdc-eurc": {
+   "1h": {
+    "txs": 51,
+    "walletHours": 47,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 486,
+    "walletHours": 296,
+    "volume": 0,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 1447,
+    "walletHours": 905,
+    "volume": 0,
+    "fees": 0
+   }
+  },
+  "swaparc": {
+   "1h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   }
+  },
+  "synthra": {
+   "1h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 81,
+    "walletHours": 110,
+    "volume": 0,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 266,
+    "walletHours": 324,
+    "volume": 0,
+    "fees": 0
+   }
+  },
+  "unitflow": {
+   "1h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   }
+  },
+  "arcflow": {
+   "1h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   }
+  },
+  "axpha": {
+   "1h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   }
+  },
+  "onmifun": {
+   "1h": {
+    "txs": 0,
+    "walletHours": 0,
+    "volume": 0,
+    "fees": 0
+   },
+   "24h": {
+    "txs": 130,
+    "walletHours": 65,
+    "volume": 0,
+    "fees": 0
+   },
+   "7d": {
+    "txs": 387,
+    "walletHours": 194,
+    "volume": 0,
+    "fees": 0
+   }
+  }
+ }
+}

@@ -25,6 +25,7 @@ import { Brand } from '@/pages/Brand'
 import { Digest } from '@/pages/Digest'
 import { Status } from '@/pages/Status'
 import { Discover } from '@/pages/Discover'
+import { DataCatalog } from '@/pages/DataCatalog'
 
 function Layout() {
   useEffect(() => startSmoothScroll(), [])
@@ -60,6 +61,7 @@ function Layout() {
                 <Route path="/status" element={<Status />} />
                 <Route path="/discover" element={<Discover />} />
                 <Route path="/check" element={<WalletCheck />} />
+                <Route path="/data" element={<DataCatalog />} />
               </Routes>
               )}
             </PageTransition>
