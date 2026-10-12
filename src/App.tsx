@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-do
 import { useEffect } from 'react'
 import { NetworkBar } from '@/components/layout/NetworkBar'
 import { startSmoothScroll } from '@/lib/smoothScroll'
+import { usePageMeta } from '@/hooks/usePageMeta'
 import { PageTransition } from '@/components/layout/PageTransition'
 import { TipBox } from '@/components/interact/TipBox'
 import { GmButton } from '@/components/interact/GmButton'
@@ -29,6 +30,7 @@ import { DataCatalog } from '@/pages/DataCatalog'
 import { Answers, AnswerPage } from '@/pages/Answers'
 
 function Layout() {
+  usePageMeta()
   useEffect(() => startSmoothScroll(), [])
   // the home hero runs edge to edge, so the sidebar starts underneath it
   const home = useLocation().pathname === '/'
