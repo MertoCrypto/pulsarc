@@ -8,6 +8,7 @@ import { StatCard } from '@/components/shared/StatCard'
 import { MAX_WALLETS, useTrackedWallets, useWalletSnapshots } from '@/hooks/useTrackedWallets'
 import { compact, explorerAddress, timeAgo } from '@/lib/arcscan'
 import { balanceShares } from '@/lib/shares'
+import { walletTotals } from '@/lib/pageTotals'
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
@@ -38,9 +39,7 @@ export function Wallets() {
 
   const rows = wallets.map((w, i) => ({ wallet: w, q: snaps[i] }))
   const loaded = rows.filter(r => r.q?.data)
-  const totalBalance = loaded.reduce((s, r) => s + (r.q.data?.balance ?? 0), 0)
-  const active24h = loaded.filter(r => (r.q.data?.txns24h ?? 0) > 0).length
-  const txns24h = loaded.reduce((s, r) => s + (r.q.data?.txns24h ?? 0), 0)
+  const { totalBalance, active24h, txns24h } = walletTotals(loaded.map(r => r.q.data))
   const anyLoading = rows.some(r => r.q?.isLoading)
 
   const shares = useMemo(() => {

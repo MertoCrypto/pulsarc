@@ -20,6 +20,7 @@ import { computeMetrics, describeSpan, RANGE_MS, type TimeRange } from '@/lib/ap
 import { HIGH_FREQUENCY, useWalletLevels } from '@/hooks/useWalletLevels'
 import { compact, count, explorerAddress } from '@/lib/arcscan'
 import { topWalletsOf } from '@/lib/catalogView'
+import { sampledEvents } from '@/lib/pageTotals'
 
 const TABS = ['Overview', 'Top wallets'] as const
 type Tab = (typeof TABS)[number]
@@ -49,7 +50,7 @@ export function DApp() {
     [metrics, history.total],
   )
 
-  const sampled = sample ? sample.anchors.reduce((s, a) => s + a.events.length, 0) : 0
+  const sampled = sampledEvents(sample)
 
   if (!app) {
     return (

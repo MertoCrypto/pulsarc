@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Award, ThumbsUp, Users, Zap } from 'lucide-react'
+import { engagementTotals } from '@/lib/pageTotals'
 import { Reveal } from '@/components/shared/Reveal'
 import { SplitLines } from '@/components/shared/SplitLines'
 import { StatCard } from '@/components/shared/StatCard'
@@ -19,9 +20,7 @@ export function LeaderboardV2() {
   const [period, setPeriod] = useState<Period>('weekly')
   const { entries, topContributors, hasActivity, isLoading, isError } = useLeaderboardV2(period)
 
-  const votes = entries.reduce((s, e) => s + e.votes, 0)
-  const attestations = entries.reduce((s, e) => s + e.attestations, 0)
-  const boost = entries.reduce((s, e) => s + e.boostUsdc, 0)
+  const { votes, attestations, boost } = engagementTotals(entries)
 
   return (
     <div className="space-y-14">
