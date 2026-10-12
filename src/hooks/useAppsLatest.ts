@@ -18,6 +18,7 @@ export {
 
 import type { AppsLatest } from '@/lib/appsLatest'
 import { parseAppsLatest } from '@/lib/appsLatest'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 
 const BASE = 'https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data'
 
@@ -36,7 +37,7 @@ export function useAppsLatest(net: 'mainnet' | 'testnet') {
     refetchInterval: 120_000,
     retry: 1,
     queryFn: async (): Promise<AppsLatest | null> => {
-      const res = await fetch(`${BASE}/${net}/apps-latest.json`)
+      const res = await fetchWithTimeout(`${BASE}/${net}/apps-latest.json`)
       if (!res.ok) return null
       const json: unknown = await res.json()
       return parseAppsLatest(json)

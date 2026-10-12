@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { DiscoverSnapshot, ContractLabel } from '@/lib/discover'
 import { parseDiscover } from '@/lib/discover'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 
 export type { DiscoverSnapshot, ContractLabel, DisplayContract } from '@/lib/discover'
 export { parseDiscover, buildDisplayList, shortAddress } from '@/lib/discover'
@@ -24,8 +25,8 @@ export function useDiscover(net: 'mainnet' | 'testnet') {
     retry: 1,
     queryFn: async (): Promise<DiscoverData | null> => {
       const [discoverRes, labelsRes] = await Promise.all([
-        fetch(`${BASE}/${net}/discover.json`),
-        fetch(`${BASE}/${net}/labels.json`),
+        fetchWithTimeout(`${BASE}/${net}/discover.json`),
+        fetchWithTimeout(`${BASE}/${net}/labels.json`),
       ])
       if (!discoverRes.ok) return null
       const discoverJson: unknown = await discoverRes.json()

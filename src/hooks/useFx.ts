@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { parseFx, type FxDoc } from '@/lib/fx'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 
 const BASE = 'https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data'
 
@@ -17,7 +18,7 @@ export function useFx(net: 'mainnet' | 'testnet') {
     refetchInterval: 10 * 60_000,
     retry: 1,
     queryFn: async (): Promise<FxDoc | null> => {
-      const res = await fetch(`${BASE}/${net}/fx.json`)
+      const res = await fetchWithTimeout(`${BASE}/${net}/fx.json`)
       if (res.status === 404) return null
       if (!res.ok) throw new Error(`fx.json fetch failed: ${res.status}`)
       const json: unknown = await res.json()

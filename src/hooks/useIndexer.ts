@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 
 const BASE = 'https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data'
 
@@ -43,11 +44,11 @@ export function useIndexer(net: 'mainnet' | 'testnet') {
     refetchInterval: 120_000,
     retry: 1,
     queryFn: async (): Promise<IndexerSnapshot | null> => {
-      const res = await fetch(`${BASE}/${net}/latest.json`)
+      const res = await fetchWithTimeout(`${BASE}/${net}/latest.json`)
       if (!res.ok) return null
       const snap = (await res.json()) as Omit<IndexerSnapshot, 'labels'>
       // labels are optional: the table falls back to addresses until they exist
-      const labels = await fetch(`${BASE}/${net}/labels.json`).then(r => (r.ok ? r.json() : {})).catch(() => ({}))
+      const labels = await fetchWithTimeout(`${BASE}/${net}/labels.json`).then(r => (r.ok ? r.json() : {})).catch(() => ({}))
       return { ...snap, labels } as IndexerSnapshot
     },
   })

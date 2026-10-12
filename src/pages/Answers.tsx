@@ -31,6 +31,7 @@ import { NETWORK } from '@/lib/chain'
 import { faqJsonLd, serializeJsonLd } from '@/lib/answersJsonLd'
 import { DownloadMenu } from '@/components/shared/DownloadMenu'
 import { answerCsvRows } from '@/lib/answerCsv'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 
 // ── Network helper ─────────────────────────────────────────────────────────────
 
@@ -64,7 +65,7 @@ function useAgentsFile(network: 'mainnet' | 'testnet') {
     refetchInterval: 10 * 60_000,
     retry: 1,
     queryFn: async (): Promise<AgentsFile | null> => {
-      const res = await fetch(`${BASE}/${network}/agents.json`)
+      const res = await fetchWithTimeout(`${BASE}/${network}/agents.json`)
       if (!res.ok) return null
       const json: unknown = await res.json()
       return parseAgentsFile(json)
@@ -79,7 +80,7 @@ function useBalancesFile(network: 'mainnet' | 'testnet') {
     refetchInterval: 10 * 60_000,
     retry: 1,
     queryFn: async (): Promise<BalancesDoc | null> => {
-      const res = await fetch(`${BASE}/${network}/balances.json`)
+      const res = await fetchWithTimeout(`${BASE}/${network}/balances.json`)
       if (!res.ok) return null
       const json: unknown = await res.json()
       return parseBalances(json)

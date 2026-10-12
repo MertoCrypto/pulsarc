@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { LatestSnapshot } from '@/lib/networkHealth'
 import { parseLatest } from '@/lib/networkHealth'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 
 export type { LatestSnapshot } from '@/lib/networkHealth'
 export { parseLatest, isLatestFresh, networkHealthCards, successRateSeries } from '@/lib/networkHealth'
@@ -18,7 +19,7 @@ export function useLatest(net: 'mainnet' | 'testnet') {
     refetchInterval: 10 * 60_000,
     retry: 1,
     queryFn: async (): Promise<LatestSnapshot | null> => {
-      const res = await fetch(`${BASE}/${net}/latest.json`)
+      const res = await fetchWithTimeout(`${BASE}/${net}/latest.json`)
       if (!res.ok) return null
       const json: unknown = await res.json()
       return parseLatest(json)

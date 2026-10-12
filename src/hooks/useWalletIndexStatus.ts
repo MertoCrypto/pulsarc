@@ -9,6 +9,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { parseMeta } from '@/lib/walletIndex'
 import { indexStatus, type IndexStatusResult } from '@/lib/walletIndexStatus'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 
 type Net = 'mainnet' | 'testnet'
 
@@ -27,7 +28,7 @@ export function useWalletIndexStatus(net: Net): {
     staleTime: 10 * 60_000,
     retry: 1,
     queryFn: async (): Promise<IndexStatusResult | null> => {
-      const res = await fetch(metaUrl(net))
+      const res = await fetchWithTimeout(metaUrl(net))
       if (res.status === 404) return null
       if (!res.ok) throw new Error(`meta.json: HTTP ${res.status}`)
       const raw: unknown = await res.json()

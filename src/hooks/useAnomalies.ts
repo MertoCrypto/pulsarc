@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { AnomaliesSnap } from '@/lib/anomalies'
 import { parseAnomalies } from '@/lib/anomalies'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 
 export type { AnomaliesSnap, AnomalyItem, AnomalyKind } from '@/lib/anomalies'
 export { parseAnomalies, isAnomaliesFresh, describeAnomaly } from '@/lib/anomalies'
@@ -20,7 +21,7 @@ export function useAnomalies(net: 'mainnet' | 'testnet') {
     refetchInterval: 120_000,
     retry: 1,
     queryFn: async (): Promise<AnomaliesSnap | null> => {
-      const res = await fetch(`${BASE}/${net}/anomalies.json`)
+      const res = await fetchWithTimeout(`${BASE}/${net}/anomalies.json`)
       if (!res.ok) return null
       const json: unknown = await res.json()
       return parseAnomalies(json)

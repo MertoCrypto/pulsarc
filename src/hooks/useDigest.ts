@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { DigestSnap } from '@/lib/digest'
 import { parseDigest } from '@/lib/digest'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 
 export type { DigestSnap, DigestOk, DigestWarmingUp, DigestApp } from '@/lib/digest'
 export { parseDigest, progress, formatChange } from '@/lib/digest'
@@ -20,7 +21,7 @@ export function useDigest(net: 'mainnet' | 'testnet') {
     refetchInterval: 10 * 60_000,
     retry: 1,
     queryFn: async (): Promise<DigestSnap | null> => {
-      const res = await fetch(`${BASE}/${net}/digest-latest.json`)
+      const res = await fetchWithTimeout(`${BASE}/${net}/digest-latest.json`)
       if (!res.ok) return null
       const json: unknown = await res.json()
       return parseDigest(json)

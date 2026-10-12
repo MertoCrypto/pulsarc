@@ -11,6 +11,7 @@ import {
   summarize,
 } from '@/lib/walletIndex'
 import type { MetaJson, WalletRecord, WalletSummary, AppsConfig } from '@/lib/walletIndex'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 
 type Net = 'mainnet' | 'testnet'
 
@@ -69,7 +70,7 @@ export function useWalletIndex(
     staleTime: 10 * 60_000,
     retry: 1,
     queryFn: async (): Promise<MetaJson | null | 'unpublished'> => {
-      const res = await fetch(metaUrl(net))
+      const res = await fetchWithTimeout(metaUrl(net))
       if (res.status === 404) return 'unpublished'
       if (!res.ok) throw new Error(`meta.json: HTTP ${res.status}`)
       const raw: unknown = await res.json()
@@ -88,7 +89,7 @@ export function useWalletIndex(
     retry: 1,
     queryFn: async (): Promise<Record<string, WalletRecord> | 'not-found'> => {
       // shard is guaranteed non-null here (enabled guard)
-      const res = await fetch(shardUrl(net, shard!))
+      const res = await fetchWithTimeout(shardUrl(net, shard!))
       if (res.status === 404) return 'not-found'
       if (!res.ok) throw new Error(`shard ${shard}: HTTP ${res.status}`)
       const raw: unknown = await res.json()
@@ -103,7 +104,7 @@ export function useWalletIndex(
     staleTime: 60 * 60_000,
     retry: 1,
     queryFn: async (): Promise<AppsConfig | null> => {
-      const res = await fetch(appsUrl(net))
+      const res = await fetchWithTimeout(appsUrl(net))
       if (!res.ok) return null
       const raw: unknown = await res.json()
       if (!raw || typeof raw !== 'object' || !Array.isArray((raw as Record<string, unknown>)['apps'])) return null

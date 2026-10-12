@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { IndexerState, AppsLatestMeta } from '@/lib/status'
 import { parseState } from '@/lib/status'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 
 export type { IndexerState, AppsLatestMeta, StatusDerived, WindowCoverage } from '@/lib/status'
 export { parseState, deriveStatus, timeAgo } from '@/lib/status'
@@ -19,8 +20,8 @@ export function useIndexerState(net: 'mainnet' | 'testnet') {
     retry: 1,
     queryFn: async (): Promise<{ state: IndexerState; meta: AppsLatestMeta } | null> => {
       const [stateRes, metaRes] = await Promise.all([
-        fetch(`${BASE}/${net}/state.json`),
-        fetch(`${BASE}/${net}/apps-latest.json`),
+        fetchWithTimeout(`${BASE}/${net}/state.json`),
+        fetchWithTimeout(`${BASE}/${net}/apps-latest.json`),
       ])
       if (!stateRes.ok) return null
       const stateJson: unknown = await stateRes.json()

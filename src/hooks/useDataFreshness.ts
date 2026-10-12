@@ -10,6 +10,7 @@
 import { useQueries } from '@tanstack/react-query'
 import { CATALOG, catalogUrl, type CatalogEntry } from '@/lib/dataCatalog'
 import { classify, rowsToCheck, type FreshState, timestampOf } from '@/lib/dataFreshness'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 
 export interface FreshnessRow {
   file: string
@@ -56,7 +57,7 @@ export function useDataFreshness(net: 'mainnet' | 'testnet'): UseDataFreshnessRe
 
         let res: Response
         try {
-          res = await fetch(url, { cache: 'no-store' })
+          res = await fetchWithTimeout(url, { cache: 'no-store' })
         } catch {
           return { status: 'error', generatedAt: undefined }
         }

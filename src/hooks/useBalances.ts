@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { parseBalances, type BalancesDoc } from '@/lib/balances'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 
 const BASE = 'https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data'
 
@@ -17,7 +18,7 @@ export function useBalances(net: 'mainnet' | 'testnet') {
     refetchInterval: 10 * 60_000,
     retry: 1,
     queryFn: async (): Promise<BalancesDoc | null> => {
-      const res = await fetch(`${BASE}/${net}/balances.json`)
+      const res = await fetchWithTimeout(`${BASE}/${net}/balances.json`)
       if (res.status === 404) return null
       if (!res.ok) throw new Error(`balances.json fetch failed: ${res.status}`)
       const json: unknown = await res.json()

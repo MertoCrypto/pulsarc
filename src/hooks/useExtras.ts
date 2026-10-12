@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { parseSupply, parseBridge } from '@/lib/activityMix'
 import type { SupplyJson, BridgeJson } from '@/lib/activityMix'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 
 // Re-export types for consumers
 export type { SupplyJson, BridgeJson, ExtendedWindow, AutoField, MbField, BridgeWindowField } from '@/lib/activityMix'
@@ -18,7 +19,7 @@ export function useSupply(net: 'mainnet' | 'testnet') {
     refetchInterval: 10 * 60_000,
     retry: 1,
     queryFn: async (): Promise<SupplyJson | null> => {
-      const res = await fetch(`${BASE}/${net}/supply.json`)
+      const res = await fetchWithTimeout(`${BASE}/${net}/supply.json`)
       if (!res.ok) return null
       const json: unknown = await res.json()
       return parseSupply(json)
@@ -37,7 +38,7 @@ export function useBridgeData(net: 'mainnet' | 'testnet') {
     refetchInterval: 10 * 60_000,
     retry: 1,
     queryFn: async (): Promise<BridgeJson | null> => {
-      const res = await fetch(`${BASE}/${net}/bridge.json`)
+      const res = await fetchWithTimeout(`${BASE}/${net}/bridge.json`)
       if (!res.ok) return null
       const json: unknown = await res.json()
       return parseBridge(json)

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { AgentsIndex } from '@/lib/agentsIndex'
 import { parseAgentsIndex } from '@/lib/agentsIndex'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 
 export type { AgentsIndex, AgentIndexEntry, AgentSortKey } from '@/lib/agentsIndex'
 export { parseAgentsIndex, searchAgents, sortAgents, pageOf } from '@/lib/agentsIndex'
@@ -22,7 +23,7 @@ export function useAgentsIndex(net: 'mainnet' | 'testnet') {
     refetchInterval: 10 * 60_000,
     retry: 1,
     queryFn: async (): Promise<AgentsIndex | null> => {
-      const res = await fetch(`${BASE}/${net}/agents.json`)
+      const res = await fetchWithTimeout(`${BASE}/${net}/agents.json`)
       if (!res.ok) return null
       const json: unknown = await res.json()
       return parseAgentsIndex(json)

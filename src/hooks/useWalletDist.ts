@@ -7,6 +7,7 @@
  */
 import { useQuery } from '@tanstack/react-query'
 import { parseDist, type WalletDist } from '@/lib/walletDist'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 
 type Net = 'mainnet' | 'testnet'
 
@@ -22,7 +23,7 @@ export function useWalletDist(net: Net) {
     staleTime: 10 * 60_000,
     retry: 1,
     queryFn: async (): Promise<WalletDist | null> => {
-      const res = await fetch(distUrl(net))
+      const res = await fetchWithTimeout(distUrl(net))
       if (res.status === 404) return null
       if (!res.ok) throw new Error(`dist.json: HTTP ${res.status}`)
       const raw: unknown = await res.json()
