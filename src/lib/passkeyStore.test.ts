@@ -80,7 +80,7 @@ function check(label: string, actual: unknown, expected: unknown): void {
 // ---------------------------------------------------------------------------
 // Test runner state — reset between tests
 // ---------------------------------------------------------------------------
-let fakeStorage: FakeStorage
+let fakeStorage: FakeStorage = makeFakeStorage()
 
 function resetStorage(): void {
   fakeStorage = makeFakeStorage()
