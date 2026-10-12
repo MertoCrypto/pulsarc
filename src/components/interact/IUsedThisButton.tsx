@@ -73,19 +73,21 @@ export function IUsedThisButton({ dappId, className }: Props) {
   }
 
   return (
-    <button
-      onClick={handleAttest}
-      disabled={isLoading || (isConnected && attested)}
-      title={attested ? 'You attested this DApp' : 'Attest: I used this DApp'}
-      className={clsx('arc-act', isLoading && 'cursor-wait opacity-60', className)}
-      data-on={attested}
-    >
-      {isLoading
-        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        : <CheckCircle className="w-3.5 h-3.5" />
-      }
-      <span>{attested ? 'Used' : 'I Used This'}</span>
-      {count !== null && <span className="text-[var(--faint)]">({count})</span>}
+    <>
+      <button
+        onClick={handleAttest}
+        disabled={isLoading || (isConnected && attested)}
+        title={attested ? 'You attested this DApp' : 'Attest: I used this DApp'}
+        className={clsx('arc-act', isLoading && 'cursor-wait opacity-60', className)}
+        data-on={attested}
+      >
+        {isLoading
+          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          : <CheckCircle className="w-3.5 h-3.5" />
+        }
+        <span>{attested ? 'Used' : 'I Used This'}</span>
+        {count !== null && <span className="text-[var(--faint)]">({count})</span>}
+      </button>
       {hash && (
         <a
           href={`${explorerChain.explorerBase}/tx/${hash}`}
@@ -96,6 +98,6 @@ export function IUsedThisButton({ dappId, className }: Props) {
           className="text-[var(--periwinkle)] hover:text-[var(--periwinkle)] ml-0.5"
         >↗</a>
       )}
-    </button>
+    </>
   )
 }

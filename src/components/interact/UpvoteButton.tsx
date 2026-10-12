@@ -83,23 +83,25 @@ export function UpvoteButton({ dappId, className }: Props) {
   const count = voteCount !== undefined ? Number(voteCount) + (optimisticVoted ? 1 : 0) : null
 
   return (
-    <button
-      onClick={handleVote}
-      disabled={isLoading || (isConnected && hasVoted)}
-      title={
-        !isConnected ? 'Connect wallet to vote'
-          : hasVoted ? 'Already voted today'
-          : isLoading ? 'Processing...'
-          : 'Upvote this DApp'
-      }
-      className={clsx('arc-act', isLoading && 'cursor-wait opacity-60', className)}
-      data-on={hasVoted}
-    >
-      {isLoading
-        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        : <ThumbsUp className="w-3.5 h-3.5" />
-      }
-      <span>{count !== null ? count : '—'}</span>
+    <>
+      <button
+        onClick={handleVote}
+        disabled={isLoading || (isConnected && hasVoted)}
+        title={
+          !isConnected ? 'Connect wallet to vote'
+            : hasVoted ? 'Already voted today'
+            : isLoading ? 'Processing...'
+            : 'Upvote this DApp'
+        }
+        className={clsx('arc-act', isLoading && 'cursor-wait opacity-60', className)}
+        data-on={hasVoted}
+      >
+        {isLoading
+          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          : <ThumbsUp className="w-3.5 h-3.5" />
+        }
+        <span>{count !== null ? count : '—'}</span>
+      </button>
       {hash && (
         <a
           href={`${explorerChain.explorerBase}/tx/${hash}`}
@@ -110,6 +112,6 @@ export function UpvoteButton({ dappId, className }: Props) {
           className="text-[var(--periwinkle)] hover:text-[var(--periwinkle)] ml-0.5"
         >↗</a>
       )}
-    </button>
+    </>
   )
 }

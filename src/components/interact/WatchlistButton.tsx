@@ -63,18 +63,20 @@ export function WatchlistButton({ dappId, className }: Props) {
   }
 
   return (
-    <button
-      onClick={handleMint}
-      disabled={isLoading || (isConnected && watchlisted)}
-      title={watchlisted ? 'Saved to your watchlist as NFT' : 'Add to Watchlist (mint NFT)'}
-      className={clsx('arc-act', isLoading && 'cursor-wait opacity-60', className)}
-      data-on={watchlisted}
-    >
-      {isLoading
-        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        : <Bookmark className={clsx('w-3.5 h-3.5', watchlisted && 'fill-current')} />
-      }
-      <span>{watchlisted ? 'Watchlisted' : 'Watchlist'}</span>
+    <>
+      <button
+        onClick={handleMint}
+        disabled={isLoading || (isConnected && watchlisted)}
+        title={watchlisted ? 'Saved to your watchlist as NFT' : 'Add to Watchlist (mint NFT)'}
+        className={clsx('arc-act', isLoading && 'cursor-wait opacity-60', className)}
+        data-on={watchlisted}
+      >
+        {isLoading
+          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          : <Bookmark className={clsx('w-3.5 h-3.5', watchlisted && 'fill-current')} />
+        }
+        <span>{watchlisted ? 'Watchlisted' : 'Watchlist'}</span>
+      </button>
       {hash && (
         <a
           href={`${explorerChain.explorerBase}/tx/${hash}`}
@@ -85,6 +87,6 @@ export function WatchlistButton({ dappId, className }: Props) {
           className="text-[var(--periwinkle)] hover:text-[var(--periwinkle)] ml-0.5"
         >↗</a>
       )}
-    </button>
+    </>
   )
 }
