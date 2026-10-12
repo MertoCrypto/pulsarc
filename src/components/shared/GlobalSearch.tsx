@@ -79,6 +79,9 @@ export function GlobalSearch() {
     <div className="relative" ref={ref}>
       {/* Trigger button */}
       <button
+        aria-label="Open search"
+        aria-expanded={open}
+        aria-haspopup="dialog"
         onClick={() => { setOpen(true); setTimeout(() => inputRef.current?.focus(), 50) }}
         className={clsx(
           'flex items-center gap-2 transition-all rounded-lg border',
@@ -87,7 +90,7 @@ export function GlobalSearch() {
             : 'px-3 py-1.5 bg-white/[0.05] border-[var(--line)] text-[var(--faint)] hover:text-[var(--muted)] hover:bg-white/[0.05]'
         )}
       >
-        <Search className="w-3.5 h-3.5" />
+        <Search aria-hidden="true" className="w-3.5 h-3.5" />
         <span className="text-xs hidden sm:block">Search apps, wallets…</span>
         <kbd className="hidden sm:block text-[9px] font-['Geist_Mono'] bg-white/[0.05] border border-[var(--line)] rounded px-1 py-0.5 text-[var(--faint)]">⌘K</kbd>
       </button>
@@ -108,8 +111,8 @@ export function GlobalSearch() {
               autoComplete="off"
             />
           </div>
-          <button onClick={close} className="text-[var(--faint)] hover:text-[var(--muted)] transition-colors">
-            <X className="w-4 h-4" />
+          <button onClick={close} aria-label="Close search" className="text-[var(--faint)] hover:text-[var(--muted)] transition-colors">
+            <X aria-hidden="true" className="w-4 h-4" />
           </button>
         </div>
       )}

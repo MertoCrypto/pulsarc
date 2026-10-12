@@ -69,6 +69,7 @@ export function CommentsPanel({ dappId }: Props) {
             />
             <button
               type="submit"
+              aria-label="Post comment"
               disabled={!text.trim() || submitting}
               className={clsx(
                 'px-3 py-2 rounded-lg transition-all',
@@ -77,7 +78,7 @@ export function CommentsPanel({ dappId }: Props) {
                   : 'bg-white/[0.05] text-white/20 border border-[var(--line)] cursor-not-allowed'
               )}
             >
-              <Send className="w-4 h-4" />
+              <Send aria-hidden="true" className="w-4 h-4" />
             </button>
           </form>
         ) : (
@@ -113,6 +114,7 @@ export function CommentsPanel({ dappId }: Props) {
                 <button
                   onClick={() => address && like(comment.id, address)}
                   disabled={!isConnected}
+                  aria-label={comment.likes > 0 ? `Like comment, ${comment.likes} likes` : 'Like comment'}
                   className={clsx(
                     'flex items-center gap-1 text-[10px] transition-colors',
                     address && comment.likedBy.includes(address)
@@ -120,7 +122,7 @@ export function CommentsPanel({ dappId }: Props) {
                       : 'text-[var(--faint)] hover:text-[var(--periwinkle)]'
                   )}
                 >
-                  <Heart className="w-3 h-3" />
+                  <Heart aria-hidden="true" className="w-3 h-3" />
                   {comment.likes > 0 && comment.likes}
                 </button>
                 {address?.toLowerCase() === comment.walletAddress.toLowerCase() && (
