@@ -4,6 +4,8 @@ export interface DailyPoint {
   date: string // YYYY-MM-DD
   label: string
   transactions: number
+  /** Set on mainnet when the day is not fully covered by the indexer series. */
+  partial?: boolean
 }
 
 export interface RawDaily { chart_data: { date: string; transactions_count: number }[] }

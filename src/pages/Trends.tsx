@@ -42,12 +42,13 @@ export function Trends() {
 
   const week = daily.data?.slice(-30) ?? []
   const { peak, avg } = peakAndAverage(week)
+  const hasPartial = NETWORK.id === 5042 && week.some(p => p.partial)
 
   return (
     <div className="space-y-14">
       <Reveal>
         <section className="pt-4">
-          <p className="arc-eyebrow mb-5">Trends · Arc Testnet</p>
+          <p className="arc-eyebrow mb-5">{`Trends · ${NETWORK.name}`}</p>
           <SplitLines as="h1" className="arc-display text-[clamp(40px,6vw,80px)] text-white"
             lines={[{ text: 'The shape of' }, { text: 'activity.', className: 'text-[var(--periwinkle)]' }]} />
           <p className="mt-6 max-w-[560px] text-lg font-light leading-relaxed text-[var(--muted)]">
@@ -93,6 +94,9 @@ export function Trends() {
                   <Area type="monotone" dataKey="transactions" stroke="#a9c4ea" strokeWidth={1.8} fill="url(#dailyFill)" isAnimationActive={false} />
                 </AreaChart>
               </ResponsiveContainer>
+              {hasPartial && (
+                <p className="mt-3 text-xs text-[var(--muted)]">The first and last days are partial.</p>
+              )}
             </>
           )}
         </Reveal>
