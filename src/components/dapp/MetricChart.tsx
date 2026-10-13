@@ -8,6 +8,8 @@ interface MetricChartProps {
   formatter?: (v: number) => string
   isLoading?: boolean
   empty?: string
+  /** Optional clarifying note shown below the title in a small muted line. */
+  description?: string
 }
 
 function defaultFmt(v: number): string {
@@ -16,12 +18,15 @@ function defaultFmt(v: number): string {
   return Number.isInteger(v) ? String(v) : v.toFixed(2)
 }
 
-export function MetricChart({ title, data, dataKey, formatter = defaultFmt, isLoading, empty = 'Nothing recorded in this window.' }: MetricChartProps) {
+export function MetricChart({ title, data, dataKey, formatter = defaultFmt, isLoading, empty = 'Nothing recorded in this window.', description }: MetricChartProps) {
   const hasData = data.some(p => p[dataKey] > 0)
 
   return (
     <div className="arc-card p-5">
-      <p className="arc-eyebrow mb-5">{title}</p>
+      <p className={description ? 'arc-eyebrow mb-1' : 'arc-eyebrow mb-5'}>{title}</p>
+      {description && (
+        <p className="mb-4 text-[11px] leading-snug text-[var(--faint)]">{description}</p>
+      )}
       {isLoading ? (
         <div className="flex h-[180px] items-end gap-1.5 px-2">
           {Array.from({ length: 12 }).map((_, i) => (

@@ -9,6 +9,7 @@ import { useCompareHistory } from '@/hooks/useAppHistory'
 import { describeSpan, type TimeRange } from '@/lib/appActivity'
 import { compact, count } from '@/lib/arcscan'
 import { NETWORK } from '@/lib/chain'
+import { walletsPrefix } from '@/lib/walletsPrefix'
 
 const MAX_APPS = 4
 
@@ -27,6 +28,10 @@ const METRICS: { key: MetricKey; label: string; fmt: (v: number) => string }[] =
   { key: 'volume', label: 'Dollars moved', fmt: v => `$${compact(v, 1)}` },
   { key: 'usdcFees', label: 'Gas fees paid', fmt: v => `$${v.toFixed(4)}` },
 ]
+
+/** Tooltip shown on the "Wallets" column header when mainnet is active. */
+const WALLETS_UPPER_BOUND_TITLE =
+  'Sum of distinct wallets per hour, so the true number of different people can be lower (≤).'
 
 export function Compare() {
   const [ids, setIds] = useState<string[]>(['xylonet', 'curve-usdc-eurc'])
@@ -56,6 +61,8 @@ export function Compare() {
 
   const add = (id: string) => { if (ids.length < MAX_APPS) setIds([...ids, id]); setSearch('') }
   const remove = (id: string) => setIds(ids.filter(x => x !== id))
+
+  const isMainnet = NETWORK.id === 5042
 
   return (
     <div className="space-y-8">
@@ -107,8 +114,14 @@ export function Compare() {
             <table className="w-full min-w-[560px] border-collapse">
               <thead>
                 <tr className="border-b border-[var(--line)]">
-                  {['App', 'Transactions', 'Wallets', 'Dollars moved', 'USDC held'].map((h, i) => (
-                    <th key={h} className={`arc-eyebrow !text-[10px] px-5 py-3.5 font-normal ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+                  {(['App', 'Transactions', 'Wallets', 'Dollars moved', 'USDC held'] as const).map((h, i) => (
+                    <th
+                      key={h}
+                      title={h === 'Wallets' && isMainnet ? WALLETS_UPPER_BOUND_TITLE : undefined}
+                      className={`arc-eyebrow !text-[10px] px-5 py-3.5 font-normal ${i === 0 ? 'text-left' : 'text-right'}`}
+                    >
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -123,7 +136,7 @@ export function Compare() {
                       ) : (
                         <>
                           <td className="px-5 py-3.5 text-right text-sm tabular-nums text-white">{m.estimated ? '≈' : ''}{count(m.txCount)}</td>
-                          <td className="px-5 py-3.5 text-right text-sm tabular-nums text-[var(--muted)]">{m.estimated ? '≥' : ''}{m.activeWallets}</td>
+                          <td className="px-5 py-3.5 text-right text-sm tabular-nums text-[var(--muted)]">{walletsPrefix(NETWORK.id, m.estimated ?? false)}{m.activeWallets}</td>
                           <td className="px-5 py-3.5 text-right text-sm tabular-nums text-[var(--muted)]">{m.volume === null ? '—' : `$${compact(m.volume, 1)}`}</td>
                           <td className="px-5 py-3.5 text-right text-sm tabular-nums text-[var(--muted)]">{m.tvl === null ? '—' : `$${compact(m.tvl, 1)}`}</td>
                         </>
@@ -144,7 +157,12 @@ export function Compare() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {METRICS.map(metric => (
               <div key={metric.key} className="arc-card p-5">
-                <p className="arc-eyebrow mb-5">{metric.label}</p>
+                <p
+                  className="arc-eyebrow mb-5"
+                  title={metric.key === 'activeWallets' && isMainnet ? WALLETS_UPPER_BOUND_TITLE : undefined}
+                >
+                  {metric.label}
+                </p>
                 {isLoading ? (
                   <div className="h-[180px] animate-pulse rounded bg-white/5" />
                 ) : (

@@ -21,12 +21,19 @@ import { HIGH_FREQUENCY, useWalletLevels } from '@/hooks/useWalletLevels'
 import { compact, count, explorerAddress } from '@/lib/arcscan'
 import { topWalletsOf } from '@/lib/catalogView'
 import { sampledEvents } from '@/lib/pageTotals'
+import { NETWORK } from '@/lib/chain'
+import { walletsPrefix } from '@/lib/walletsPrefix'
 
 const TABS = ['Overview', 'Top wallets'] as const
 type Tab = (typeof TABS)[number]
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 const usd = (n: number) => `$${compact(n, n >= 1000 ? 2 : 2)}`
+
+const WALLETS_CHART_DESCRIPTION =
+  NETWORK.id === 5042
+    ? 'Sum of distinct wallets per hour, so the true number of different people can be lower (≤).'
+    : undefined
 
 export function DApp() {
   const { id = '' } = useParams<{ id: string }>()
@@ -141,7 +148,8 @@ export function DApp() {
           <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard label="Transactions" value={metrics?.txCount ?? 0} format={n => `${metrics?.estimated ? '≈' : ''}${count(n)}`}
               subValue={metrics?.estimated ? 'extrapolated from newest activity' : 'exact count'} icon={ArrowLeftRight} isLoading={isLoading} />
-            <StatCard label="Wallets" value={metrics?.activeWallets ?? 0} format={n => `${metrics?.estimated ? '≥' : ''}${Math.round(n)}`}
+            <StatCard label="Wallets" value={metrics?.activeWallets ?? 0}
+              format={n => `${walletsPrefix(NETWORK.id, metrics?.estimated ?? false)}${Math.round(n)}`}
               subValue="distinct addresses" icon={Users} isLoading={isLoading} />
             <StatCard label="Dollars moved" value={metrics?.volume ?? 0} format={n => (metrics?.volume == null ? '—' : usd(n))}
               subValue={metrics?.volume == null ? 'no USDC-denominated flow' : 'USDC-denominated'} icon={BarChart3} isLoading={isLoading} />
@@ -157,7 +165,13 @@ export function DApp() {
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <MetricChart title="Transactions" data={history.perApp[app.id] ?? []} dataKey="txCount" isLoading={isLoading} />
-            <MetricChart title="Active wallets" data={history.perApp[app.id] ?? []} dataKey="activeWallets" isLoading={isLoading} />
+            <MetricChart
+              title="Active wallets"
+              data={history.perApp[app.id] ?? []}
+              dataKey="activeWallets"
+              isLoading={isLoading}
+              description={WALLETS_CHART_DESCRIPTION}
+            />
             <MetricChart title="Dollars moved" data={history.perApp[app.id] ?? []} dataKey="volume" formatter={v => usd(v)} isLoading={isLoading} empty="This app has no USDC-denominated flow." />
             <MetricChart title="Gas fees paid" data={history.perApp[app.id] ?? []} dataKey="usdcFees" formatter={v => `$${v.toFixed(4)}`} isLoading={isLoading} empty="Fees are only measured for contracts that receive transactions." />
           </div>
