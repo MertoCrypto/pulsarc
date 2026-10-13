@@ -5,16 +5,41 @@
 
 import { http, fallback, createConfig } from 'wagmi'
 import { mainnet } from 'wagmi/chains'
-import { arcTestnet } from 'viem/chains'
 import { injected } from 'wagmi/connectors'
 import { registerChain } from './tracing'
-import { NETWORKS } from './lib/chain'
+import { NETWORKS, NETWORK } from './lib/chain'
+import { selectArcChain } from './lib/arcChains'
 
-// Pre-register chain RPC URLs so trace events show correct chain names immediately
-registerChain(arcTestnet.id, arcTestnet.rpcUrls.default.http[0])
+// ---------------------------------------------------------------------------
+// Arc chain selection — single derivation point keyed on NETWORK.id
+// ---------------------------------------------------------------------------
+
+const arcChain = selectArcChain(NETWORK.id)
+
+// Pre-register Arc chain RPC URL so trace events show correct chain names immediately
+registerChain(arcChain.id, arcChain.rpcUrls.default.http[0])
+
+// ---------------------------------------------------------------------------
+// Transport selection
+//
+// Testnet: three-endpoint fallback (documented public RPC + two CDN mirrors)
+//   — viem's built-in Arc URL is an old host without CORS; use the documented
+//     public RPC. Several public endpoints, tried in order: one rate-limited or
+//     blocked RPC no longer blanks the GM and tip panels.
+// Mainnet: single http() pointing at the official mainnet RPC endpoint.
+// ---------------------------------------------------------------------------
+
+const arcTransport =
+  NETWORK.id === NETWORKS.testnet.id
+    ? fallback([
+        http(NETWORKS.testnet.rpcUrl),
+        http('https://rpc.blockdaemon.testnet.arc.network'),
+        http('https://rpc.drpc.testnet.arc.network'),
+      ])
+    : http(NETWORKS.mainnet.rpcUrl)
 
 export const config = createConfig({
-  chains: [arcTestnet, mainnet], // mainnet needed for ENS resolution
+  chains: [arcChain, mainnet], // mainnet needed for ENS resolution
   connectors: [
     injected(),
     // NOTE: circlePasskeyConnector is intentionally NOT listed here.
@@ -27,13 +52,7 @@ export const config = createConfig({
     // on first use, keeping it fully functional without exposing it in the CK list.
   ],
   transports: {
-    // viem's built-in Arc URL is an old host without CORS; use the documented public RPC.
-    // Several public endpoints, tried in order: one rate-limited or blocked RPC no longer blanks the GM and tip panels.
-    [arcTestnet.id]: fallback([
-      http(NETWORKS.testnet.rpcUrl),
-      http('https://rpc.blockdaemon.testnet.arc.network'),
-      http('https://rpc.drpc.testnet.arc.network'),
-    ]),
+    [arcChain.id]: arcTransport,
     [mainnet.id]: http(), // ENS resolution uses mainnet
   },
 })

@@ -15,7 +15,9 @@ export const NETWORKS: Record<'testnet' | 'mainnet', ArcNetwork> = {
   mainnet: { id: 5042, name: 'Arc Mainnet', rpcUrl: 'https://rpc.mainnet.arc.io', explorerUrl: 'https://explorer.arc.io' },
 }
 
-const selected = import.meta.env.VITE_ARC_NETWORK === 'mainnet' ? 'mainnet' : 'testnet'
+// import.meta.env is undefined in Node (test runner); fall back gracefully.
+const _viteEnv = (typeof import.meta !== 'undefined' && (import.meta as { env?: Record<string, string> }).env) || {}
+const selected = _viteEnv.VITE_ARC_NETWORK === 'mainnet' ? 'mainnet' : 'testnet'
 
 export const NETWORK = NETWORKS[selected]
 export const CHAIN_ID = NETWORK.id
