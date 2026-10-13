@@ -5,8 +5,8 @@ import { Activity, ArrowRight, ArrowUpRight, Plus, Receipt, Wallet, X } from 'lu
 import { Reveal } from '@/components/shared/Reveal'
 import { SplitLines } from '@/components/shared/SplitLines'
 import { StatCard } from '@/components/shared/StatCard'
-import { MainnetPending } from '@/components/shared/MainnetPending'
 import { MAX_WALLETS, useTrackedWallets, useWalletSnapshots } from '@/hooks/useTrackedWallets'
+import { useWalletSnapshotsMainnet } from '@/hooks/useWalletSnapshotsMainnet'
 import { compact, explorerAddress, timeAgo } from '@/lib/arcscan'
 import { balanceShares } from '@/lib/shares'
 import { walletTotals } from '@/lib/pageTotals'
@@ -172,6 +172,141 @@ function WalletsContent({ wallets, add, remove }: WalletsContentProps) {
   )
 }
 
+// ─── Mainnet: wallet list from RPC + wallet index (no ArcScan) ────────────────
+
+function WalletsContentMainnet({ wallets, add, remove }: WalletsContentProps) {
+  const snaps = useWalletSnapshotsMainnet(wallets.map(w => w.address))
+
+  const rows = wallets.map((w, i) => ({ wallet: w, q: snaps[i] }))
+  const loaded = rows.filter(r => r.q?.data)
+  const anyLoading = rows.some(r => r.q?.isLoading)
+
+  const totalBalance = loaded.reduce((sum, r) => sum + (r.q.data?.balance ?? 0), 0)
+
+  const shares = balanceShares(loaded
+    .map(r => ({ key: r.wallet.address, name: r.wallet.label || short(r.wallet.address), value: r.q.data?.balance ?? 0 })))
+
+  if (wallets.length === 0) {
+    return (
+      <Reveal>
+        <div className="arc-card px-6 py-14 text-center">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[var(--line-strong)]">
+            <Wallet className="h-5 w-5 text-[var(--periwinkle)]" />
+          </span>
+          <p className="mt-6 text-2xl font-light text-white">Nothing tracked yet</p>
+          <p className="mx-auto mt-3 max-w-[420px] text-[var(--muted)]">
+            Add a wallet above, or start with one of these to see how it looks.
+          </p>
+          <div className="mt-7 flex flex-wrap justify-center gap-3">
+            {EXAMPLES.map(ex => (
+              <button key={ex.address} className="arc-btn-ghost" onClick={() => add(ex.address, ex.label)}>
+                {ex.label} <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            ))}
+          </div>
+        </div>
+      </Reveal>
+    )
+  }
+
+  return (
+    <>
+      <section>
+        {/* Txns 24h and Active in 24h StatCards are hidden on mainnet — data not available */}
+        <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <StatCard label="Wallets tracked" value={wallets.length} format={n => Math.round(n).toString()}
+            subValue={`of ${MAX_WALLETS} allowed`} icon={Wallet} />
+          <StatCard label="USDC held" value={totalBalance} format={n => `$${compact(n, 2)}`}
+            subValue="native balance, all tracked" icon={Receipt} isLoading={anyLoading && loaded.length === 0} />
+        </Reveal>
+      </section>
+
+      {shares.length > 1 && (
+        <section>
+          <Reveal className="arc-card p-5">
+            <p className="arc-eyebrow mb-4">Where the USDC sits</p>
+            <div className="flex h-3 overflow-hidden rounded-full bg-white/6">
+              {shares.map((s, i) => (
+                <div
+                  key={s.key}
+                  title={`${s.name} · ${s.pct.toFixed(1)}%`}
+                  className="h-full border-r border-[#0b182c] last:border-r-0"
+                  style={{ width: `${s.pct}%`, background: `rgba(169,196,234,${Math.max(0.22, 1 - i * 0.18)})` }}
+                />
+              ))}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1.5 text-sm text-[var(--muted)]">
+              {shares.slice(0, 5).map(s => (
+                <span key={s.key}><span className="text-white">{s.name}</span> {s.pct.toFixed(1)}%</span>
+              ))}
+            </div>
+          </Reveal>
+        </section>
+      )}
+
+      <section>
+        <Reveal className="arc-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[620px] border-collapse">
+              <thead>
+                <tr className="border-b border-[var(--line)]">
+                  {/* 'Txns 24h' column removed on mainnet */}
+                  {['Wallet', 'USDC balance', 'Sent txns', 'Last active', ''].map((h, i) => (
+                    <th key={i} className={`arc-eyebrow !text-[10px] px-5 py-3.5 font-normal ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(({ wallet, q }) => {
+                  const d = q?.data
+                  return (
+                    <tr key={wallet.address} className="arc-row border-b border-[rgba(170,196,234,0.09)]">
+                      <td className="px-5 py-4">
+                        <Link to={`/wallet/${wallet.address}`} className="block">
+                          <p className="text-[15px] text-white">{wallet.label || 'Unlabeled'}</p>
+                          <p className="font-['Geist_Mono'] text-[11px] text-[var(--muted)]">
+                            {short(wallet.address)}{d?.isContract && ' · contract'}
+                          </p>
+                        </Link>
+                      </td>
+                      {q?.isError ? (
+                        <td colSpan={3} className="px-5 py-4 text-right text-sm text-[var(--muted)]">
+                          Could not read this wallet right now. <button className="underline hover:text-white" onClick={() => void q.refetch()}>Retry</button>
+                        </td>
+                      ) : !d ? (
+                        <td colSpan={3} className="px-5 py-4"><div className="ml-auto h-4 w-48 animate-pulse rounded bg-white/6" /></td>
+                      ) : (
+                        <>
+                          <td className="px-5 py-4 text-right text-sm tabular-nums text-white">${compact(d.balance, 2)}</td>
+                          <td className="px-5 py-4 text-right text-sm tabular-nums text-[var(--muted)]">{d.txCount.toLocaleString()}</td>
+                          <td className="px-5 py-4 text-right text-sm text-[var(--muted)]">
+                            {d.lastActive ? timeAgo(d.lastActive) : <span className="text-[var(--faint)]">—</span>}
+                          </td>
+                        </>
+                      )}
+                      <td className="px-5 py-4">
+                        <div className="flex items-center justify-end gap-3">
+                          <button onClick={() => remove(wallet.address)}
+                            className="text-[var(--faint)] transition-colors hover:text-white" title="Stop tracking">
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Reveal>
+        <p className="mt-4 max-w-[640px] text-sm leading-relaxed text-[var(--faint)]">
+          Balance is the native USDC balance from the live Arc Mainnet node. "Sent txns" is the address nonce (transactions sent from this address). "Last active" comes from the wallet index (indexed days only).
+        </p>
+      </section>
+    </>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function Wallets() {
@@ -233,11 +368,7 @@ export function Wallets() {
       </section>
 
       {isMainnet ? (
-        <Reveal>
-          <MainnetPending title="Wallets">
-            Mainnet wallet snapshots and activity are still being indexed.
-          </MainnetPending>
-        </Reveal>
+        <WalletsContentMainnet wallets={wallets} add={add} remove={remove} />
       ) : (
         <WalletsContent wallets={wallets} add={add} remove={remove} />
       )}

@@ -6,7 +6,10 @@ import { AppLogoBadge, CategoryBadge } from '@/components/shared/Badge'
 import { MainnetPending } from '@/components/shared/MainnetPending'
 import { useWalletProfile } from '@/hooks/useWalletProfile'
 import { useTrackedWallets, useWalletSnapshots } from '@/hooks/useTrackedWallets'
+import { useWalletLive } from '@/hooks/useWalletLive'
+import { useWalletIndex } from '@/hooks/useWalletIndex'
 import { compact, explorerAddress, isAddress, timeAgo } from '@/lib/arcscan'
+import { formatLiveBalance, liveKind } from '@/lib/walletLive'
 import { NETWORK } from '@/lib/chain'
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
@@ -108,6 +111,91 @@ function WalletData({ address }: WalletDataProps) {
   )
 }
 
+// ─── Mainnet: RPC + wallet index, no ArcScan ─────────────────────────────────
+
+function WalletDataMainnet({ address }: WalletDataProps) {
+  const { data: live, isLoading: liveLoading } = useWalletLive(address, 'mainnet')
+  const { state, summary } = useWalletIndex(address, 'mainnet')
+  const indexLoading = state === 'loading'
+
+  return (
+    <>
+      <Reveal>
+        <section className="arc-card p-6 sm:p-8">
+          <p className="arc-eyebrow mb-6">Live on-chain · Arc Mainnet</p>
+          <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
+            <Fact
+              label="USDC balance"
+              value={live ? `$${formatLiveBalance(live.balanceUsdc)}` : '—'}
+              loading={liveLoading}
+            />
+            <Fact
+              label="Sent transactions"
+              value={live ? live.sentTxCount.toLocaleString() : '—'}
+              loading={liveLoading}
+            />
+            <Fact
+              label="Address type"
+              value={live ? liveKind(live) : '—'}
+              loading={liveLoading}
+            />
+            <Fact
+              label="Last active (indexed)"
+              value={
+                indexLoading
+                  ? '…'
+                  : summary
+                  ? timeAgo(summary.lastActive.toISOString())
+                  : '—'
+              }
+              loading={indexLoading && !summary}
+            />
+          </div>
+          {live === null && !liveLoading && (
+            <p className="mt-5 text-sm text-[var(--muted)]">RPC did not return data for this address.</p>
+          )}
+          {state === 'not-found' && (
+            <p className="mt-3 text-xs text-[var(--faint)]">This address is not in the wallet index yet.</p>
+          )}
+          {state === 'found' && summary && (
+            <p className="mt-3 text-xs text-[var(--faint)]">
+              "Sent transactions" is the address nonce from the live node. "Last active" is from the indexed day count (index covers closed days only).
+            </p>
+          )}
+        </section>
+      </Reveal>
+
+      {/* Wallet index summary — shown when indexed */}
+      {state === 'found' && summary && (
+        <Reveal delay={0.04}>
+          <section className="arc-card p-6 sm:p-8">
+            <p className="arc-eyebrow mb-6">Index summary</p>
+            <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-5">
+              <Fact label="Active days" value={summary.activeDays.toLocaleString()} />
+              <Fact label="Longest streak" value={`${summary.longestStreak}d`} />
+              <Fact label="USDC sent" value={`$${compact(summary.usdcSent, 2)}`} />
+              <Fact label="USDC received" value={`$${compact(summary.usdcReceived, 2)}`} />
+              <Fact label="Fees paid" value={`$${compact(summary.feesUsdc, 4)}`} />
+            </div>
+            {summary.partial && (
+              <p className="mt-5 text-xs text-[var(--faint)]">
+                Transaction counts and fees cover only the live-indexing period; historical totals may be incomplete.
+              </p>
+            )}
+          </section>
+        </Reveal>
+      )}
+
+      {/* Transaction list and dApp activity sections require ArcScan — not available on mainnet */}
+      <Reveal delay={0.08}>
+        <MainnetPending title="Transaction history">
+          Per-transaction history and dApp activity require ArcScan, which is not yet available on Arc Mainnet.
+        </MainnetPending>
+      </Reveal>
+    </>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function WalletProfile() {
@@ -155,8 +243,9 @@ export function WalletProfile() {
             </div>
 
             <div className="flex gap-3">
+              {/* ArcScan link kept for testnet; on mainnet it leads to the explorer directly */}
               <a href={explorerAddress(address)} target="_blank" rel="noreferrer" className="arc-btn-ghost">
-                ArcScan <ArrowUpRight className="h-3.5 w-3.5" />
+                {isMainnet ? 'Explorer' : 'ArcScan'} <ArrowUpRight className="h-3.5 w-3.5" />
               </a>
               {tracked ? (
                 <button className="arc-btn-ghost" onClick={() => remove(address)}>Stop tracking</button>
@@ -171,11 +260,7 @@ export function WalletProfile() {
       </Reveal>
 
       {isMainnet ? (
-        <Reveal>
-          <MainnetPending title="Wallet data">
-            Mainnet wallet balances and dApp activity are still being indexed.
-          </MainnetPending>
-        </Reveal>
+        <WalletDataMainnet address={address} />
       ) : (
         <WalletData address={address} />
       )}
