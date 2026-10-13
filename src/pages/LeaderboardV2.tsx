@@ -5,8 +5,10 @@ import { engagementTotals } from '@/lib/pageTotals'
 import { Reveal } from '@/components/shared/Reveal'
 import { SplitLines } from '@/components/shared/SplitLines'
 import { StatCard } from '@/components/shared/StatCard'
+import { MainnetPending } from '@/components/shared/MainnetPending'
 import { AppLogoBadge, CategoryBadge } from '@/components/shared/Badge'
 import { useLeaderboardV2, type Period } from '@/hooks/useLeaderboardV2'
+import { NETWORK } from '@/lib/chain'
 
 const PERIODS: { id: Period; label: string }[] = [
   { id: 'weekly', label: 'This week' },
@@ -16,25 +18,16 @@ const PERIODS: { id: Period; label: string }[] = [
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
-export function LeaderboardV2() {
+// ─── Testnet-only: period picker + stat cards + tables ────────────────────────
+
+function LeaderboardContent() {
   const [period, setPeriod] = useState<Period>('weekly')
   const { entries, topContributors, hasActivity, isLoading, isError } = useLeaderboardV2(period)
 
   const { votes, attestations, boost } = engagementTotals(entries)
 
   return (
-    <div className="space-y-14">
-      <Reveal>
-        <section className="pt-4">
-          <p className="arc-eyebrow mb-5">Engagement · Arc Testnet</p>
-          <SplitLines as="h1" className="arc-display text-[clamp(40px,6vw,80px)] text-white"
-            lines={[{ text: 'What people say,' }, { text: 'put on-chain.', className: 'text-[var(--periwinkle)]' }]} />
-          <p className="mt-6 max-w-[580px] text-lg font-light leading-relaxed text-[var(--muted)]">
-            Votes, "I used this" attestations and USDC boosts are recorded by our own contracts — no accounts, no moderation. Activity decides the order.
-          </p>
-        </section>
-      </Reveal>
-
+    <>
       <section>
         <div className="mb-5 flex gap-2">
           {PERIODS.map(p => (
@@ -130,6 +123,37 @@ export function LeaderboardV2() {
             </div>
           </Reveal>
         </section>
+      )}
+    </>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export function LeaderboardV2() {
+  const isMainnet = NETWORK.id === 5042
+
+  return (
+    <div className="space-y-14">
+      <Reveal>
+        <section className="pt-4">
+          <p className="arc-eyebrow mb-5">{`Engagement · ${NETWORK.name}`}</p>
+          <SplitLines as="h1" className="arc-display text-[clamp(40px,6vw,80px)] text-white"
+            lines={[{ text: 'What people say,' }, { text: 'put on-chain.', className: 'text-[var(--periwinkle)]' }]} />
+          <p className="mt-6 max-w-[580px] text-lg font-light leading-relaxed text-[var(--muted)]">
+            Votes, "I used this" attestations and USDC boosts are recorded by our own contracts — no accounts, no moderation. Activity decides the order.
+          </p>
+        </section>
+      </Reveal>
+
+      {isMainnet ? (
+        <Reveal>
+          <MainnetPending title="Engagement">
+            Mainnet engagement scores and contributor rankings are still being indexed.
+          </MainnetPending>
+        </Reveal>
+      ) : (
+        <LeaderboardContent />
       )}
     </div>
   )

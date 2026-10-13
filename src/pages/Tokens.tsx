@@ -3,7 +3,8 @@ import { ArrowDown, ArrowUpRight, Coins, Search, Users } from 'lucide-react'
 import { Reveal } from '@/components/shared/Reveal'
 import { SplitLines } from '@/components/shared/SplitLines'
 import { StatCard } from '@/components/shared/StatCard'
-import { useChainOverview, useTokens, type TokenGroup } from '@/hooks/useTokens'
+import { MainnetPending } from '@/components/shared/MainnetPending'
+import { useChainOverview, useTokens } from '@/hooks/useTokens'
 import { compact, explorerToken } from '@/lib/arcscan'
 import { tokenGroupCounts, visibleTokens, type TokenFilter, type TokenSortKey } from '@/lib/catalogView'
 import { FxRateCard } from '@/components/tokens/FxRateCard'
@@ -22,7 +23,9 @@ const SORTS: { key: SortKey; label: string }[] = [
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
-export function Tokens() {
+// ─── Testnet-only: stat cards + token table ───────────────────────────────────
+
+function TokensContent() {
   const { data: tokens, isLoading, error } = useTokens()
   const overview = useChainOverview()
   const [filter, setFilter] = useState<Filter>('All')
@@ -30,27 +33,11 @@ export function Tokens() {
   const [query, setQuery] = useState('')
 
   const rows = useMemo(() => visibleTokens(tokens ?? [], filter, sort, query), [tokens, filter, sort, query])
-
   const counts = useMemo(() => tokenGroupCounts(tokens ?? []), [tokens])
-
   const topHolders = tokens?.[0]?.holders ?? 0
 
   return (
-    <div className="space-y-14">
-      <Reveal>
-        <section className="pt-4">
-          <p className="arc-eyebrow mb-5">Tokens · Arc Testnet</p>
-          <SplitLines
-            as="h1"
-            className="arc-display text-[clamp(40px,6vw,80px)] text-white"
-            lines={[{ text: 'Every token,' }, { text: 'counted by holders.', className: 'text-[var(--periwinkle)]' }]}
-          />
-          <p className="mt-6 max-w-[560px] text-lg font-light leading-relaxed text-[var(--muted)]">
-            The 200 most-held ERC-20 tokens on Arc, straight from ArcScan. No invented prices — a token only shows a price when the explorer has one.
-          </p>
-        </section>
-      </Reveal>
-
+    <>
       <section>
         <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Tokens listed" value={tokens?.length ?? 0} format={n => Math.round(n).toString()}
@@ -94,11 +81,6 @@ export function Tokens() {
               ))}
             </div>
           </div>
-        </div>
-
-        <div className="mb-6 empty:hidden">
-          <FxRateCard net={NETWORK.id === 5042 ? 'mainnet' : 'testnet'} />
-          <EcbRateCard enabled={NETWORK.id === 5042} />
         </div>
 
         <Reveal className="arc-card overflow-hidden">
@@ -176,6 +158,47 @@ export function Tokens() {
           Types are our own labels, guessed from token names — ArcScan does not classify tokens. Supply is the raw on-chain total, so testnet faucet tokens can show very large numbers. Several different tokens share the same symbol.
         </p>
       </section>
+    </>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export function Tokens() {
+  const isMainnet = NETWORK.id === 5042
+
+  return (
+    <div className="space-y-14">
+      <Reveal>
+        <section className="pt-4">
+          <p className="arc-eyebrow mb-5">{`Tokens · ${NETWORK.name}`}</p>
+          <SplitLines
+            as="h1"
+            className="arc-display text-[clamp(40px,6vw,80px)] text-white"
+            lines={[{ text: 'Every token,' }, { text: 'counted by holders.', className: 'text-[var(--periwinkle)]' }]}
+          />
+          <p className="mt-6 max-w-[560px] text-lg font-light leading-relaxed text-[var(--muted)]">
+            The 200 most-held ERC-20 tokens on Arc, straight from ArcScan. No invented prices — a token only shows a price when the explorer has one.
+          </p>
+        </section>
+      </Reveal>
+
+      <section>
+        <div className="mb-6 empty:hidden">
+          <FxRateCard net={isMainnet ? 'mainnet' : 'testnet'} />
+          <EcbRateCard enabled={isMainnet} />
+        </div>
+      </section>
+
+      {isMainnet ? (
+        <Reveal>
+          <MainnetPending title="Tokens">
+            Mainnet token and wallet catalogs are still being indexed.
+          </MainnetPending>
+        </Reveal>
+      ) : (
+        <TokensContent />
+      )}
     </div>
   )
 }

@@ -3,9 +3,11 @@ import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, ArrowUpRight, Check, Copy, Plus } from 'lucide-react'
 import { Reveal } from '@/components/shared/Reveal'
 import { AppLogoBadge, CategoryBadge } from '@/components/shared/Badge'
+import { MainnetPending } from '@/components/shared/MainnetPending'
 import { useWalletProfile } from '@/hooks/useWalletProfile'
 import { useTrackedWallets, useWalletSnapshots } from '@/hooks/useTrackedWallets'
 import { compact, explorerAddress, isAddress, timeAgo } from '@/lib/arcscan'
+import { NETWORK } from '@/lib/chain'
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
@@ -22,67 +24,22 @@ function Fact({ label, value, loading }: { label: string; value: string; loading
   )
 }
 
-export function WalletProfile() {
-  const { address = '' } = useParams<{ address: string }>()
-  const valid = isAddress(address)
-  const { profile } = useWalletProfile(valid ? address : null)
-  const [snap] = useWalletSnapshots(valid ? [address] : [])
-  const { wallets, add, remove } = useTrackedWallets()
-  const [copied, setCopied] = useState(false)
+// ─── Testnet-only: ArcScan stats + dApp activity ─────────────────────────────
 
-  if (!valid) {
-    return (
-      <div className="flex flex-col items-center gap-4 py-32 text-center">
-        <p className="text-xl font-light text-white">That is not a wallet address.</p>
-        <Link to="/wallets" className="arc-btn-ghost">Back to Wallets</Link>
-      </div>
-    )
-  }
+interface WalletDataProps {
+  address: string
+}
 
-  const tracked = wallets.some(w => w.address.toLowerCase() === address.toLowerCase())
+function WalletData({ address }: WalletDataProps) {
+  const { profile } = useWalletProfile(address)
+  const [snap] = useWalletSnapshots([address])
   const d = snap?.data
 
-  function copy() {
-    void navigator.clipboard.writeText(address)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1800)
-  }
-
   return (
-    <div className="space-y-10">
-      <Link to="/wallets" className="inline-flex items-center gap-2 text-sm text-[var(--muted)] transition-colors hover:text-white">
-        <ArrowLeft className="h-4 w-4" /> Wallets
-      </Link>
-
+    <>
       <Reveal>
         <section className="arc-card p-6 sm:p-8">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="arc-eyebrow mb-3">{d?.isContract ? 'Contract' : 'Wallet'} · Arc Testnet</p>
-              <div className="flex items-center gap-3">
-                <h1 className="font-['Geist_Mono'] text-xl text-white sm:text-2xl">{short(address)}</h1>
-                <button onClick={copy} className="text-[var(--muted)] transition-colors hover:text-white" title="Copy address">
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </button>
-              </div>
-              {d?.name && <p className="mt-2 text-[var(--muted)]">{d.name}</p>}
-            </div>
-
-            <div className="flex gap-3">
-              <a href={explorerAddress(address)} target="_blank" rel="noreferrer" className="arc-btn-ghost">
-                ArcScan <ArrowUpRight className="h-3.5 w-3.5" />
-              </a>
-              {tracked ? (
-                <button className="arc-btn-ghost" onClick={() => remove(address)}>Stop tracking</button>
-              ) : (
-                <button className="arc-btn" onClick={() => add(address, '')}>
-                  <Plus className="h-4 w-4" /> Track
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-8 grid grid-cols-2 gap-6 border-t border-[var(--line)] pt-6 lg:grid-cols-4">
+          <div className="mt-0 grid grid-cols-2 gap-6 lg:grid-cols-4">
             <Fact label="USDC balance" value={d ? `$${compact(d.balance, 2)}` : '—'} loading={snap?.isLoading} />
             <Fact label="Transactions" value={d ? d.txCount.toLocaleString() : '—'} loading={snap?.isLoading} />
             <Fact label="Token transfers" value={d ? d.transferCount.toLocaleString() : '—'} loading={snap?.isLoading} />
@@ -147,6 +104,81 @@ export function WalletProfile() {
           )}
         </section>
       </Reveal>
+    </>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export function WalletProfile() {
+  const { address = '' } = useParams<{ address: string }>()
+  const valid = isAddress(address)
+  const { wallets, add, remove } = useTrackedWallets()
+  const [copied, setCopied] = useState(false)
+
+  const isMainnet = NETWORK.id === 5042
+
+  if (!valid) {
+    return (
+      <div className="flex flex-col items-center gap-4 py-32 text-center">
+        <p className="text-xl font-light text-white">That is not a wallet address.</p>
+        <Link to="/wallets" className="arc-btn-ghost">Back to Wallets</Link>
+      </div>
+    )
+  }
+
+  const tracked = wallets.some(w => w.address.toLowerCase() === address.toLowerCase())
+
+  function copy() {
+    void navigator.clipboard.writeText(address)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1800)
+  }
+
+  return (
+    <div className="space-y-10">
+      <Link to="/wallets" className="inline-flex items-center gap-2 text-sm text-[var(--muted)] transition-colors hover:text-white">
+        <ArrowLeft className="h-4 w-4" /> Wallets
+      </Link>
+
+      <Reveal>
+        <section className="arc-card p-6 sm:p-8">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="arc-eyebrow mb-3">{`Wallet · ${NETWORK.name}`}</p>
+              <div className="flex items-center gap-3">
+                <h1 className="font-['Geist_Mono'] text-xl text-white sm:text-2xl">{short(address)}</h1>
+                <button onClick={copy} className="text-[var(--muted)] transition-colors hover:text-white" title="Copy address">
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <a href={explorerAddress(address)} target="_blank" rel="noreferrer" className="arc-btn-ghost">
+                ArcScan <ArrowUpRight className="h-3.5 w-3.5" />
+              </a>
+              {tracked ? (
+                <button className="arc-btn-ghost" onClick={() => remove(address)}>Stop tracking</button>
+              ) : (
+                <button className="arc-btn" onClick={() => add(address, '')}>
+                  <Plus className="h-4 w-4" /> Track
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+      </Reveal>
+
+      {isMainnet ? (
+        <Reveal>
+          <MainnetPending title="Wallet data">
+            Mainnet wallet balances and dApp activity are still being indexed.
+          </MainnetPending>
+        </Reveal>
+      ) : (
+        <WalletData address={address} />
+      )}
     </div>
   )
 }

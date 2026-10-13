@@ -8,6 +8,7 @@ import { Reveal } from '@/components/shared/Reveal'
 import { useCompareHistory } from '@/hooks/useAppHistory'
 import { describeSpan, type TimeRange } from '@/lib/appActivity'
 import { compact, count } from '@/lib/arcscan'
+import { NETWORK } from '@/lib/chain'
 
 const MAX_APPS = 4
 
@@ -60,7 +61,7 @@ export function Compare() {
     <div className="space-y-8">
       <Reveal>
         <section className="pt-4">
-          <p className="arc-eyebrow mb-5">Compare · Arc Testnet</p>
+          <p className="arc-eyebrow mb-5">{`Compare · ${NETWORK.name}`}</p>
           <h1 className="arc-display text-[clamp(36px,5vw,64px)] text-white">Side by side, on the same clock.</h1>
           <p className="mt-5 max-w-[560px] text-lg font-light leading-relaxed text-[var(--muted)]">
             Pick up to {MAX_APPS} apps. Their activity is placed on one shared timeline, so the lines mean the same thing.

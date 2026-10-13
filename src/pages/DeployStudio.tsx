@@ -1,5 +1,5 @@
 /**
- * Deploy — one-click ERC-20, ERC-721 and ERC-1155 contracts on Arc Testnet, signed by the
+ * Deploy — one-click ERC-20, ERC-721 and ERC-1155 contracts on Arc, signed by the
  * connected wallet. Sources live in contracts/ArcToken.sol, ArcNFT.sol and ArcMultiToken.sol
  * (OpenZeppelin 5.x); bytecode in src/contracts/deployables.ts is compiled from them.
  *
@@ -12,8 +12,8 @@
  * cannot perform raw CREATE because their EIP-1193 provider requires a `to` address.
  *
  * The deployer at 0x4e59b44847b379578588920cA78FbF26c0B4956C is the canonical deterministic
- * CREATE2 factory (Nick's factory), confirmed live on Arc Testnet (69 bytes of code).
- * Its calldata convention: first 32 bytes = salt, remaining bytes = initcode.
+ * CREATE2 factory (Nick's factory), confirmed live on Arc Testnet and Arc Mainnet (69 bytes
+ * of code). Its calldata convention: first 32 bytes = salt, remaining bytes = initcode.
  * The deployed address is keccak256(0xff ++ factory ++ salt ++ keccak256(initcode))[12:].
  * viem's getContractAddress({ opcode: 'CREATE2', from, salt, bytecode }) computes this.
  */
@@ -32,10 +32,13 @@ import {
   ArcTokenAbi, ArcTokenBytecode,
 } from '@/contracts/deployables'
 
-import { CHAIN_ID, RPC_URL as RPC } from '@/lib/chain'
+import { CHAIN_ID, NETWORK, RPC_URL as RPC } from '@/lib/chain'
 
 /** Nick's deterministic CREATE2 factory — same address on every EVM chain */
 const CREATE2_DEPLOYER = '0x4e59b44847b379578588920cA78FbF26c0B4956C' as const
+
+/** True when the app is configured to target Arc Mainnet (chain id 5042). */
+const IS_MAINNET = CHAIN_ID === 5042
 
 type ContractType = 'erc20' | 'erc721' | 'erc1155'
 
@@ -174,6 +177,8 @@ function DeployForm({ def, onBack }: { def: ContractDef; onBack: () => void }) {
   const [status, setStatus] = useState<'idle' | 'deploying' | 'success' | 'error'>('idle')
   const [result, setResult] = useState<DeployResult | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
+  // Mainnet confirmation checkbox — only rendered/enforced on mainnet
+  const [mainnetConfirmed, setMainnetConfirmed] = useState(false)
 
   async function deploy() {
     if (!isConnected || !address) { toast.error('Connect your wallet first.'); return }
@@ -182,6 +187,15 @@ function DeployForm({ def, onBack }: { def: ContractDef; onBack: () => void }) {
 
     const plan = def.build(values, address)
     if (typeof plan === 'string') { toast.error(plan); return }
+
+    // Pre-flight: verify the CREATE2 factory exists on this network
+    const client = publicClient ?? createPublicClient({ transport: http(RPC) })
+    const factoryCode = await client.getCode({ address: CREATE2_DEPLOYER })
+    if (!factoryCode || factoryCode === '0x') {
+      setStatus('error')
+      setErrorMsg(`The CREATE2 factory was not found on ${NETWORK.name}.`)
+      return
+    }
 
     // Generate a fresh random salt for this deployment
     const salt = randomSalt()
@@ -211,7 +225,6 @@ function DeployForm({ def, onBack }: { def: ContractDef; onBack: () => void }) {
 
       // Best-effort receipt lookup to confirm deployment
       try {
-        const client = publicClient ?? createPublicClient({ transport: http(RPC) })
         const receipt = await client.waitForTransactionReceipt({ hash: txHash, timeout: 60_000, pollingInterval: 2_000 })
         if (receipt.status === 'reverted') throw new Error('The deployment transaction reverted.')
 
@@ -240,6 +253,8 @@ function DeployForm({ def, onBack }: { def: ContractDef; onBack: () => void }) {
 
   const Icon = def.icon
   const busy = status === 'deploying'
+  // Deploy button is additionally gated on the mainnet checkbox when on mainnet
+  const deployBlocked = busy || !isConnected || (IS_MAINNET && !mainnetConfirmed)
 
   return (
     <div className="max-w-[640px] space-y-6">
@@ -279,7 +294,7 @@ function DeployForm({ def, onBack }: { def: ContractDef; onBack: () => void }) {
 
         {status === 'success' && result && (
           <div className="arc-panel mt-6 space-y-2.5 p-4">
-            <p className="flex items-center gap-2 text-white"><CheckCircle2 className="h-4 w-4 text-[var(--periwinkle)]" /> Deployed on Arc Testnet</p>
+            <p className="flex items-center gap-2 text-white"><CheckCircle2 className="h-4 w-4 text-[var(--periwinkle)]" /> Deployed on {NETWORK.name}</p>
             {result.contractAddress && (
               <a href={buildAddressExplorerUrl(CHAIN_ID, result.contractAddress)} target="_blank" rel="noreferrer"
                 className="flex items-center gap-1.5 break-all font-['Geist_Mono'] text-xs text-[var(--periwinkle)] hover:text-white">
@@ -297,17 +312,39 @@ function DeployForm({ def, onBack }: { def: ContractDef; onBack: () => void }) {
           <p className="arc-panel mt-6 p-4 text-sm text-[var(--muted)]">{errorMsg || 'Deployment failed. Check your wallet and try again.'}</p>
         )}
 
+        {/* Mainnet confirmation checkbox — only shown on mainnet */}
+        {IS_MAINNET && (
+          <label className="mt-6 flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              aria-label="I understand this spends real USDC on Arc Mainnet"
+              checked={mainnetConfirmed}
+              onChange={e => setMainnetConfirmed(e.target.checked)}
+              disabled={busy}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--periwinkle)] disabled:opacity-50"
+            />
+            <span className="text-sm text-[var(--muted)]">
+              I understand this spends real USDC on Arc Mainnet
+            </span>
+          </label>
+        )}
+
         <button
           onClick={() => { void deploy() }}
-          disabled={busy || !isConnected}
+          disabled={deployBlocked}
+          aria-disabled={deployBlocked}
           className={clsx('mt-7 w-full', isConnected && !busy ? 'arc-btn' : 'arc-btn-ghost justify-center opacity-60')}
         >
           {busy ? (<><Loader2 className="h-4 w-4 animate-spin" /> Waiting for the network…</>)
             : !isConnected ? 'Connect a wallet to deploy'
-            : chainId !== CHAIN_ID ? 'Switch to Arc Testnet'
+            : chainId !== CHAIN_ID ? `Switch to ${NETWORK.name}`
             : `Deploy ${def.standard}`}
         </button>
-        <p className="mt-3 text-center text-xs text-[var(--faint)]">You sign one transaction. Gas is paid in USDC — about a cent.</p>
+        <p className="mt-3 text-center text-xs text-[var(--faint)]">
+          {IS_MAINNET
+            ? 'Deployments on Arc Mainnet use real USDC for gas and cannot be undone.'
+            : 'You sign one transaction. Gas is paid in USDC — about a cent.'}
+        </p>
       </div>
     </div>
   )
@@ -321,7 +358,7 @@ export function DeployStudio() {
     <div className="space-y-14">
       <Reveal>
         <section className="pt-4">
-          <p className="arc-eyebrow mb-5">Deploy · Arc Testnet</p>
+          <p className="arc-eyebrow mb-5">{`Deploy · ${NETWORK.name}`}</p>
           <SplitLines
             as="h1"
             className="arc-display text-[clamp(40px,6vw,80px)] text-white"
@@ -359,7 +396,9 @@ export function DeployStudio() {
 
           <Reveal className="arc-panel max-w-[720px] space-y-2 px-5 py-4 text-sm leading-relaxed text-[var(--muted)]">
             <p>These contracts have no owner and cannot mint more after deployment — what you set here is final.</p>
-            <p>Everything runs on Arc Testnet. Testnet tokens have no monetary value.</p>
+            {IS_MAINNET
+              ? <p>Deployments on Arc Mainnet use real USDC for gas and cannot be undone.</p>
+              : <p>Everything runs on Arc Testnet. Testnet tokens have no monetary value.</p>}
           </Reveal>
         </>
       )}

@@ -3,9 +3,11 @@ import { ArrowDown, ArrowUpRight, Image, Search, Users } from 'lucide-react'
 import { Reveal } from '@/components/shared/Reveal'
 import { SplitLines } from '@/components/shared/SplitLines'
 import { StatCard } from '@/components/shared/StatCard'
+import { MainnetPending } from '@/components/shared/MainnetPending'
 import { visibleNfts, type NftFilter, type NftSortKey } from '@/lib/catalogView'
-import { useNfts, type NftKind } from '@/hooks/useNfts'
+import { useNfts } from '@/hooks/useNfts'
 import { count, explorerToken } from '@/lib/arcscan'
+import { NETWORK } from '@/lib/chain'
 
 type Filter = NftFilter
 type SortKey = NftSortKey
@@ -18,29 +20,19 @@ const SORTS: { key: SortKey; label: string }[] = [
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
-export function NFTs() {
+// ─── Testnet-only: stat cards + collection table ──────────────────────────────
+
+function NFTsContent() {
   const { data, isLoading, error } = useNfts()
   const [filter, setFilter] = useState<Filter>('All')
   const [sort, setSort] = useState<SortKey>('holders')
   const [query, setQuery] = useState('')
 
   const rows = useMemo(() => visibleNfts(data ?? [], filter, sort, query), [data, filter, sort, query])
-
   const totalHolders = (data ?? []).reduce((s, c) => s + c.holders, 0)
 
   return (
-    <div className="space-y-14">
-      <Reveal>
-        <section className="pt-4">
-          <p className="arc-eyebrow mb-5">NFTs · Arc Testnet</p>
-          <SplitLines as="h1" className="arc-display text-[clamp(40px,6vw,80px)] text-white"
-            lines={[{ text: 'Collections,' }, { text: 'by who holds them.', className: 'text-[var(--periwinkle)]' }]} />
-          <p className="mt-6 max-w-[560px] text-lg font-light leading-relaxed text-[var(--muted)]">
-            The most-held ERC-721 and ERC-1155 collections on Arc, straight from ArcScan. No floor prices — testnet NFTs have no market.
-          </p>
-        </section>
-      </Reveal>
-
+    <>
       <section>
         <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <StatCard label="Collections listed" value={data?.length ?? 0} format={n => Math.round(n).toString()} subValue="top ERC-721 and ERC-1155" icon={Image} isLoading={isLoading} />
@@ -123,6 +115,37 @@ export function NFTs() {
           "Items" is the total the contract reports (ERC-1155 contracts usually do not). Transfer counts are all-time and are loaded for the 30 largest collections only. Many testnet collections are free to mint, so holder counts show reach, not demand.
         </p>
       </section>
+    </>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export function NFTs() {
+  const isMainnet = NETWORK.id === 5042
+
+  return (
+    <div className="space-y-14">
+      <Reveal>
+        <section className="pt-4">
+          <p className="arc-eyebrow mb-5">{`NFTs · ${NETWORK.name}`}</p>
+          <SplitLines as="h1" className="arc-display text-[clamp(40px,6vw,80px)] text-white"
+            lines={[{ text: 'Collections,' }, { text: 'by who holds them.', className: 'text-[var(--periwinkle)]' }]} />
+          <p className="mt-6 max-w-[560px] text-lg font-light leading-relaxed text-[var(--muted)]">
+            The most-held ERC-721 and ERC-1155 collections on Arc, straight from ArcScan. No floor prices{isMainnet ? '.' : ' — testnet NFTs have no market.'}
+          </p>
+        </section>
+      </Reveal>
+
+      {isMainnet ? (
+        <Reveal>
+          <MainnetPending title="NFTs">
+            Mainnet NFT collection data is still being indexed.
+          </MainnetPending>
+        </Reveal>
+      ) : (
+        <NFTsContent />
+      )}
     </div>
   )
 }

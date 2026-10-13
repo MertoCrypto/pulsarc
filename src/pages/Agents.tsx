@@ -34,7 +34,7 @@ export function Agents() {
     <div className="space-y-14">
       <Reveal>
         <section className="pt-4">
-          <p className="arc-eyebrow mb-5">Agents · Arc Testnet</p>
+          <p className="arc-eyebrow mb-5">{`Agents · ${NETWORK.name}`}</p>
           <SplitLines as="h1" className="arc-display text-[clamp(40px,6vw,80px)] text-white"
             lines={[{ text: 'The agent economy,' }, { text: 'read from the registry.', className: 'text-[var(--periwinkle)]' }]} />
           <p className="mt-6 max-w-[580px] text-lg font-light leading-relaxed text-[var(--muted)]">
