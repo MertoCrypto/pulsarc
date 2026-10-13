@@ -18,6 +18,7 @@ import { NETWORK } from '@/lib/chain'
 import { useAllMetrics, type SortKey } from '@/hooks/useAllMetrics'
 import { type RankRange } from '@/lib/appActivity'
 import { type AppKind } from '@/data/apps'
+import { disabledRangesFor } from '@/lib/rankRanges'
 
 const KINDS: { value: AppKind | 'all'; label: string }[] = [
   { value: 'app', label: 'Apps' },
@@ -52,6 +53,8 @@ const CSV_COLUMNS = [
   { key: 'estimated', label: 'Counts extrapolated (≈)' },
 ]
 
+const disabledRanges = disabledRangesFor(NETWORK.id)
+
 export function Rankings() {
   const [timeRange, setTimeRange] = useState<RankRange>('24h')
   const [category, setCategory] = useState('All')
@@ -60,6 +63,8 @@ export function Rankings() {
 
   // Lifetime counters have no per-window users for contract apps, so rank by transactions there.
   const changeRange = (r: RankRange) => {
+    // Guard: disabled ranges must never become active (e.g. via programmatic calls).
+    if ((disabledRanges as string[]).includes(r)) return
     setTimeRange(r)
     if (r === 'all' && sortKey === 'activeWallets') setSortKey('txCount')
     if (r !== 'all' && timeRange === 'all' && sortKey === 'txCount') setSortKey('activeWallets')
@@ -189,6 +194,7 @@ export function Rankings() {
             onTimeRangeChange={changeRange}
             category={category}
             onCategoryChange={setCategory}
+            disabledRanges={disabledRanges}
           />
           </div>
           <div className="flex items-center gap-3">
