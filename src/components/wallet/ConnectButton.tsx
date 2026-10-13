@@ -1,6 +1,8 @@
 import { ConnectKitButton } from 'connectkit'
 import { Wallet } from 'lucide-react'
 import { PasskeyButton } from './PasskeyButton'
+import { NETWORK } from '@/lib/chain'
+import { passkeyAvailable } from '@/lib/passkeyAvailability'
 
 /** The one call to action in the header: periwinkle, with a slow light sweep until a wallet is connected. */
 export function ConnectButton() {
@@ -19,7 +21,7 @@ export function ConnectButton() {
               <span className="sm:hidden">Connect</span>
               <span className="hidden sm:inline">Connect Wallet</span>
             </button>
-            <PasskeyButton />
+            {passkeyAvailable(NETWORK.id) && <PasskeyButton />}
           </div>
         )
       }
