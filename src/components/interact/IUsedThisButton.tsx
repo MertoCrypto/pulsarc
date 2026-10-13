@@ -5,13 +5,15 @@ import { clsx } from 'clsx'
 import { toast } from 'sonner'
 import { arcAttestationAbi, ARC_ATTESTATION_ADDRESS } from '@/contracts/abis'
 import { requireChain } from '@/onchain-facts'
-
-
 import { CHAIN_ID } from '@/lib/chain'
+import { interactAvailable } from '@/lib/interactAvailability'
+
 interface Props {
   dappId: string
   className?: string
 }
+
+const availability = interactAvailable(CHAIN_ID, import.meta.env)
 
 export function IUsedThisButton({ dappId, className }: Props) {
   const { address, chainId, isConnected } = useAccount()
@@ -44,6 +46,7 @@ export function IUsedThisButton({ dappId, className }: Props) {
   const explorerChain = requireChain(CHAIN_ID)
 
   function handleAttest() {
+    if (!availability.available) return
     if (!isConnected) { toast.error('Connect your wallet to attest.'); return }
     if (chainId !== CHAIN_ID) { switchChain({ chainId: CHAIN_ID }); return }
     if (attested) return
@@ -76,9 +79,21 @@ export function IUsedThisButton({ dappId, className }: Props) {
     <>
       <button
         onClick={handleAttest}
-        disabled={isLoading || (isConnected && attested)}
-        title={attested ? 'You attested this DApp' : 'Attest: I used this DApp'}
-        className={clsx('arc-act', isLoading && 'cursor-wait opacity-60', className)}
+        disabled={!availability.available || isLoading || (isConnected && attested)}
+        aria-disabled={!availability.available}
+        title={
+          !availability.available
+            ? availability.reason
+            : attested
+            ? 'You attested this DApp'
+            : 'Attest: I used this DApp'
+        }
+        className={clsx(
+          'arc-act',
+          isLoading && 'cursor-wait opacity-60',
+          !availability.available && 'cursor-not-allowed opacity-50',
+          className,
+        )}
         data-on={attested}
       >
         {isLoading

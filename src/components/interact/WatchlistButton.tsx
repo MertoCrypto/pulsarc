@@ -5,13 +5,15 @@ import { clsx } from 'clsx'
 import { toast } from 'sonner'
 import { arcWatchlistNftAbi, ARC_WATCHLIST_NFT_ADDRESS } from '@/contracts/abis'
 import { requireChain } from '@/onchain-facts'
-
-
 import { CHAIN_ID } from '@/lib/chain'
+import { interactAvailable } from '@/lib/interactAvailability'
+
 interface Props {
   dappId: string
   className?: string
 }
+
+const availability = interactAvailable(CHAIN_ID, import.meta.env)
 
 export function WatchlistButton({ dappId, className }: Props) {
   const { address, chainId, isConnected } = useAccount()
@@ -35,6 +37,7 @@ export function WatchlistButton({ dappId, className }: Props) {
   const watchlisted = optimistic || isSuccess || (isConnected && isWatchlisted === true)
 
   function handleMint() {
+    if (!availability.available) return
     if (!isConnected) { toast.error('Connect your wallet to save to watchlist.'); return }
     if (chainId !== CHAIN_ID) { switchChain({ chainId: CHAIN_ID }); return }
     if (watchlisted) return
@@ -66,9 +69,21 @@ export function WatchlistButton({ dappId, className }: Props) {
     <>
       <button
         onClick={handleMint}
-        disabled={isLoading || (isConnected && watchlisted)}
-        title={watchlisted ? 'Saved to your watchlist as NFT' : 'Add to Watchlist (mint NFT)'}
-        className={clsx('arc-act', isLoading && 'cursor-wait opacity-60', className)}
+        disabled={!availability.available || isLoading || (isConnected && watchlisted)}
+        aria-disabled={!availability.available}
+        title={
+          !availability.available
+            ? availability.reason
+            : watchlisted
+            ? 'Saved to your watchlist as NFT'
+            : 'Add to Watchlist (mint NFT)'
+        }
+        className={clsx(
+          'arc-act',
+          isLoading && 'cursor-wait opacity-60',
+          !availability.available && 'cursor-not-allowed opacity-50',
+          className,
+        )}
         data-on={watchlisted}
       >
         {isLoading

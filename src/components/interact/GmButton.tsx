@@ -8,10 +8,14 @@ import { Sun, Loader2, Flame, CheckCircle2 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { toast } from 'sonner'
 import { buildTxExplorerUrl } from '@/onchain-facts'
-
 import { CHAIN_ID } from '@/lib/chain'
+import { interactAvailable } from '@/lib/interactAvailability'
+
 // Deployed on Arc Testnet by Arc Studio (see contracts/contract-metadata/GmBoard.json); the env var overrides it.
 const GM_BOARD_ADDRESS = (import.meta.env.VITE_GM_BOARD_ADDRESS ?? '0x5683dfa3f97aaafa72f1eb2db95acb41878a520f') as `0x${string}`
+
+// GmButton uses its own contract, not the platform contracts; availability still gates the write.
+const availability = interactAvailable(CHAIN_ID, import.meta.env)
 
 const gmBoardAbi = [
   {
@@ -168,6 +172,7 @@ export function GmButton({ variant = 'hero' }: Props) {
   }, [isSuccess, hash, refetchRecord, refetchCooldown])
 
   function handleGm() {
+    if (!availability.available) return
     if (!isConnected) { toast.error('Connect your wallet to say GM.'); return }
     if (chainId !== CHAIN_ID) { switchChain({ chainId: CHAIN_ID }); return }
     if (notDeployed) { toast.error('GmBoard contract not yet deployed.'); return }
@@ -200,18 +205,26 @@ export function GmButton({ variant = 'hero' }: Props) {
 
   const isLoading = isPending || isConfirming
   const readError = recordError || cooldownError || totalError
+  const actionDisabled = !availability.available || isLoading || onCooldown || notDeployed
 
   if (variant === 'compact') {
-    const idle = !isLoading && !onCooldown && !notDeployed && !isSuccess
+    const idle = !isLoading && !onCooldown && !notDeployed && !isSuccess && availability.available
     return (
       <button
         onClick={handleGm}
-        disabled={isLoading || onCooldown || notDeployed}
-        title={streak > 0 ? `${streak}-day streak · ${totalPersonal} GMs from you` : 'Say GM onchain, once a day'}
+        disabled={actionDisabled}
+        aria-disabled={!availability.available}
+        title={
+          !availability.available
+            ? availability.reason
+            : streak > 0
+            ? `${streak}-day streak · ${totalPersonal} GMs from you`
+            : 'Say GM onchain, once a day'
+        }
         className={clsx(
           'inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-[var(--line-strong)] bg-white/[0.03] px-3.5 py-2.5 sm:px-4 text-[15px] text-white transition-colors hover:border-[var(--periwinkle)] hover:bg-white/[0.07]',
           idle && 'arc-gm-live',
-          (onCooldown || notDeployed) && 'cursor-not-allowed opacity-60',
+          (onCooldown || notDeployed || !availability.available) && 'cursor-not-allowed opacity-60',
         )}
       >
         {isLoading ? (
@@ -272,10 +285,14 @@ export function GmButton({ variant = 'hero' }: Props) {
 
       <button
         onClick={handleGm}
-        disabled={isLoading || onCooldown || notDeployed}
+        disabled={actionDisabled}
+        aria-disabled={!availability.available}
+        title={!availability.available ? availability.reason : undefined}
         className={clsx(
           'mt-4 w-full',
-          notDeployed || onCooldown ? 'arc-btn-ghost cursor-not-allowed justify-center opacity-60' : 'arc-btn arc-btn-live',
+          !availability.available || notDeployed || onCooldown
+            ? 'arc-btn-ghost cursor-not-allowed justify-center opacity-60'
+            : 'arc-btn arc-btn-live',
         )}
       >
         {isLoading ? (
@@ -290,6 +307,8 @@ export function GmButton({ variant = 'hero' }: Props) {
           </>
         ) : onCooldown ? (
           `Back in ${fmtDuration(countdown)}`
+        ) : !availability.available ? (
+          availability.reason
         ) : notDeployed ? (
           'Not live yet'
         ) : (

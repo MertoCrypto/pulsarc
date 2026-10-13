@@ -6,8 +6,9 @@ import { toast } from 'sonner'
 import { arcBoostAbi, ARC_BOOST_ADDRESS, ARC_USDC_ADDRESS, erc20ApproveAbi } from '@/contracts/abis'
 import { requireChain } from '@/onchain-facts'
 import { parseUsdc, formatUsdc } from '@/onchain-money'
-
 import { CHAIN_ID } from '@/lib/chain'
+import { interactAvailable } from '@/lib/interactAvailability'
+
 const BOOST_PRESETS = [0.01, 0.10, 0.50, 1.00]
 
 interface Props {
@@ -15,6 +16,8 @@ interface Props {
   dappName: string
   className?: string
 }
+
+const availability = interactAvailable(CHAIN_ID, import.meta.env)
 
 export function BoostButton({ dappId, dappName, className }: Props) {
   const { address, chainId, isConnected } = useAccount()
@@ -50,6 +53,7 @@ export function BoostButton({ dappId, dappName, className }: Props) {
   const isLoading = isApprovePending || isApproveConfirming || isBoostPending || isBoostConfirming
 
   function handleBoost() {
+    if (!availability.available) return
     if (!isConnected) { toast.error('Connect your wallet to boost.'); return }
     if (chainId !== CHAIN_ID) { switchChain({ chainId: CHAIN_ID }); return }
 
@@ -109,16 +113,19 @@ export function BoostButton({ dappId, dappName, className }: Props) {
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen(v => !v)}
-        className={clsx('arc-act', className)}
-      data-on={isBoostSuccess}
+        onClick={() => { if (availability.available) setOpen(v => !v) }}
+        disabled={!availability.available}
+        aria-disabled={!availability.available}
+        title={availability.available ? undefined : availability.reason}
+        className={clsx('arc-act', className, !availability.available && 'cursor-not-allowed opacity-50')}
+        data-on={isBoostSuccess}
       >
         <Zap className="w-3.5 h-3.5" />
         <span>Boost</span>
         {totalFormatted !== null && <span className="text-[var(--faint)]">${totalFormatted}</span>}
       </button>
 
-      {open && (
+      {open && availability.available && (
         <div className="absolute top-full right-0 mt-2 w-56 rounded-xl bg-[#10213b] border border-[var(--line)] shadow-2xl p-4 z-50">
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-semibold text-white">Boost {dappName}</p>

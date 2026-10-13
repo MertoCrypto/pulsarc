@@ -5,13 +5,15 @@ import { clsx } from 'clsx'
 import { toast } from 'sonner'
 import { arcVotingAbi, ARC_VOTING_ADDRESS } from '@/contracts/abis'
 import { requireChain } from '@/onchain-facts'
-
-
 import { CHAIN_ID } from '@/lib/chain'
+import { interactAvailable } from '@/lib/interactAvailability'
+
 interface Props {
   dappId: string
   className?: string
 }
+
+const availability = interactAvailable(CHAIN_ID, import.meta.env)
 
 export function UpvoteButton({ dappId, className }: Props) {
   const { address, chainId, isConnected } = useAccount()
@@ -42,6 +44,7 @@ export function UpvoteButton({ dappId, className }: Props) {
   const hasVoted = optimisticVoted || isSuccess || (isConnected && canVote === false)
 
   function handleVote() {
+    if (!availability.available) return
     if (!isConnected) {
       toast.error('Connect your wallet to vote.')
       return
@@ -86,14 +89,25 @@ export function UpvoteButton({ dappId, className }: Props) {
     <>
       <button
         onClick={handleVote}
-        disabled={isLoading || (isConnected && hasVoted)}
+        disabled={!availability.available || isLoading || (isConnected && hasVoted)}
+        aria-disabled={!availability.available}
         title={
-          !isConnected ? 'Connect wallet to vote'
-            : hasVoted ? 'Already voted today'
-            : isLoading ? 'Processing...'
+          !availability.available
+            ? availability.reason
+            : !isConnected
+            ? 'Connect wallet to vote'
+            : hasVoted
+            ? 'Already voted today'
+            : isLoading
+            ? 'Processing...'
             : 'Upvote this DApp'
         }
-        className={clsx('arc-act', isLoading && 'cursor-wait opacity-60', className)}
+        className={clsx(
+          'arc-act',
+          isLoading && 'cursor-wait opacity-60',
+          !availability.available && 'cursor-not-allowed opacity-50',
+          className,
+        )}
         data-on={hasVoted}
       >
         {isLoading
