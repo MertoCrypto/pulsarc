@@ -3,6 +3,7 @@
  * Plain facts only: reached or not yet, with progress toward the next step.
  */
 import { calendarStats, buildMilestones, nextMilestone, type Milestone } from '@/lib/walletMilestones'
+import { reachedTiers } from '@/lib/walletTiers'
 import type { WalletRecord, WalletSummary } from '@/lib/walletIndex'
 
 const LOCALE = 'en-US' as const
@@ -44,6 +45,7 @@ export function WalletMilestones({ record, through, summary }: Props) {
   const list = buildMilestones(summary, cal, summary.apps.length)
   const next = nextMilestone(list)
   const reached = list.filter(m => m.reached).length
+  const tiers = reachedTiers(record)
 
   return (
     <section className="arc-card p-6 sm:p-8">
@@ -67,6 +69,23 @@ export function WalletMilestones({ record, through, summary }: Props) {
       <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {list.map(m => <Row key={m.id} m={m} />)}
       </ul>
+
+      {tiers.length > 0 && (
+        <>
+          <p className="arc-eyebrow mb-3 mt-8 !text-[10px]">Diversity tiers</p>
+          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {tiers.map(t => (
+              <li
+                key={t.id}
+                className="flex items-center justify-between gap-3 rounded border border-[var(--line)] bg-white/[0.06] px-3 py-2 text-sm text-white"
+              >
+                <span>{t.label}</span>
+                <span className="font-['Geist_Mono'] text-xs tabular-nums">{t.atCap ? `${fmt(t.value)}+` : 'Reached'}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </section>
   )
 }
