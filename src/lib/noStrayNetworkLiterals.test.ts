@@ -103,6 +103,15 @@ const ALLOWED: AllowEntry[] = [
       'applicable here because the URL points to a fixed GitHub raw path.',
     line_contains: 'pulsarc-indexer/data/mainnet',
   },
+  {
+    file: 'src/hooks/useHourlyFiles.ts',
+    reason:
+      'Mainnet hourly indexer URL: this hook is only written for mainnet and is only ' +
+      'called from useAppHistoryMainnet (guarded by NETWORK.id === 5042); the URL ' +
+      'points to a fixed GitHub raw path where the network segment cannot be a ' +
+      'template expression.',
+    line_contains: 'https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/mainnet/hourly',
+  },
   // ── (a) additional testnet literals — legitimate, guarded by network param ──
   {
     file: 'src/lib/agentsActivity.ts',
