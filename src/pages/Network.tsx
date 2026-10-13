@@ -8,7 +8,8 @@ import { StatCard } from '@/components/shared/StatCard'
 import { useNetworkStats } from '@/hooks/useNetworkStats'
 import { useMemoFeed, MEMO_CONTRACT } from '@/hooks/useMemoFeed'
 import { TOKEN_MESSENGER, useBridgeFlow } from '@/hooks/useBridgeFlow'
-import { NETWORKS } from '@/lib/chain'
+import { NETWORK, NETWORKS } from '@/lib/chain'
+import { resolveNetKey, paramsFor } from '@/lib/networkParam'
 import { useSearchParams } from 'react-router-dom'
 import { AddNetworkButton } from '@/components/shared/AddNetworkButton'
 import { compact } from '@/lib/arcscan'
@@ -727,7 +728,7 @@ function MainnetIndexed() {
 
 export function Network() {
   const [params, setParams] = useSearchParams()
-  const netKey: 'testnet' | 'mainnet' = params.get('net') === 'mainnet' ? 'mainnet' : 'testnet'
+  const netKey: 'testnet' | 'mainnet' = resolveNetKey(params.get('net'), NETWORK.id)
   const net_is_testnet = netKey === 'testnet'
   const network = NETWORKS[netKey]
   const net = useNetworkStats(netKey)
@@ -755,7 +756,7 @@ export function Network() {
                     key={k}
                     role="tab"
                     aria-selected={netKey === k}
-                    onClick={() => setParams(k === 'testnet' ? {} : { net: k }, { replace: true })}
+                    onClick={() => setParams(paramsFor(k, NETWORK.id), { replace: true })}
                     className={`rounded-lg px-3.5 py-1.5 text-sm capitalize transition-colors ${netKey === k ? 'bg-white/[0.08] text-white' : 'text-[var(--muted)] hover:text-white'}`}
                   >
                     {k}
