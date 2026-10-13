@@ -112,6 +112,26 @@ const ALLOWED: AllowEntry[] = [
       'template expression.',
     line_contains: 'https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/mainnet/hourly',
   },
+  {
+    file: 'src/hooks/useTokens.ts',
+    reason:
+      'Mainnet catalog URL: this constant (MAINNET_CATALOG_URL) is only used inside ' +
+      'loadTokensMainnet and loadCatalogMeta, both of which are only called when ' +
+      'IS_MAINNET is true (NETWORK.id === 5042, evaluated at module load time). ' +
+      'The URL points to a fixed GitHub raw path for the mainnet indexer job; ' +
+      'there is no testnet equivalent at this path.',
+    line_contains: 'https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/mainnet/catalog.json',
+  },
+  {
+    file: 'src/hooks/useNfts.ts',
+    reason:
+      'Mainnet catalog URL: this constant (MAINNET_CATALOG_URL) is only used inside ' +
+      'loadNftsMainnet, which is only called when IS_MAINNET is true ' +
+      '(NETWORK.id === 5042, evaluated at module load time). ' +
+      'The URL points to a fixed GitHub raw path for the mainnet indexer job; ' +
+      'there is no testnet equivalent at this path.',
+    line_contains: 'https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/mainnet/catalog.json',
+  },
   // ── (a) additional testnet literals — legitimate, guarded by network param ──
   {
     file: 'src/lib/agentsActivity.ts',

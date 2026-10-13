@@ -3,11 +3,11 @@ import { ArrowDown, ArrowUpRight, Image, Search, Users } from 'lucide-react'
 import { Reveal } from '@/components/shared/Reveal'
 import { SplitLines } from '@/components/shared/SplitLines'
 import { StatCard } from '@/components/shared/StatCard'
-import { MainnetPending } from '@/components/shared/MainnetPending'
 import { visibleNfts, type NftFilter, type NftSortKey } from '@/lib/catalogView'
 import { useNfts } from '@/hooks/useNfts'
 import { count, explorerToken } from '@/lib/arcscan'
 import { NETWORK } from '@/lib/chain'
+import { useCatalogMeta } from '@/hooks/useTokens'
 
 type Filter = NftFilter
 type SortKey = NftSortKey
@@ -20,9 +20,17 @@ const SORTS: { key: SortKey; label: string }[] = [
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
-// ─── Testnet-only: stat cards + collection table ──────────────────────────────
+/** Format an ISO timestamp as "Oct 13, 2026 UTC" — local helper, no global import needed. */
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) + ' UTC'
+}
 
-function NFTsContent() {
+const IS_MAINNET = NETWORK.id === 5042
+
+// ─── Testnet collection table ─────────────────────────────────────────────────
+
+function NFTsTestnetContent() {
   const { data, isLoading, error } = useNfts()
   const [filter, setFilter] = useState<Filter>('All')
   const [sort, setSort] = useState<SortKey>('holders')
@@ -35,9 +43,9 @@ function NFTsContent() {
     <>
       <section>
         <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <StatCard label="Collections listed" value={data?.length ?? 0} format={n => Math.round(n).toString()} subValue="top ERC-721 and ERC-1155" icon={Image} isLoading={isLoading} />
-          <StatCard label="Largest holder base" value={data?.[0]?.holders ?? 0} format={n => count(n)} subValue={data?.[0]?.name} icon={Users} isLoading={isLoading} />
-          <StatCard label="Holder slots" value={totalHolders} format={n => count(n)} subValue="summed across listed collections" icon={Users} isLoading={isLoading} />
+          <StatCard label="Collections listed" value={data?.length ?? 0} format={(n: number) => Math.round(n).toString()} subValue="top ERC-721 and ERC-1155" icon={Image} isLoading={isLoading} />
+          <StatCard label="Largest holder base" value={data?.[0]?.holders ?? 0} format={(n: number) => count(n)} subValue={data?.[0]?.name} icon={Users} isLoading={isLoading} />
+          <StatCard label="Holder slots" value={totalHolders} format={(n: number) => count(n)} subValue="summed across listed collections" icon={Users} isLoading={isLoading} />
         </Reveal>
       </section>
 
@@ -119,11 +127,119 @@ function NFTsContent() {
   )
 }
 
+// ─── Mainnet collection table ─────────────────────────────────────────────────
+
+function NFTsMainnetContent() {
+  const { data, isLoading, error } = useNfts()
+  const { data: meta } = useCatalogMeta()
+  const [filter, setFilter] = useState<Filter>('All')
+  const [sort, setSort] = useState<SortKey>('holders')
+  const [query, setQuery] = useState('')
+
+  const rows = useMemo(() => visibleNfts(data ?? [], filter, sort, query), [data, filter, sort, query])
+  const catalogBuilding = !isLoading && !error && (data ?? []).length === 0 && !meta
+
+  return (
+    <>
+      {/* Catalog coverage banner */}
+      {meta && (
+        <div className="mb-6 flex flex-wrap items-center gap-3 text-sm text-[var(--muted)]">
+          <span>Coverage: <span className="text-white">{meta.coverage}</span></span>
+          <span className="text-[var(--faint)]">·</span>
+          <span>Updated <span className="text-white">{formatDate(meta.generatedAt)}</span></span>
+        </div>
+      )}
+
+      <section>
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+          <div className="flex gap-2">
+            {(['All', 'ERC-721', 'ERC-1155'] as Filter[]).map(f => (
+              <button key={f} className="arc-chip" data-active={filter === f} onClick={() => setFilter(f)}>{f}</button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="arc-panel flex items-center gap-2 px-3.5 py-2.5">
+              <Search className="h-3.5 w-3.5 text-[var(--muted)]" />
+              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Name, symbol or address"
+                className="w-[200px] bg-transparent text-sm text-white outline-none placeholder:text-[var(--faint)]" />
+            </label>
+            <div className="flex items-center gap-1">
+              <span className="arc-eyebrow mr-2 !text-[10px]">Sort</span>
+              {SORTS.map(s => (
+                <button key={s.key} className="arc-chip !px-3 !py-1.5" data-active={sort === s.key} onClick={() => setSort(s.key)}>{s.label}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <Reveal className="arc-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] border-collapse">
+              <thead>
+                <tr className="border-b border-[var(--line)]">
+                  <th className="arc-eyebrow !text-[10px] w-14 px-5 py-3.5 text-left font-normal">#</th>
+                  <th className="arc-eyebrow !text-[10px] px-3 py-3.5 text-left font-normal">Collection</th>
+                  <th className="arc-eyebrow !text-[10px] px-3 py-3.5 text-left font-normal">Standard</th>
+                  {/* Holders/Items/Transfers — not available in mainnet catalog */}
+                  <th
+                    className="arc-eyebrow !text-[10px] px-3 py-3.5 text-right font-normal"
+                    title="The indexer does not count holders yet."
+                  >
+                    Holders
+                  </th>
+                  <th className="arc-eyebrow !text-[10px] px-3 py-3.5 text-right font-normal">Items</th>
+                  <th className="arc-eyebrow !text-[10px] px-3 py-3.5 text-right font-normal">Transfers</th>
+                  <th className="arc-eyebrow !text-[10px] px-5 py-3.5 text-right font-normal">Contract</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading && Array.from({ length: 8 }, (_, i) => (
+                  <tr key={i} className="border-b border-[rgba(170,196,234,0.09)]"><td colSpan={7} className="px-5 py-4"><div className="h-5 animate-pulse rounded bg-white/6" /></td></tr>
+                ))}
+                {rows.map((c, i) => (
+                  <tr key={c.address} className="arc-row border-b border-[rgba(170,196,234,0.09)]">
+                    <td className="px-5 py-3.5 text-sm tabular-nums text-[var(--faint)]">{i + 1}</td>
+                    <td className="px-3 py-3.5">
+                      <p className="max-w-[260px] truncate text-[15px] text-white">{c.name}</p>
+                      <p className="font-['Geist_Mono'] text-[11px] text-[var(--muted)]">{c.symbol}</p>
+                    </td>
+                    <td className="px-3 py-3.5 text-sm text-[var(--muted)]">{c.kind}</td>
+                    {/* Holders, Items, Transfers — not in mainnet catalog; always '—' */}
+                    <td className="px-3 py-3.5 text-right text-sm tabular-nums text-[var(--faint)]">—</td>
+                    <td className="px-3 py-3.5 text-right text-sm tabular-nums text-[var(--faint)]">—</td>
+                    <td className="px-3 py-3.5 text-right text-sm tabular-nums text-[var(--faint)]">—</td>
+                    <td className="px-5 py-3.5 text-right">
+                      <a href={explorerToken(c.address)} target="_blank" rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 font-['Geist_Mono'] text-xs text-[var(--muted)] transition-colors hover:text-white">
+                        {short(c.address)} <ArrowUpRight className="h-3 w-3" />
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+                {!isLoading && (catalogBuilding || rows.length === 0) && (
+                  <tr><td colSpan={7} className="px-5 py-14 text-center text-sm text-[var(--muted)]">
+                    {error
+                      ? 'Could not fetch the mainnet catalog. It will retry on its own.'
+                      : catalogBuilding
+                        ? 'The catalog is being built.'
+                        : 'No collections match that filter.'}
+                  </td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Reveal>
+        <p className="mt-4 max-w-[640px] text-sm leading-relaxed text-[var(--faint)]">
+          Holder counts, item totals, and transfer counts are not yet available in the mainnet catalog.
+        </p>
+      </section>
+    </>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function NFTs() {
-  const isMainnet = NETWORK.id === 5042
-
   return (
     <div className="space-y-14">
       <Reveal>
@@ -132,20 +248,14 @@ export function NFTs() {
           <SplitLines as="h1" className="arc-display text-[clamp(40px,6vw,80px)] text-white"
             lines={[{ text: 'Collections,' }, { text: 'by who holds them.', className: 'text-[var(--periwinkle)]' }]} />
           <p className="mt-6 max-w-[560px] text-lg font-light leading-relaxed text-[var(--muted)]">
-            The most-held ERC-721 and ERC-1155 collections on Arc, straight from ArcScan. No floor prices{isMainnet ? '.' : ' — testnet NFTs have no market.'}
+            {IS_MAINNET
+              ? 'ERC-721 and ERC-1155 collections on Arc Mainnet, indexed from the chain. No floor prices.'
+              : 'The most-held ERC-721 and ERC-1155 collections on Arc, straight from ArcScan. No floor prices — testnet NFTs have no market.'}
           </p>
         </section>
       </Reveal>
 
-      {isMainnet ? (
-        <Reveal>
-          <MainnetPending title="NFTs">
-            Mainnet NFT collection data is still being indexed.
-          </MainnetPending>
-        </Reveal>
-      ) : (
-        <NFTsContent />
-      )}
+      {IS_MAINNET ? <NFTsMainnetContent /> : <NFTsTestnetContent />}
     </div>
   )
 }
