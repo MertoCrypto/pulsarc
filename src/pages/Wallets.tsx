@@ -11,13 +11,17 @@ import { compact, explorerAddress, timeAgo } from '@/lib/arcscan'
 import { balanceShares } from '@/lib/shares'
 import { walletTotals } from '@/lib/pageTotals'
 import { NETWORK } from '@/lib/chain'
+import { MAINNET_APPS } from '@/data/appRegistries'
+import { walletExamples } from '@/lib/walletExamples'
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
-const EXAMPLES = [
+const TESTNET_EXAMPLES = [
   { label: 'Memo contract', address: '0x5294E9927c3306DcBaDb03fe70b92e01cCede505' },
   { label: 'Pulsarc tip wallet', address: TIP_ADDRESS },
 ]
+
+const EXAMPLES = walletExamples(NETWORK.id, MAINNET_APPS, TESTNET_EXAMPLES)
 
 const MESSAGES: Record<string, string> = {
   invalid: 'That is not a wallet address. It should start with 0x and be 42 characters long.',
