@@ -95,3 +95,16 @@ export function mergeTokenSources(primary: readonly ArcToken[], extra: readonly 
   }
   return out
 }
+
+/**
+ * Only verified tokens may be typed 'Stablecoin' or 'RWA'. groupOf guesses from the name and symbol,
+ * which anyone can copy ("USDC" from a random contract), so an unverified token that guessed one of
+ * those becomes 'Other'. Verified = lower-cased address in `verified`.
+ */
+export function restrictGroupsToVerified(tokens: readonly ArcToken[], verified: ReadonlySet<string>): ArcToken[] {
+  return tokens.map(t =>
+    (t.group === 'Stablecoin' || t.group === 'RWA') && !verified.has(t.address.toLowerCase())
+      ? { ...t, group: 'Other' as const }
+      : t,
+  )
+}

@@ -16,7 +16,7 @@
  */
 
 import assert from 'node:assert/strict'
-import { groupOf, toArcToken, parseMarketNum, mergeTokenSources } from './tokens.ts'
+import { groupOf, toArcToken, parseMarketNum, mergeTokenSources, restrictGroupsToVerified } from './tokens.ts'
 import type { RawToken, ArcToken } from './tokens.ts'
 
 // ---------------------------------------------------------------------------
@@ -402,7 +402,6 @@ check('toArcToken omitted price → null', omittedMarketToken.price, null)
 // Summary
 // ---------------------------------------------------------------------------
 
-console.log(`\nAll ${passed} / ${total} assertions passed.`)
 
 // --- mergeTokenSources ---
 {
@@ -418,3 +417,24 @@ console.log(`\nAll ${passed} / ${total} assertions passed.`)
   check('merge: extra-only token is appended', merged.map(t => t.name), ['scan-a', 'cat-b'])
   check('merge: empty extra leaves primary as is', mergeTokenSources([mk('0x1', 'x')], []).length, 1)
 }
+
+// --- restrictGroupsToVerified ---
+{
+  const mk = (address: string, group: ArcToken['group']): ArcToken => ({
+    address, name: 'T', symbol: 'USDC', decimals: 6, holders: 0, supply: 0, group,
+    iconUrl: null, volume24h: null, marketCap: null, price: null,
+  })
+  const real = '0x3600000000000000000000000000000000000000'
+  const verified = new Set([real])
+  const out = restrictGroupsToVerified(
+    [mk(real.toUpperCase().replace('0X', '0x'), 'Stablecoin'), mk('0xdead00000000000000000000000000000000beef', 'Stablecoin'),
+     mk('0xdead00000000000000000000000000000000cafe', 'RWA'), mk('0xdead00000000000000000000000000000000f00d', 'LP & Vaults')],
+    verified,
+  )
+  check('restrict: verified stablecoin keeps its group', out[0].group, 'Stablecoin')
+  check('restrict: unverified "Stablecoin" becomes Other', out[1].group, 'Other')
+  check('restrict: unverified RWA becomes Other', out[2].group, 'Other')
+  check('restrict: other groups are untouched', out[3].group, 'LP & Vaults')
+}
+
+console.log(`\nAll ${passed} / ${total} assertions passed.`)

@@ -11,7 +11,9 @@
  */
 import { useQuery } from '@tanstack/react-query'
 import { arcscan } from '@/lib/arcscan'
-import { mergeTokenSources, toArcToken, type ArcToken, type RawToken } from '@/lib/tokens'
+import { mergeTokenSources, restrictGroupsToVerified, toArcToken, type ArcToken, type RawToken } from '@/lib/tokens'
+import { verifiedTokenSet } from '@/lib/catalogView'
+import { appsForNetwork } from '@/data/appRegistries'
 import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 import { parseCatalog, toTokenRows } from '@/lib/catalog'
 import { NETWORK } from '@/lib/chain'
@@ -106,7 +108,10 @@ const IS_MAINNET = NETWORK.id === 5042
 export function useTokens() {
   return useQuery({
     queryKey: IS_MAINNET ? ['catalog-tokens-mainnet'] : ['arcscan-tokens'],
-    queryFn: IS_MAINNET ? loadTokensMainnet : loadTokensTestnet,
+    queryFn: async () => restrictGroupsToVerified(
+      await (IS_MAINNET ? loadTokensMainnet() : loadTokensTestnet()),
+      verifiedTokenSet(appsForNetwork(NETWORK.id)),
+    ),
     staleTime: 5 * 60_000,
     refetchInterval: 5 * 60_000,
     retry: 2,

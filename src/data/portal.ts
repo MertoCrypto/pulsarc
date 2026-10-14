@@ -30,6 +30,10 @@ export const APP_LOGOS: Record<string, { img?: string; icon?: 'usdc' | 'eurc' | 
   across: { img: portalLogo('discover/across.png') },
   weth: { img: portalLogo('tokens/weth.svg') },
   usyc: { img: portalLogo('tokens/usyc.svg') },
+  // Arc-native contracts use the Arc symbol (arc.io); ERC-8004 uses its GitHub organisation's profile image.
+  memo: { img: portalLogo('apps/arc.svg') },
+  multicall: { img: portalLogo('apps/arc.svg') },
+  erc8004: { img: portalLogo('apps/erc8004.png') },
   usdc: { icon: 'usdc' },
   eurc: { icon: 'eurc' },
   cirbtc: { icon: 'btc' },

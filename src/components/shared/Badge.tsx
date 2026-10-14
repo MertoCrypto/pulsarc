@@ -121,7 +121,7 @@ export function AppLogoBadge({ initials, logo, logoIcon, category, appId, size =
         : logoIcon === 'eurc' ? <TokenEURC variant="branded" size={inner} />
         : logoIcon === 'btc' ? <TokenBTC variant="branded" size={inner} />
         : logo && !broken ? (
-          <img src={logo} alt="" loading="lazy" referrerPolicy="no-referrer" draggable={false} onError={() => setBroken(true)} className="h-full w-full object-cover" />
+          <img src={logo} alt="" loading="lazy" referrerPolicy="no-referrer" draggable={false} onError={() => setBroken(true)} className={logo.includes('/portal-assets/apps/arc.') ? 'h-full w-full object-contain p-[22%]' : 'h-full w-full object-cover'} />
         ) : useGlyph ? (
           <>
             <GlyphIcon aria-hidden="true" size={glyphSize} strokeWidth={1.6} />
