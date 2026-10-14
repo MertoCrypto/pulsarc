@@ -3,6 +3,8 @@
  * No React, no network — safe for plain Node (--experimental-strip-types).
  */
 
+import { cleanDisplayText } from './displayText.ts'
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface DiscoverContract {
@@ -46,11 +48,9 @@ function isFiniteNum(v: unknown): v is number {
 
 function sanitiseName(raw: string | null | undefined): string | null {
   if (!raw || typeof raw !== 'string') return null
-  // Strip control characters (0x00-0x1f, 0x7f-0x9f) and trim
-  const cleaned = raw.replace(/[\x00-\x1f\x7f-\x9f]/g, '').trim()
-  if (cleaned.length === 0) return null
-  // Cap at 40 chars
-  return cleaned.slice(0, 40)
+  // Strip control, invisible and direction-changing characters, then cap at 40 code points
+  const cleaned = cleanDisplayText(raw, 40)
+  return cleaned.length === 0 ? null : cleaned
 }
 
 function parseDiscoverContract(raw: unknown): DiscoverContract | null {

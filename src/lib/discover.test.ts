@@ -107,6 +107,14 @@ test('hostile label: control chars are stripped, HTML tags remain as plain text'
   assert.equal(name, 'SafeName')
 })
 
+test('hostile label: direction-override and zero-width characters are removed', () => {
+  const labels: Record<string, ContractLabel> = {
+    [ADDR1]: { contract: true, name: '\u202ECDSU\u200B', symbol: null },
+  }
+  const list = buildDisplayList(makeSnap(), labels, new Set(), 100_000)
+  assert.equal(list[0].displayName, 'CDSU')
+})
+
 test('name capped at 40 chars', () => {
   const labels: Record<string, ContractLabel> = {
     [ADDR1]: { contract: true, name: 'A'.repeat(60), symbol: null },
