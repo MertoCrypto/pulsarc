@@ -28,6 +28,9 @@ export const arcMainnet = defineChain({
   blockExplorers: {
     default: { name: 'Arc Explorer', url: NETWORKS.mainnet.explorerUrl },
   },
+  // ~0.5 s blocks. Without blockTime viem assumes Ethereum's 12 s and polls every 4 s,
+  // so receipt waits (tip, GM) lag far behind the chain. With 500 it polls every 500 ms.
+  blockTime: 500,
 })
 
 // ---------------------------------------------------------------------------

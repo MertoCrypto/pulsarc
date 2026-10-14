@@ -56,6 +56,8 @@ const ALLOWED = [
   'rpc.blast.io',
   'rpc.blockdaemon.testnet.arc.network',
   'rpc.drpc.testnet.arc.network',
+  'rpc.blockdaemon.mainnet.arc.io',
+  'rpc.drpc.mainnet.arc.io',
   'rpc.gnosischain.com',
   'rpc.mainnet.arc.io',
   'rpc.testnet.arc.io',

@@ -26,7 +26,7 @@ registerChain(arcChain.id, arcChain.rpcUrls.default.http[0])
 //   — viem's built-in Arc URL is an old host without CORS; use the documented
 //     public RPC. Several public endpoints, tried in order: one rate-limited or
 //     blocked RPC no longer blanks the GM and tip panels.
-// Mainnet: single http() pointing at the official mainnet RPC endpoint.
+// Mainnet: official RPC first, then two public mirrors from viem's own Arc definition.
 // ---------------------------------------------------------------------------
 
 const arcTransport =
@@ -36,7 +36,12 @@ const arcTransport =
         http('https://rpc.blockdaemon.testnet.arc.network'),
         http('https://rpc.drpc.testnet.arc.network'),
       ])
-    : http(NETWORKS.mainnet.rpcUrl)
+    : fallback([
+        http(NETWORKS.mainnet.rpcUrl),
+        // Same endpoints as viem's built-in Arc mainnet definition; checked 2026-10-14 (chain id 0x13b2, heights in step).
+        http('https://rpc.blockdaemon.mainnet.arc.io'),
+        http('https://rpc.drpc.mainnet.arc.io'),
+      ])
 
 export const config = createConfig({
   chains: [arcChain, mainnet], // mainnet needed for ENS resolution
