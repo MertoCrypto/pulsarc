@@ -3,7 +3,6 @@ import { erc20Abi, formatUnits } from 'viem'
 import { toast } from 'sonner'
 import { ARC_USDC_ADDRESS } from '@/contracts/abis'
 import { CHAIN_ID } from '@/lib/chain'
-import { interactAvailable } from '@/lib/interactAvailability'
 import { TIP_ADDRESS } from '@/lib/tip'
 
 const tipJarAbi = [
@@ -11,30 +10,45 @@ const tipJarAbi = [
   { name: 'withdrawAll', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'token', type: 'address' }, { name: 'to', type: 'address' }], outputs: [] },
 ] as const
 
-const availability = interactAvailable(CHAIN_ID, import.meta.env)
-
-/** Shown only to the TipJar owner: moves the whole USDC balance to the connected wallet. */
-export function TipWithdraw() {
+/** Inner component — only rendered when TIP_ADDRESS is known; all hooks are unconditional here. */
+function TipWithdrawInner({ tipAddress }: { tipAddress: `0x${string}` }) {
   const { address } = useAccount()
-  const { data: owner } = useReadContract({ address: TIP_ADDRESS, abi: tipJarAbi, functionName: 'owner', chainId: CHAIN_ID })
+  const { data: owner } = useReadContract({
+    address: tipAddress,
+    abi: tipJarAbi,
+    functionName: 'owner',
+    chainId: CHAIN_ID,
+    query: { enabled: true },
+  })
   const { data: balance, refetch } = useReadContract({
-    address: ARC_USDC_ADDRESS, abi: erc20Abi, functionName: 'balanceOf', args: [TIP_ADDRESS], chainId: CHAIN_ID,
+    address: ARC_USDC_ADDRESS,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [tipAddress],
+    chainId: CHAIN_ID,
     query: { refetchInterval: 20_000 },
   })
   const { writeContract, data: hash, isPending } = useWriteContract()
   const { isLoading: confirming } = useWaitForTransactionReceipt({
-    hash, query: { enabled: !!hash },
+    hash,
+    query: { enabled: !!hash },
   })
 
   if (!address || !owner || owner.toLowerCase() !== address.toLowerCase()) return null
   const amount = balance ?? 0n
   const busy = isPending || confirming
-  const actionDisabled = !availability.available || busy || amount === 0n
+  const actionDisabled = busy || amount === 0n
 
   function handleWithdraw() {
-    if (!availability.available || !address) return
+    if (!address) return
     writeContract(
-      { address: TIP_ADDRESS, abi: tipJarAbi, functionName: 'withdrawAll', args: [ARC_USDC_ADDRESS, address], chainId: CHAIN_ID },
+      {
+        address: tipAddress,
+        abi: tipJarAbi,
+        functionName: 'withdrawAll',
+        args: [ARC_USDC_ADDRESS, address],
+        chainId: CHAIN_ID,
+      },
       {
         onSuccess: () => { toast.success('Withdrawal sent'); setTimeout(() => void refetch(), 4000) },
         onError: (err) => {
@@ -51,8 +65,6 @@ export function TipWithdraw() {
       <p className="mt-1 text-lg tabular-nums text-white">{formatUnits(amount, 6)} USDC</p>
       <button
         disabled={actionDisabled}
-        aria-disabled={!availability.available}
-        title={!availability.available ? availability.reason : undefined}
         onClick={handleWithdraw}
         className="mt-2 w-full rounded-[10px] border border-[var(--line-strong)] py-2 text-[13px] text-white transition-colors hover:border-[var(--periwinkle)] disabled:cursor-not-allowed disabled:opacity-50"
       >
@@ -60,4 +72,14 @@ export function TipWithdraw() {
       </button>
     </div>
   )
+}
+
+/**
+ * Shown only to the TipJar owner: moves the whole USDC balance to the connected wallet.
+ * Renders nothing when TIP_ADDRESS is null (mainnet without a deployed TipJar).
+ * The outer/inner split keeps all React hooks unconditional inside TipWithdrawInner.
+ */
+export function TipWithdraw() {
+  if (TIP_ADDRESS === null) return null
+  return <TipWithdrawInner tipAddress={TIP_ADDRESS} />
 }

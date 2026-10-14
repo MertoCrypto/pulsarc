@@ -7,17 +7,11 @@ import { erc20ApproveAbi, ARC_USDC_ADDRESS } from '@/contracts/abis'
 import { requireChain } from '@/onchain-facts'
 import { parseUsdc } from '@/onchain-money'
 import { CHAIN_ID } from '@/lib/chain'
-import { interactAvailable } from '@/lib/interactAvailability'
 import { TipWithdraw } from './TipWithdraw'
 
 import { TIP_ADDRESS } from '@/lib/tip'
 
-const PLATFORM_ADDRESS = TIP_ADDRESS
 const TIP_PRESETS = [0.01, 0.10, 1.00]
-
-// TipBox uses USDC transfer (ERC-20) — not a platform contract — but we gate it
-// the same way so the UI stays consistent on mainnet where USDC may not be set.
-const availability = interactAvailable(CHAIN_ID, import.meta.env)
 
 export function TipBox() {
   const { address, chainId, isConnected } = useAccount()
@@ -32,7 +26,7 @@ export function TipBox() {
   const isLoading = isPending || isConfirming
 
   function handleTip() {
-    if (!availability.available) return
+    if (TIP_ADDRESS === null) return  // guard: should never be reached when button is visible
     if (!isConnected) { toast.error('Connect your wallet to tip.'); return }
     if (chainId !== CHAIN_ID) { switchChain({ chainId: CHAIN_ID }); return }
 
@@ -42,7 +36,7 @@ export function TipBox() {
         address: ARC_USDC_ADDRESS,
         abi: erc20ApproveAbi,
         functionName: 'transfer',
-        args: [PLATFORM_ADDRESS, rawAmount],
+        args: [TIP_ADDRESS, rawAmount],
         chainId: CHAIN_ID,
       },
       {
@@ -86,9 +80,9 @@ export function TipBox() {
         ))}
       </div>
 
-      {!availability.available ? (
+      {TIP_ADDRESS === null ? (
         <p className="w-full rounded-[10px] border border-[var(--line)] py-2.5 text-center text-xs text-[var(--faint)]">
-          {availability.reason}
+          Tips are not open on Arc Mainnet yet.
         </p>
       ) : isSuccess ? (
         <div className="w-full rounded-[10px] border border-[var(--line-strong)] py-2.5 text-center text-xs text-[var(--periwinkle)]">

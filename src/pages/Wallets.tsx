@@ -18,7 +18,9 @@ const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
 const TESTNET_EXAMPLES = [
   { label: 'Memo contract', address: '0x5294E9927c3306DcBaDb03fe70b92e01cCede505' },
-  { label: 'Pulsarc tip wallet', address: TIP_ADDRESS },
+  // TIP_ADDRESS is null on mainnet (no fallback address); omit the example rather than
+  // surfacing a wrong address to the user.
+  ...(TIP_ADDRESS !== null ? [{ label: 'Pulsarc tip wallet', address: TIP_ADDRESS }] : []),
 ]
 
 const EXAMPLES = walletExamples(NETWORK.id, MAINNET_APPS, TESTNET_EXAMPLES)
