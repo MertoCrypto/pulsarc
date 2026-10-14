@@ -344,7 +344,7 @@ function GmBoardStep({ active, onDone }: GmBoardStepProps) {
 
       const client = publicClient
       if (!client) throw new Error('No public client')
-      const receipt = await client.waitForTransactionReceipt({ hash: txHash, timeout: 90_000, pollingInterval: 2_000 })
+      const receipt = await client.waitForTransactionReceipt({ hash: txHash, timeout: 240_000, pollingInterval: 2_000 })
       if (receipt.status === 'reverted') throw new Error('Transaction reverted.')
       if (!receipt.contractAddress) throw new Error('No contract address in receipt.')
 
@@ -559,7 +559,7 @@ function TipJarStep({ active }: TipJarStepProps) {
 
       const client = publicClient
       if (!client) throw new Error('No public client')
-      const receipt = await client.waitForTransactionReceipt({ hash: txHash, timeout: 90_000, pollingInterval: 2_000 })
+      const receipt = await client.waitForTransactionReceipt({ hash: txHash, timeout: 240_000, pollingInterval: 2_000 })
       if (receipt.status === 'reverted') throw new Error('Transaction reverted.')
       if (!receipt.contractAddress) throw new Error('No contract address in receipt.')
 
@@ -798,6 +798,14 @@ export function LocalDeploy() {
         active={unlockedStep === 0}
         onDone={() => setUnlockedStep(1)}
       />
+      {unlockedStep === 0 && (
+        <p className="-mt-8 pl-10 text-sm text-[var(--muted)]">
+          GmBoard already deployed (e.g. the page timed out but the transaction confirmed)?{' '}
+          <button onClick={() => setUnlockedStep(1)} className="underline hover:no-underline">
+            Skip to TipJar
+          </button>
+        </p>
+      )}
 
       {/* Divider */}
       <hr className="border-[var(--line)]" aria-hidden="true" />
