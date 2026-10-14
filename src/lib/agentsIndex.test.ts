@@ -221,6 +221,20 @@ test('rejects ipfs://bafy/a/../b (dot-dot segment inside path)', () => {
   assert.equal(result.agents[0].uri, undefined)
 })
 
+test('rejects ipfs:// paths with characters outside the CID/path allow-list', () => {
+  for (const uri of ['ipfs://bafy?x=1', 'ipfs://bafy#frag', 'ipfs://ba fy', 'ipfs://bafy/a b', 'ipfs://%2e%2e/etc', 'ipfs://bafy//x', 'ipfs:///bafy']) {
+    const result = parseAgentsIndex(validFile({ agents: [{ ...VALID_AGENT, uri }] }))
+    assert.ok(result !== null)
+    assert.equal(result.agents[0].uri, undefined, uri)
+  }
+})
+
+test('rejects ipfs:// paths longer than 256 characters', () => {
+  const result = parseAgentsIndex(validFile({ agents: [{ ...VALID_AGENT, uri: 'ipfs://' + 'a'.repeat(257) }] }))
+  assert.ok(result !== null)
+  assert.equal(result.agents[0].uri, undefined)
+})
+
 test('rejects https:// with userinfo (user:password@host)', () => {
   const result = parseAgentsIndex(validFile({
     agents: [{ ...VALID_AGENT, uri: 'https://user:secret@example.com/path' }],
