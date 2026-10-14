@@ -37,6 +37,9 @@ const arcTransport =
         http('https://rpc.drpc.testnet.arc.network'),
       ])
     : fallback([
+        // Same-origin proxy first: ad blockers and privacy extensions block rpc.* hosts
+        // (ERR_BLOCKED_BY_CLIENT), which left tip/GM waiting forever. See vercel.json.
+        ...(typeof window !== 'undefined' ? [http(`${window.location.origin}/rpc`)] : []),
         http(NETWORKS.mainnet.rpcUrl),
         // Same endpoints as viem's built-in Arc mainnet definition; checked 2026-10-14 (chain id 0x13b2, heights in step).
         http('https://rpc.blockdaemon.mainnet.arc.io'),
