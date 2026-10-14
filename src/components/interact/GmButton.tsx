@@ -9,13 +9,14 @@ import { clsx } from 'clsx'
 import { toast } from 'sonner'
 import { buildTxExplorerUrl } from '@/onchain-facts'
 import { CHAIN_ID } from '@/lib/chain'
-import { interactAvailable } from '@/lib/interactAvailability'
+import { gmBoardAddressFor } from '@/lib/gmBoardAddress'
 
-// Deployed on Arc Testnet by Arc Studio (see contracts/contract-metadata/GmBoard.json); the env var overrides it.
-const GM_BOARD_ADDRESS = (import.meta.env.VITE_GM_BOARD_ADDRESS ?? '0x5683dfa3f97aaafa72f1eb2db95acb41878a520f') as `0x${string}`
+// Per-network GmBoard (see lib/gmBoardAddress.ts); the env var overrides it.
+const GM_BOARD_ADDRESS = (gmBoardAddressFor(CHAIN_ID, import.meta.env.VITE_GM_BOARD_ADDRESS) ?? '0x0000000000000000000000000000000000000000') as `0x${string}`
 
-// GmButton uses its own contract, not the platform contracts; availability still gates the write.
-const availability = interactAvailable(CHAIN_ID, import.meta.env)
+// GmButton uses its own per-network contract, not the platform contracts, so the platform-contract
+// gate does not apply; notDeployed covers a missing address.
+const availability: { available: boolean; reason?: string } = { available: true }
 
 const gmBoardAbi = [
   {
