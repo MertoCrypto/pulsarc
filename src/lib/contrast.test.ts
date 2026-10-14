@@ -27,9 +27,7 @@ import { join } from "node:path";
 // key  : CSS custom-property name (with --)
 // value: minimum floor ratio (must still be ≥ floor AND < 4.5)
 // ---------------------------------------------------------------------------
-const KNOWN_BELOW_AA: Record<string, number> = {
-  "--faint": 3.6,
-};
+const KNOWN_BELOW_AA: Record<string, number> = {};
 
 // ---------------------------------------------------------------------------
 // Text tokens to verify (checked against both --bg and --bg-deep)
