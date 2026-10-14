@@ -83,7 +83,7 @@ function WalletData({ address }: WalletDataProps) {
                       <tr key={entry.app.id} className="arc-row border-b border-[rgba(170,196,234,0.09)]">
                         <td className="px-5 py-3.5">
                           <Link to={`/dapp/${entry.app.id}`} className="flex items-center gap-3">
-                            <AppLogoBadge initials={entry.app.logoInitials} color={entry.app.logoColor} logo={entry.app.logo} logoIcon={entry.app.logoIcon} size="sm" />
+                            <AppLogoBadge initials={entry.app.logoInitials} color={entry.app.logoColor} logo={entry.app.logo} logoIcon={entry.app.logoIcon} category={entry.app.category} appId={entry.app.id} size="sm" />
                             <div>
                               <p className="text-[15px] text-white">{entry.app.name}</p>
                               <CategoryBadge category={entry.app.category} size="xs" />

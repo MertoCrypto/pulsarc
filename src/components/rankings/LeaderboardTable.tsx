@@ -122,7 +122,7 @@ export function LeaderboardTable({ items, isLoading, sortKey, onSortChange, wall
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <AppLogoBadge initials={item.app.logoInitials} color={item.app.logoColor} logo={item.app.logo} logoIcon={item.app.logoIcon} size="md" />
+                      <AppLogoBadge initials={item.app.logoInitials} color={item.app.logoColor} logo={item.app.logo} logoIcon={item.app.logoIcon} category={item.app.category} appId={item.app.id} size="md" />
                       <div>
                         <p className="text-[15px] font-medium text-white group-hover:text-[var(--periwinkle)] transition-colors">
                           {item.app.name}

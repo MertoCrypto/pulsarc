@@ -71,7 +71,7 @@ function LeaderboardContent() {
                     <td className="w-12 px-5 py-3.5 text-sm tabular-nums text-[var(--faint)]">{e.rank}</td>
                     <td className="px-5 py-3.5">
                       <Link to={`/dapp/${e.app.id}`} className="flex items-center gap-3">
-                        <AppLogoBadge initials={e.app.logoInitials} color={e.app.logoColor} logo={e.app.logo} logoIcon={e.app.logoIcon} size="sm" />
+                        <AppLogoBadge initials={e.app.logoInitials} color={e.app.logoColor} logo={e.app.logo} logoIcon={e.app.logoIcon} category={e.app.category} appId={e.app.id} size="sm" />
                         <span>
                           <span className="block text-[15px] text-white">{e.app.name}</span>
                           <CategoryBadge category={e.app.category} size="xs" />
