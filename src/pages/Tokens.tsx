@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ArrowDown, ArrowUpRight, Coins, Search, Users } from 'lucide-react'
+import { TokenBTC, TokenEURC, TokenUSDC } from '@web3icons/react'
+import { getTokenLogo } from '@/lib/tokenLogos'
 import { Reveal } from '@/components/shared/Reveal'
 import { SplitLines } from '@/components/shared/SplitLines'
 import { StatCard } from '@/components/shared/StatCard'
@@ -7,12 +9,55 @@ import { useChainOverview, useCatalogMeta, useTokens } from '@/hooks/useTokens'
 import { compact, explorerToken } from '@/lib/arcscan'
 import { tokenGroupCounts, verifiedTokenSet, visibleTokens, type TokenFilter, type TokenSortKey } from '@/lib/catalogView'
 import { FxRateCard } from '@/components/tokens/FxRateCard'
-import { EcbRateCard } from '@/components/tokens/EcbRateCard'
 import { NETWORK } from '@/lib/chain'
 import { appsForNetwork } from '@/data/appRegistries'
 
 type Filter = TokenFilter
 type SortKey = TokenSortKey
+
+// ─── Token logo cell ─────────────────────────────────────────────────────────
+
+/**
+ * Renders a 32 px circle with the token's logo.
+ * Priority: catalog iconUrl → verified address logo → letter badge.
+ */
+function TokenIcon({ address, symbol, iconUrl }: { address: string; symbol: string; iconUrl: string | null }) {
+  if (iconUrl) {
+    return (
+      <img
+        src={iconUrl}
+        alt=""
+        className="h-8 w-8 rounded-full border border-[var(--line)] bg-[#0b182c] object-cover"
+        loading="lazy"
+      />
+    )
+  }
+  const logo = getTokenLogo(address)
+  if (logo !== null) {
+    if (logo.kind === 'web3icon') {
+      return (
+        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--line-strong)] bg-[#0b182c]">
+          {logo.icon === 'usdc' && <TokenUSDC variant="branded" size={24} />}
+          {logo.icon === 'eurc' && <TokenEURC variant="branded" size={24} />}
+          {logo.icon === 'btc'  && <TokenBTC  variant="branded" size={22} />}
+        </span>
+      )
+    }
+    return (
+      <img
+        src={logo.src}
+        alt=""
+        className="h-8 w-8 rounded-full border border-[var(--line-strong)] bg-[#0b182c] object-contain p-0.5"
+        loading="lazy"
+      />
+    )
+  }
+  return (
+    <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--line-strong)] font-['Geist_Mono'] text-[10px] uppercase text-[var(--periwinkle)]">
+      {symbol.slice(0, 2)}
+    </span>
+  )
+}
 
 const FILTERS: Filter[] = ['All', 'Stablecoin', 'RWA', 'LP & Vaults', 'Other']
 
@@ -128,13 +173,7 @@ function TokensTestnetContent() {
                     <td className="px-5 py-3.5 text-sm tabular-nums text-[var(--faint)]">{i + 1}</td>
                     <td className="px-3 py-3.5">
                       <div className="flex items-center gap-3">
-                        {t.iconUrl ? (
-                          <img src={t.iconUrl} alt="" className="h-8 w-8 rounded-full border border-[var(--line)] bg-[#0b182c] object-cover" loading="lazy" />
-                        ) : (
-                          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--line-strong)] font-['Geist_Mono'] text-[10px] uppercase text-[var(--periwinkle)]">
-                            {t.symbol.slice(0, 2)}
-                          </span>
-                        )}
+                        <TokenIcon address={t.address} symbol={t.symbol} iconUrl={t.iconUrl ?? null} />
                         <div className="min-w-0">
                           <p className="max-w-[260px] truncate text-[15px] text-white">{t.name}</p>
                           <p className="font-['Geist_Mono'] text-[11px] text-[var(--muted)]">{t.symbol}</p>
@@ -275,9 +314,7 @@ function TokensMainnetContent() {
                     <td className="px-5 py-3.5 text-sm tabular-nums text-[var(--faint)]">{i + 1}</td>
                     <td className="px-3 py-3.5">
                       <div className="flex items-center gap-3">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--line-strong)] font-['Geist_Mono'] text-[10px] uppercase text-[var(--periwinkle)]">
-                          {t.symbol.slice(0, 2)}
-                        </span>
+                        <TokenIcon address={t.address} symbol={t.symbol} iconUrl={null} />
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="max-w-[220px] truncate text-[15px] text-white">{t.name}</p>
@@ -365,7 +402,6 @@ export function Tokens() {
       <section>
         <div className="mb-6 empty:hidden">
           <FxRateCard net={IS_MAINNET ? 'mainnet' : 'testnet'} />
-          <EcbRateCard enabled={IS_MAINNET} />
         </div>
       </section>
 
