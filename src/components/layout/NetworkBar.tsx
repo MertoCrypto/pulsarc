@@ -6,6 +6,8 @@ import { GlobalSearch } from '@/components/shared/GlobalSearch'
 import { ConnectButton } from '@/components/wallet/ConnectButton'
 import { GmButton } from '@/components/interact/GmButton'
 import { PulsarcMark, PulsarcWordmark } from '@/components/brand/PulsarcMark'
+import { CHAIN_ID } from '@/lib/chain'
+import { interactAvailable } from '@/lib/interactAvailability'
 
 interface NavItem {
   to: string
@@ -22,8 +24,12 @@ const NAV: NavItem[] = [
   { to: '/wallets', label: 'Wallets', match: p => p.startsWith('/wallet') },
 ]
 
+// Votes, "I used this", watchlists and boosts only exist where the platform contracts are deployed,
+// so on mainnet the Engagement tab stays hidden until they are.
+const ENGAGEMENT_LIVE = interactAvailable(CHAIN_ID, import.meta.env).available
+
 const MORE: NavItem[] = [
-  { to: '/leaderboard', label: 'Engagement', match: p => p.startsWith('/leaderboard') },
+  ...(ENGAGEMENT_LIVE ? [{ to: '/leaderboard', label: 'Engagement', match: (p: string) => p.startsWith('/leaderboard') }] : []),
   { to: '/compare', label: 'Compare', match: p => p.startsWith('/compare') },
   { to: '/trends', label: 'Trends', match: p => p.startsWith('/trends') },
   { to: '/deploy', label: 'Deploy', match: p => p.startsWith('/deploy') },

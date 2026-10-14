@@ -22,10 +22,14 @@ import { HIGH_FREQUENCY, useWalletLevels } from '@/hooks/useWalletLevels'
 import { compact, count, explorerAddress } from '@/lib/arcscan'
 import { topWalletsOf } from '@/lib/catalogView'
 import { sampledEvents } from '@/lib/pageTotals'
-import { NETWORK } from '@/lib/chain'
+import { CHAIN_ID, NETWORK } from '@/lib/chain'
+import { interactAvailable } from '@/lib/interactAvailability'
 import { walletsPrefix } from '@/lib/walletsPrefix'
 
 const TABS = ['Overview', 'Top wallets'] as const
+
+// Vote / I used this / Watchlist / Boost need the platform contracts; hidden where they are not deployed (mainnet).
+const ENGAGEMENT_LIVE = interactAvailable(CHAIN_ID, import.meta.env).available
 type Tab = (typeof TABS)[number]
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
@@ -98,10 +102,14 @@ export function DApp() {
               </div>
 
               <div className="mt-6 flex flex-wrap items-center gap-2" onClick={e => { e.stopPropagation() }}>
-                <UpvoteButton dappId={app.id} />
-                <IUsedThisButton dappId={app.id} />
-                <WatchlistButton dappId={app.id} />
-                <BoostButton dappId={app.id} dappName={app.name} />
+                {ENGAGEMENT_LIVE && (
+                  <>
+                    <UpvoteButton dappId={app.id} />
+                    <IUsedThisButton dappId={app.id} />
+                    <WatchlistButton dappId={app.id} />
+                    <BoostButton dappId={app.id} dappName={app.name} />
+                  </>
+                )}
                 <ShareButton title={app.name} description={app.description} url={`${window.location.origin}/dapp/${app.id}`} />
               </div>
 
