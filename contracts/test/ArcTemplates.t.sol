@@ -502,6 +502,9 @@ contract ArcMultiTokenTest is Test {
         vm.assume(fuzzOwner != address(0));
         // Exclude Foundry's VM cheatcode address to avoid "unknown cheatcode" errors
         vm.assume(fuzzOwner != address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D));
+        // ERC-1155 minting to an address with code calls onERC1155Received; contracts that do not
+        // implement it (this test contract included) revert by design, so only fuzz plain accounts here.
+        vm.assume(fuzzOwner.code.length == 0);
         amt = bound(amt, 1, type(uint128).max);
         ArcMultiToken mt = new ArcMultiToken("ipfs://x/", tid, amt, fuzzOwner);
         assertEq(mt.balanceOf(fuzzOwner, tid), amt);
