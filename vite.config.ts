@@ -40,8 +40,13 @@ export default defineConfig({
   server: {
     allowedHosts: true,
     cors: true,
-    // Same-origin path to the mainnet RPC (production uses a Vercel rewrite in vercel.json).
+    // Same-origin paths to the Arc RPCs (production uses Vercel rewrites in vercel.json).
     proxy: {
+      '/rpc-testnet': {
+        target: 'https://rpc.testnet.arc.io',
+        changeOrigin: true,
+        rewrite: () => '/',
+      },
       '/rpc': {
         target: 'https://rpc.mainnet.arc.io',
         changeOrigin: true,

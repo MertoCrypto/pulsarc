@@ -22,7 +22,8 @@ import { useAccount, usePublicClient, useSwitchChain, useWalletClient } from 'wa
 import { ArrowLeft, ArrowUpRight, CheckCircle2, Coins, Image, Layers3, Loader2 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { toast } from 'sonner'
-import { concat, createPublicClient, encodeDeployData, getContractAddress, http, toBytes, toHex } from 'viem'
+import { concat, createPublicClient, encodeDeployData, fallback, getContractAddress, http, toBytes, toHex } from 'viem'
+import { rpcUrls } from '@/lib/rpcTransport'
 import { Reveal } from '@/components/shared/Reveal'
 import { SplitLines } from '@/components/shared/SplitLines'
 import { buildAddressExplorerUrl, buildTxExplorerUrl } from '@/onchain-facts'
@@ -188,8 +189,12 @@ function DeployForm({ def, onBack }: { def: ContractDef; onBack: () => void }) {
     const plan = def.build(values, address)
     if (typeof plan === 'string') { toast.error(plan); return }
 
-    // Pre-flight: verify the CREATE2 factory exists on this network
-    const client = publicClient ?? createPublicClient({ transport: http(RPC) })
+    // Pre-flight: verify the CREATE2 factory exists on this network.
+    // Use the same-origin proxy first (blocks ad blockers from killing the deploy check).
+    const _net = IS_MAINNET ? 'mainnet' : 'testnet'
+    const _origin = typeof window !== 'undefined' ? window.location.origin : undefined
+    const _rpcList = rpcUrls(_net, [RPC], _origin)
+    const client = publicClient ?? createPublicClient({ transport: fallback(_rpcList.map(u => http(u))) })
     const factoryCode = await client.getCode({ address: CREATE2_DEPLOYER })
     if (!factoryCode || factoryCode === '0x') {
       setStatus('error')

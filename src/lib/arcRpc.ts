@@ -1,7 +1,8 @@
-import { createPublicClient, http, type Address, type Log, type AbiEvent } from 'viem'
+import { createPublicClient, fallback, http, type Address, type Log, type AbiEvent } from 'viem'
 import { requireChain } from '@/onchain-facts'
 import { NETWORKS } from '@/lib/chain'
 import { blockWindows, withRetry } from './rpcHelpers.ts'
+import { rpcUrls } from './rpcTransport.ts'
 
 export { MAX_LOG_RANGE, blockWindows, readCache, writeCache, withRetry, inGroups } from './rpcHelpers.ts'
 
@@ -24,11 +25,16 @@ export async function blocksForHours(hours: number, latest: bigint): Promise<big
 
 let shared: ReturnType<typeof makeClient> | null = null
 
+/** Browser origin for same-origin proxy; undefined in Node/SSR/tests. */
+const _origin = typeof window !== 'undefined' ? window.location.origin : undefined
+
 function makeClient() {
   const chain = requireChain(ARC_TESTNET_CHAIN_ID)
   // batch: many JSON-RPC calls travel in one HTTP request — keeps us under the rate limit.
+  // Same-origin proxy is first (browser) so ad blockers cannot block rpc.* hosts; direct URLs follow.
+  const urls = rpcUrls('testnet', chain.rpcUrls, _origin)
   return createPublicClient({
-    transport: http(chain.rpcUrls[0], { batch: { wait: 20, batchSize: 100 } }),
+    transport: fallback(urls.map(u => http(u, { batch: { wait: 20, batchSize: 100 } }))),
   })
 }
 
@@ -37,8 +43,10 @@ const byNetwork: Partial<Record<'testnet' | 'mainnet', ReturnType<typeof makeCli
 /** Read-only client for either Arc network (the mainnet RPC is open, anonymous and CORS-enabled). */
 export function clientFor(net: 'testnet' | 'mainnet') {
   if (!byNetwork[net]) {
+    // Same-origin proxy first; falls back to direct RPC when origin is not available.
+    const urls = rpcUrls(net, [NETWORKS[net].rpcUrl], _origin)
     byNetwork[net] = createPublicClient({
-      transport: http(NETWORKS[net].rpcUrl, { batch: { wait: 20, batchSize: 100 } }),
+      transport: fallback(urls.map(u => http(u, { batch: { wait: 20, batchSize: 100 } }))),
     }) as ReturnType<typeof makeClient>
   }
   return byNetwork[net]!
@@ -79,7 +87,7 @@ export async function getLogsChunked(opts: {
           event: opts.event,
           fromBlock: lo,
           toBlock: hi,
-        })) as Log[]
+        }))
       } catch {
         failed++
       }

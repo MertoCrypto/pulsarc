@@ -9,6 +9,7 @@ import { injected } from 'wagmi/connectors'
 import { registerChain } from './tracing'
 import { NETWORKS, NETWORK } from './lib/chain'
 import { selectArcChain } from './lib/arcChains'
+import { rpcUrls } from './lib/rpcTransport'
 
 // ---------------------------------------------------------------------------
 // Arc chain selection — single derivation point keyed on NETWORK.id
@@ -22,29 +23,45 @@ registerChain(arcChain.id, arcChain.rpcUrls.default.http[0])
 // ---------------------------------------------------------------------------
 // Transport selection
 //
-// Testnet: three-endpoint fallback (documented public RPC + two CDN mirrors)
-//   — viem's built-in Arc URL is an old host without CORS; use the documented
-//     public RPC. Several public endpoints, tried in order: one rate-limited or
-//     blocked RPC no longer blanks the GM and tip panels.
-// Mainnet: official RPC first, then two public mirrors from viem's own Arc definition.
+// Both networks route browser traffic through a same-origin proxy first so that
+// ad blockers / Brave Shields cannot block rpc.*.arc.io (ERR_BLOCKED_BY_CLIENT).
+// The proxy paths are:
+//   mainnet  → /rpc         (Vercel rewrite → https://rpc.mainnet.arc.io)
+//   testnet  → /rpc-testnet (Vercel rewrite → https://rpc.testnet.arc.io)
+// Dev server mirrors these via vite.config.ts proxy entries.
+// In Node/SSR (origin === undefined) the proxy URLs are skipped automatically.
+//
+// Testnet: same-origin proxy + three direct endpoints (documented public RPC + two CDN mirrors)
+// Mainnet: same-origin proxy + official RPC + two public mirrors from viem's Arc definition
 // ---------------------------------------------------------------------------
+
+const _origin = typeof window !== 'undefined' ? window.location.origin : undefined
 
 const arcTransport =
   NETWORK.id === NETWORKS.testnet.id
-    ? fallback([
-        http(NETWORKS.testnet.rpcUrl),
-        http('https://rpc.blockdaemon.testnet.arc.network'),
-        http('https://rpc.drpc.testnet.arc.network'),
-      ])
-    : fallback([
-        // Same-origin proxy first: ad blockers and privacy extensions block rpc.* hosts
-        // (ERR_BLOCKED_BY_CLIENT), which left tip/GM waiting forever. See vercel.json.
-        ...(typeof window !== 'undefined' ? [http(`${window.location.origin}/rpc`)] : []),
-        http(NETWORKS.mainnet.rpcUrl),
-        // Same endpoints as viem's built-in Arc mainnet definition; checked 2026-10-14 (chain id 0x13b2, heights in step).
-        http('https://rpc.blockdaemon.mainnet.arc.io'),
-        http('https://rpc.drpc.mainnet.arc.io'),
-      ])
+    ? fallback(
+        rpcUrls(
+          'testnet',
+          [
+            NETWORKS.testnet.rpcUrl,
+            'https://rpc.blockdaemon.testnet.arc.network',
+            'https://rpc.drpc.testnet.arc.network',
+          ],
+          _origin,
+        ).map(u => http(u)),
+      )
+    : fallback(
+        rpcUrls(
+          'mainnet',
+          [
+            NETWORKS.mainnet.rpcUrl,
+            // Same endpoints as viem's built-in Arc mainnet definition; checked 2026-10-14.
+            'https://rpc.blockdaemon.mainnet.arc.io',
+            'https://rpc.drpc.mainnet.arc.io',
+          ],
+          _origin,
+        ).map(u => http(u)),
+      )
 
 export const config = createConfig({
   chains: [arcChain, mainnet], // mainnet needed for ENS resolution
