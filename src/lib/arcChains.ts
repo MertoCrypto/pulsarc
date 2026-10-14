@@ -15,7 +15,8 @@ import { NETWORKS } from './chain.ts'
 // ---------------------------------------------------------------------------
 // nativeCurrency is read from the sandbox-verifiable arcTestnet definition
 // and applied verbatim — both chains share USDC as native gas token.
-// DOGRULANMADI: mainnet nativeCurrency testnet ile ayni varsayildi.
+// Verified on-chain 2026-10-14: on mainnet, eth_getBalance equals USDC balanceOf × 10^12 for live wallets,
+// so the native gas unit has 18 decimals while the ERC-20 interface has 6 (same as testnet).
 
 export const arcMainnet = defineChain({
   id: NETWORKS.mainnet.id,
