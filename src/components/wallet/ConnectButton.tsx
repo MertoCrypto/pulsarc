@@ -1,8 +1,5 @@
 import { ConnectKitButton } from 'connectkit'
 import { Wallet } from 'lucide-react'
-import { PasskeyButton } from './PasskeyButton'
-import { NETWORK } from '@/lib/chain'
-import { passkeyAvailable } from '@/lib/passkeyAvailability'
 
 /** The one call to action in the header: periwinkle, with a slow light sweep until a wallet is connected. */
 export function ConnectButton() {
@@ -15,14 +12,11 @@ export function ConnectButton() {
             <span className="font-['Geist_Mono'] text-[13px]">{ensName ?? truncatedAddress}</span>
           </button>
         ) : (
-          <div className="flex flex-col items-center gap-1.5">
-            <button onClick={show} className="arc-btn arc-btn-live whitespace-nowrap !rounded-xl !px-3.5 !py-2.5 !text-[15px] sm:!px-5">
-              <Wallet className="h-4 w-4" />
-              <span className="sm:hidden">Connect</span>
-              <span className="hidden sm:inline">Connect Wallet</span>
-            </button>
-            {passkeyAvailable(NETWORK.id) && <PasskeyButton />}
-          </div>
+          <button onClick={show} className="arc-btn arc-btn-live whitespace-nowrap !rounded-xl !px-3.5 !py-2.5 !text-[15px] sm:!px-5">
+            <Wallet className="h-4 w-4" />
+            <span className="sm:hidden">Connect</span>
+            <span className="hidden sm:inline">Connect Wallet</span>
+          </button>
         )
       }
     </ConnectKitButton.Custom>

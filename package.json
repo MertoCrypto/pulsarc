@@ -7,7 +7,6 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy:self": "bun run ./scripts/self-deploy.ts",
     "compass:deploy": "bun run ./scripts/compass-deploy.ts",
     "fetch:abi": "bun run ./scripts/fetch-abi.ts",
     "lint": "oxlint --type-aware --quiet src scripts --fix; s=$?; oxlint --quiet --fix .; exit $((s>0?s:$?))",
@@ -19,9 +18,6 @@
     "deploy": "npm run build && wrangler pages deploy dist --project-name pulsarc --branch main"
   },
   "dependencies": {
-    "@circle-fin/developer-controlled-wallets": "^10.8.0",
-    "@circle-fin/modular-wallets-core": "^1.0.16",
-    "@circle-fin/smart-contract-platform": "^10.8.0",
     "@openzeppelin/contracts": "5.1.0",
     "@tanstack/react-query": "^5.62.7",
     "@web3icons/react": "^4.0.0",

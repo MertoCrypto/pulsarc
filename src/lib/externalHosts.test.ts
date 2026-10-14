@@ -45,7 +45,6 @@ const ALLOWED = [
   'mainnet.base.org',
   'mainnet.era.zksync.io',
   'mainnet.optimism.io',
-  'modular-sdk.circle.com',
   'optimistic.etherscan.io',
   'polygon-amoy.drpc.org',
   'polygon.drpc.org',

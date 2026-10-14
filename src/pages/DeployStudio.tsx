@@ -8,8 +8,8 @@
  *
  * Deployment strategy: instead of a raw CREATE (walletClient.sendTransaction with no `to`),
  * we send a plain transfer `{ to: CREATE2_DEPLOYER, data: salt ++ initcode }`. This works
- * with every wallet type including ERC-4337 smart accounts (Circle passkey wallet), which
- * cannot perform raw CREATE because their EIP-1193 provider requires a `to` address.
+ * with every wallet type, including smart accounts whose EIP-1193 provider cannot perform raw
+ * CREATE because it requires a `to` address.
  *
  * The deployer at 0x4e59b44847b379578588920cA78FbF26c0B4956C is the canonical deterministic
  * CREATE2 factory (Nick's factory), confirmed live on Arc Testnet and Arc Mainnet (69 bytes

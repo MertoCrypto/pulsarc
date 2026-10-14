@@ -140,20 +140,6 @@ const ALLOWED: AllowEntry[] = [
       'the testnet URL is the else-branch for net === "testnet", not a stray literal.',
     line_contains: 'explorer.testnet.arc.io/address/',
   },
-  {
-    file: 'src/lib/circlePasskey.ts',
-    reason:
-      'Circle passkey wallets are only offered on Arc Testnet; ' +
-      'ConnectButton hides PasskeyButton on mainnet via passkeyAvailable(NETWORK.id).',
-    line_contains: 'rpc.blockdaemon.testnet.arc.network',
-  },
-  {
-    file: 'src/lib/circlePasskey.ts',
-    reason:
-      'Circle passkey wallets are only offered on Arc Testnet; ' +
-      'ConnectButton hides PasskeyButton on mainnet via passkeyAvailable(NETWORK.id).',
-    line_contains: 'rpc.drpc.testnet.arc.network',
-  },
   // ── (a) onchain-facts.ts — static chain table (generated file) ────────────
   //
   // NOTE: onchain-facts.ts is the Arc Studio-generated chain registry.

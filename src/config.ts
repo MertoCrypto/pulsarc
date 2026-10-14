@@ -50,14 +50,6 @@ export const config = createConfig({
   chains: [arcChain, mainnet], // mainnet needed for ENS resolution
   connectors: [
     injected(),
-    // NOTE: circlePasskeyConnector is intentionally NOT listed here.
-    // ConnectKit lists every connector in this array; an unknown connector type
-    // (not 'injected', 'mock', or 'coinbaseWalletSDK') gets isInstalled=false,
-    // and a connector without getWalletConnectDeeplink falls into a "not installed"
-    // or blank-icon/scan-screen path that confuses users.
-    // PasskeyButton.tsx calls connect({ connector: circlePasskeyConnector() })
-    // directly — wagmi accepts a connector factory in connect() and sets it up
-    // on first use, keeping it fully functional without exposing it in the CK list.
   ],
   transports: {
     [arcChain.id]: arcTransport,
