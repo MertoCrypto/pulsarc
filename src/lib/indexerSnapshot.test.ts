@@ -306,16 +306,15 @@ test('drops contract with too-short address', () => {
 section('parseIndexerSnapshot — __proto__ key protection')
 
 test('ignores __proto__ key in top-level object', () => {
-  const hostile = JSON.parse('{"generatedAt":"2026-10-10T08:00:00.000Z","__proto__":{"evil":true},"windows":' +
+  const hostile: unknown = JSON.parse('{"generatedAt":"2026-10-10T08:00:00.000Z","__proto__":{"evil":true},"windows":' +
     JSON.stringify(VALID_SNAPSHOT.windows) + ',"series":[]}')
-  const result = parseIndexerSnapshot(hostile, 'testnet')
-  // Should either return null (missing generatedAt slot from parse) or a valid result without pollution
-  // The key thing is it must not throw and must not pollute Object.prototype
+  // Should either return null or a valid result — must not throw and must not pollute Object.prototype
+  parseIndexerSnapshot(hostile, 'testnet')
   assert.equal((Object.prototype as Record<string, unknown>)['evil'], undefined)
 })
 
 test('ignores __proto__ key in contract entry', () => {
-  const hostile = JSON.parse('{"address":"0xabcdef1234567890abcdef1234567890abcdef12","txs":1,"walletHours":1,"fees":0,"__proto__":{"evil2":true}}')
+  const hostile: unknown = JSON.parse('{"address":"0xabcdef1234567890abcdef1234567890abcdef12","txs":1,"walletHours":1,"fees":0,"__proto__":{"evil2":true}}')
   // parseIndexerSnapshot wrapping:
   const window1h = { ...VALID_WINDOW, top: [hostile] }
   parseIndexerSnapshot(snap({ windows: { ...VALID_SNAPSHOT.windows, '1h': window1h } }), 'testnet')
@@ -403,7 +402,7 @@ test('skips key that is too short', () => {
 
 test('skips __proto__ key', () => {
   // Use a pre-parsed object to avoid JSON.parse prototype issues
-  const hostile: Record<string, unknown> = Object.create(null)
+  const hostile = Object.create(null) as Record<string, unknown>
   // Simulate a key named __proto__ directly on the object
   Object.defineProperty(hostile, '__proto__', {
     value: { contract: true, name: 'bad', symbol: null },
@@ -482,6 +481,43 @@ test('caps symbol at 80 chars', () => {
   assert.equal(result[VALID_LABEL_ADDR].symbol?.length, 80)
 })
 
+// ── parseLabels — cleanDisplayText for name/symbol ────────────────────────────
+
+section('parseLabels — cleanDisplayText for name/symbol')
+
+test('strips RLO bidi override from name: "\\u202ECDSU\\u200B" -> "CDSU"', () => {
+  // U+202E = RIGHT-TO-LEFT OVERRIDE, U+200B = ZERO WIDTH SPACE
+  const result = parseLabels({ [VALID_LABEL_ADDR]: { contract: true, name: '\u202ECDSU\u200B', symbol: null } })
+  assert.equal(result[VALID_LABEL_ADDR].name, 'CDSU')
+})
+
+test('strips bidi override from symbol: "\\u202ECDSU\\u200B" -> "CDSU"', () => {
+  const result = parseLabels({ [VALID_LABEL_ADDR]: { contract: true, name: null, symbol: '\u202ECDSU\u200B' } })
+  assert.equal(result[VALID_LABEL_ADDR].symbol, 'CDSU')
+})
+
+test('name of only invisible characters becomes null', () => {
+  // U+200B ZERO WIDTH SPACE + U+202E RIGHT-TO-LEFT OVERRIDE — both stripped by cleanDisplayText
+  const result = parseLabels({ [VALID_LABEL_ADDR]: { contract: true, name: '\u200B\u202E', symbol: null } })
+  assert.equal(result[VALID_LABEL_ADDR].name, null)
+})
+
+test('symbol of only invisible characters becomes null', () => {
+  const result = parseLabels({ [VALID_LABEL_ADDR]: { contract: true, name: null, symbol: '\u200B\u202E' } })
+  assert.equal(result[VALID_LABEL_ADDR].symbol, null)
+})
+
+test('cap is enforced at 80 Unicode code points (not UTF-16 code units)', () => {
+  // U+1F600 GRINNING FACE is a surrogate pair — 2 UTF-16 code units but 1 code point
+  const emoji = '\uD83D\uDE00' // 1 code point
+  const input = emoji.repeat(100) // 100 code points = 200 UTF-16 code units
+  const result = parseLabels({ [VALID_LABEL_ADDR]: { contract: true, name: input, symbol: null } })
+  const name = result[VALID_LABEL_ADDR].name ?? ''
+  // Should be exactly 80 code points
+  const codePoints = [...name]
+  assert.equal(codePoints.length, 80)
+})
+
 test('caps kind at 32 chars', () => {
   const result = parseLabels({ [VALID_LABEL_ADDR]: { contract: true, name: null, symbol: null, kind: 'c'.repeat(100) } })
   assert.equal(result[VALID_LABEL_ADDR].kind?.length, 32)
@@ -499,11 +535,15 @@ test('multiple valid addresses all parsed', () => {
 })
 
 test('a non-string contract address inside top is dropped, not thrown on', () => {
-  const w = (VALID_SNAPSHOT as any).windows['1h']
-  const bad = snap({ windows: { ...(VALID_SNAPSHOT as any).windows, '1h': { ...w, top: [{ address: 12345, txs: 1, walletHours: 1, fees: 1 }, ...w.top] } } })
-  const r = parseIndexerSnapshot(bad, 'testnet')
+  const validTop = VALID_WINDOW.top
+  const badTop: unknown[] = [{ address: 12345, txs: 1, walletHours: 1, fees: 1 }, ...validTop]
+  const window1h = { ...VALID_WINDOW, top: badTop }
+  const r = parseIndexerSnapshot(
+    snap({ windows: { ...VALID_SNAPSHOT.windows, '1h': window1h } }),
+    'testnet',
+  )
   assert.ok(r !== null)
-  assert.equal(r.windows['1h'].top.length, w.top.length)
+  assert.equal(r.windows['1h'].top.length, validTop.length)
 })
 
 // ── Summary ───────────────────────────────────────────────────────────────────

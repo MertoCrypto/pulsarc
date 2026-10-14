@@ -43,14 +43,39 @@ function sanitiseText(v: unknown, max: number): string | undefined {
   return s.length > 0 ? s : undefined
 }
 
+/** Pattern for a valid IPFS CID/path: alphanumeric segments separated by '/'.
+ *  No '..' or empty segments — path traversal is rejected outright. */
+const IPFS_PATH_RE = /^[A-Za-z0-9]+(?:\/[A-Za-z0-9._-]+)*$/
+
 function sanitiseUri(v: unknown): string | undefined {
   if (typeof v !== 'string') return undefined
   const s = v.trim()
-  if (s.startsWith('https://')) return s.slice(0, 512)
+
   if (s.startsWith('ipfs://')) {
-    const cid = s.slice('ipfs://'.length).slice(0, 256)
-    return cid.length > 0 ? `https://ipfs.io/ipfs/${cid}` : undefined
+    const cidPath = s.slice('ipfs://'.length)
+    if (cidPath.length > 256) return undefined
+    // Reject if any path segment is entirely dots (e.g. '..' path traversal)
+    const segments = cidPath.split('/')
+    for (const seg of segments) {
+      if (/^\.+$/.test(seg)) return undefined
+    }
+    if (!IPFS_PATH_RE.test(cidPath)) return undefined
+    return `https://ipfs.io/ipfs/${cidPath}`
   }
+
+  if (s.startsWith('https://')) {
+    if (s.length > 512) return undefined
+    let parsed: URL
+    try {
+      parsed = new URL(s)
+    } catch {
+      return undefined
+    }
+    if (parsed.protocol !== 'https:') return undefined
+    if (parsed.username !== '' || parsed.password !== '') return undefined
+    return s
+  }
+
   return undefined
 }
 

@@ -8,6 +8,7 @@
  */
 
 import type { IndexerSnapshot, IndexedWindow, IndexedContract, ContractLabel } from '../hooks/useIndexer.ts'
+import { cleanDisplayText } from './displayText.ts'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -199,12 +200,12 @@ export function parseLabels(json: unknown): Record<string, ContractLabel> {
       if (typeof contract !== 'boolean') continue
 
       const rawName = get(e, 'name')
-      const name: string | null =
-        typeof rawName === 'string' ? rawName.slice(0, 80) : null
+      const _nameCleaned = typeof rawName === 'string' ? cleanDisplayText(rawName, 80) : null
+      const name: string | null = _nameCleaned !== null && _nameCleaned.length > 0 ? _nameCleaned : null
 
       const rawSymbol = get(e, 'symbol')
-      const symbol: string | null =
-        typeof rawSymbol === 'string' ? rawSymbol.slice(0, 80) : null
+      const _symbolCleaned = typeof rawSymbol === 'string' ? cleanDisplayText(rawSymbol, 80) : null
+      const symbol: string | null = _symbolCleaned !== null && _symbolCleaned.length > 0 ? _symbolCleaned : null
 
       const rawKind = get(e, 'kind')
       const kind: string | undefined =

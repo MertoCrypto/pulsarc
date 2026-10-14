@@ -195,6 +195,72 @@ test('rejects <script> in name (no HTML injection possible — plain text only)'
   assert.ok(result.agents[0].name?.includes('<script>'))
 })
 
+section('parseAgentsIndex — sanitiseUri stricter rules')
+
+test('accepts a valid IPFS CID', () => {
+  const result = parseAgentsIndex(validFile({
+    agents: [{ ...VALID_AGENT, uri: 'ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG' }],
+  }))
+  assert.ok(result !== null)
+  assert.equal(result.agents[0].uri, 'https://ipfs.io/ipfs/QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG')
+})
+
+test('rejects ipfs://../../etc (path-traversal dots at root)', () => {
+  const result = parseAgentsIndex(validFile({
+    agents: [{ ...VALID_AGENT, uri: 'ipfs://../../etc' }],
+  }))
+  assert.ok(result !== null)
+  assert.equal(result.agents[0].uri, undefined)
+})
+
+test('rejects ipfs://bafy/a/../b (dot-dot segment inside path)', () => {
+  const result = parseAgentsIndex(validFile({
+    agents: [{ ...VALID_AGENT, uri: 'ipfs://bafy/a/../b' }],
+  }))
+  assert.ok(result !== null)
+  assert.equal(result.agents[0].uri, undefined)
+})
+
+test('rejects https:// with userinfo (user:password@host)', () => {
+  const result = parseAgentsIndex(validFile({
+    agents: [{ ...VALID_AGENT, uri: 'https://user:secret@example.com/path' }],
+  }))
+  assert.ok(result !== null)
+  assert.equal(result.agents[0].uri, undefined)
+})
+
+test('rejects bare "https://" (unparseable URL)', () => {
+  const result = parseAgentsIndex(validFile({
+    agents: [{ ...VALID_AGENT, uri: 'https://' }],
+  }))
+  assert.ok(result !== null)
+  assert.equal(result.agents[0].uri, undefined)
+})
+
+test('javascript: URI is still rejected', () => {
+  const result = parseAgentsIndex(validFile({
+    agents: [{ ...VALID_AGENT, uri: 'javascript:alert(1)' }],
+  }))
+  assert.ok(result !== null)
+  assert.equal(result.agents[0].uri, undefined)
+})
+
+test('data: URI is still rejected', () => {
+  const result = parseAgentsIndex(validFile({
+    agents: [{ ...VALID_AGENT, uri: 'data:text/html,<script>' }],
+  }))
+  assert.ok(result !== null)
+  assert.equal(result.agents[0].uri, undefined)
+})
+
+test('valid https:// URI is preserved', () => {
+  const result = parseAgentsIndex(validFile({
+    agents: [{ ...VALID_AGENT, uri: 'https://example.com/agent/card.json' }],
+  }))
+  assert.ok(result !== null)
+  assert.equal(result.agents[0].uri, 'https://example.com/agent/card.json')
+})
+
 // ── searchAgents ──────────────────────────────────────────────────────────────
 
 section('searchAgents')
