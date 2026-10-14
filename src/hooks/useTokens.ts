@@ -11,27 +11,38 @@
  */
 import { useQuery } from '@tanstack/react-query'
 import { arcscan } from '@/lib/arcscan'
-import { toArcToken, type ArcToken, type RawToken } from '@/lib/tokens'
+import { mergeTokenSources, toArcToken, type ArcToken, type RawToken } from '@/lib/tokens'
 import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 import { parseCatalog, toTokenRows } from '@/lib/catalog'
 import { NETWORK } from '@/lib/chain'
 
 export { groupOf, type TokenGroup, type ArcToken } from '@/lib/tokens'
 
-// ─── Testnet: ArcScan paged load ──────────────────────────────────────────────
+// ─── Shared: ArcScan paged token load ────────────────────────────────────────
 
 interface Page {
   items: RawToken[]
   next_page_params: Record<string, unknown> | null
 }
 
-const PAGES = 4 // 200 tokens, ordered by holders
-
-async function loadTokensTestnet(): Promise<ArcToken[]> {
+/**
+ * Load up to `pages` pages of ERC-20 tokens from ArcScan sequentially.
+ * A failing page after the first stops pagination but keeps what was already read.
+ * @throws when the very first page fails (so caller can fall back).
+ */
+async function loadTokensFromArcscan(pages: number): Promise<ArcToken[]> {
   const out: ArcToken[] = []
   let cursor: Record<string, unknown> | null = null
-  for (let i = 0; i < PAGES; i++) {
-    const page: Page = await arcscan<Page>('/tokens', { type: 'ERC-20', ...(cursor as Record<string, string | number | boolean | null | undefined> ?? {}) })
+  for (let i = 0; i < pages; i++) {
+    // First page throws — lets the caller decide to fall back.
+    // Later pages: swallow the error and return what was read so far.
+    let page: Page
+    try {
+      page = await arcscan<Page>('/tokens', { type: 'ERC-20', ...(cursor as Record<string, string | number | boolean | null | undefined> ?? {}) })
+    } catch (err) {
+      if (i === 0) throw err  // re-throw so caller can fall back
+      break                   // later page failed — keep partial results
+    }
     for (const t of page.items) {
       out.push(toArcToken(t))
     }
@@ -41,14 +52,24 @@ async function loadTokensTestnet(): Promise<ArcToken[]> {
   return out
 }
 
-// ─── Mainnet: indexer catalog ─────────────────────────────────────────────────
+// Testnet: top 200 tokens by ArcScan default order (holders).
+const TESTNET_PAGES = 4
+
+async function loadTokensTestnet(): Promise<ArcToken[]> {
+  return loadTokensFromArcscan(TESTNET_PAGES)
+}
+
+// ─── Mainnet: ArcScan paged load with catalog fallback ───────────────────────
+
+// ~600 tokens: ArcScan returns 50 per page, so 12 pages.
+const MAINNET_PAGES = 12
 
 // Hardcoded: this URL belongs to the mainnet indexer job specifically.
 // There is no testnet catalog at this repository path.
 const MAINNET_CATALOG_URL =
   'https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/mainnet/catalog.json'
 
-async function loadTokensMainnet(): Promise<ArcToken[]> {
+async function loadTokensFromCatalog(): Promise<ArcToken[]> {
   const res = await fetchWithTimeout(MAINNET_CATALOG_URL)
   if (res.status === 404) {
     // Catalog not yet produced — return empty list; UI shows building state.
@@ -59,6 +80,23 @@ async function loadTokensMainnet(): Promise<ArcToken[]> {
   const cat = parseCatalog(raw)
   if (!cat) throw new Error('Catalog JSON did not match expected schema')
   return toTokenRows(cat)
+}
+
+async function loadTokensMainnet(): Promise<ArcToken[]> {
+  try {
+    // Attempt ArcScan first — returns volume, holders, market cap live data.
+    // loadTokensFromArcscan throws on the first-page failure; subsequent page
+    // failures are swallowed internally and return whatever was read so far.
+    const scanned = await loadTokensFromArcscan(MAINNET_PAGES)
+    // ArcScan's list leaves out some tokens the indexer knows (USYC, for one); add those so
+    // verified tokens are never missing. ArcScan rows win on overlap (they carry the market data).
+    const known = await loadTokensFromCatalog().catch(() => [] as ArcToken[])
+    return mergeTokenSources(scanned, known)
+  } catch {
+    // First ArcScan page failed — fall back to the indexer catalog.
+    // Catalog tokens lack volume/holders/marketCap but always have supply.
+    return loadTokensFromCatalog()
+  }
 }
 
 // ─── Hook (module-level network branch, safe for hook rules) ──────────────────

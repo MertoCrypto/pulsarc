@@ -137,6 +137,9 @@ export function toTokenRows(cat: CatalogFile): ArcToken[] {
       supply: supplyFromRaw(t.totalSupply, t.decimals),
       group: groupOf(name, symbol),
       iconUrl: null,
+      volume24h: null,
+      marketCap: null,
+      price: null,
     }
   })
 }

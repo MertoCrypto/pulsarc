@@ -16,7 +16,7 @@
  */
 
 import assert from 'node:assert/strict'
-import { groupOf, toArcToken } from './tokens.ts'
+import { groupOf, toArcToken, parseMarketNum, mergeTokenSources } from './tokens.ts'
 import type { RawToken, ArcToken } from './tokens.ts'
 
 // ---------------------------------------------------------------------------
@@ -332,7 +332,89 @@ check('LP by the whole word "lp" alone (name does not end in lp)', groupOf('Foo 
 check('LP by "-lp" alone (no whole word, no ending)', groupOf('Foo-LPX', 'F'), 'LP & Vaults')
 
 // ---------------------------------------------------------------------------
+// parseMarketNum
+// ---------------------------------------------------------------------------
+
+check('parseMarketNum: normal positive string', parseMarketNum('12345.67'), 12345.67)
+check('parseMarketNum: zero string', parseMarketNum('0'), 0)
+check('parseMarketNum: integer string', parseMarketNum('1000000'), 1000000)
+check('parseMarketNum: null → null', parseMarketNum(null), null)
+check('parseMarketNum: undefined → null', parseMarketNum(undefined), null)
+check('parseMarketNum: empty string → null', parseMarketNum(''), null)
+check('parseMarketNum: NaN string → null', parseMarketNum('abc'), null)
+check('parseMarketNum: negative → null', parseMarketNum('-5'), null)
+check('parseMarketNum: Infinity string → null', parseMarketNum('Infinity'), null)
+check('parseMarketNum: -Infinity string → null', parseMarketNum('-Infinity'), null)
+check('parseMarketNum: whitespace only → null', parseMarketNum('   '), null)
+
+// toArcToken: market fields from RawToken
+const marketRaw: RawToken = {
+  address_hash: '0x0000000000000000000000000000000000000099',
+  name: 'Market Token',
+  symbol: 'MKT',
+  decimals: '6',
+  holders_count: '100',
+  total_supply: '1000000',
+  icon_url: null,
+  volume_24h: '987654.50',
+  circulating_market_cap: '50000000',
+  exchange_rate: '1.23',
+}
+const marketToken = toArcToken(marketRaw)
+check('toArcToken volume24h parses correctly', marketToken.volume24h, 987654.50)
+check('toArcToken marketCap parses correctly', marketToken.marketCap, 50000000)
+check('toArcToken price parses correctly', marketToken.price, 1.23)
+
+// toArcToken: null market fields → null
+const noMarketRaw: RawToken = {
+  address_hash: '0x0000000000000000000000000000000000000098',
+  name: 'No Market',
+  symbol: 'NM',
+  decimals: '18',
+  holders_count: '1',
+  total_supply: '0',
+  icon_url: null,
+  volume_24h: null,
+  circulating_market_cap: null,
+  exchange_rate: null,
+}
+const noMarketToken = toArcToken(noMarketRaw)
+check('toArcToken null volume24h → null', noMarketToken.volume24h, null)
+check('toArcToken null marketCap → null', noMarketToken.marketCap, null)
+check('toArcToken null price → null', noMarketToken.price, null)
+
+// toArcToken: omitted market fields (no optional keys) → null
+const omittedMarketRaw: RawToken = {
+  address_hash: '0x0000000000000000000000000000000000000097',
+  name: 'Omitted Market',
+  symbol: 'OM',
+  decimals: '6',
+  holders_count: '1',
+  total_supply: '0',
+  icon_url: null,
+}
+const omittedMarketToken = toArcToken(omittedMarketRaw)
+check('toArcToken omitted volume24h → null', omittedMarketToken.volume24h, null)
+check('toArcToken omitted marketCap → null', omittedMarketToken.marketCap, null)
+check('toArcToken omitted price → null', omittedMarketToken.price, null)
+
+// ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 
 console.log(`\nAll ${passed} / ${total} assertions passed.`)
+
+// --- mergeTokenSources ---
+{
+  const mk = (address: string, name: string): ArcToken => ({
+    address, name, symbol: name, decimals: 6, holders: 0, supply: 0, group: 'Other',
+    iconUrl: null, volume24h: null, marketCap: null, price: null,
+  })
+  const merged = mergeTokenSources(
+    [mk('0xAAAA000000000000000000000000000000000001', 'scan-a')],
+    [mk('0xaaaa000000000000000000000000000000000001', 'cat-a'), mk('0xbbbb000000000000000000000000000000000002', 'cat-b')],
+  )
+  check('merge: overlap keeps the primary row', merged.find(t => t.address.toLowerCase().endsWith('0001'))?.name, 'scan-a')
+  check('merge: extra-only token is appended', merged.map(t => t.name), ['scan-a', 'cat-b'])
+  check('merge: empty extra leaves primary as is', mergeTokenSources([mk('0x1', 'x')], []).length, 1)
+}

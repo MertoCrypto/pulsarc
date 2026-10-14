@@ -62,8 +62,11 @@ function makeToken(
   supply: number,
   group: 'Stablecoin' | 'RWA' | 'LP & Vaults' | 'Other',
   iconUrl: string,
+  volume24h: number | null = null,
+  marketCap: number | null = null,
+  price: number | null = null,
 ): ArcToken {
-  return { address, name, symbol, decimals, holders, supply, group, iconUrl }
+  return { address, name, symbol, decimals, holders, supply, group, iconUrl, volume24h, marketCap, price }
 }
 
 function makeEvent(ts: number, wallets: string[], usd: number | null, fee: number | null, hash: string): ActivityEvent {
@@ -873,6 +876,112 @@ console.log('\n--- search fields one at a time ---')
   check('token: matches by symbol only', visibleTokens(toks, 'All', 'holders', 'monkey').map(t => t.address), ['0xt2'])
   check('token: matches by address only', visibleTokens(toks, 'All', 'holders', '0xt3').map(t => t.address), ['0xt3'])
   check('token: upper-case query', visibleTokens(toks, 'All', 'holders', 'MONKEY').map(t => t.address), ['0xt2'])
+}
+
+// ---------------------------------------------------------------------------
+// visibleTokens — 'volume' sort
+// ---------------------------------------------------------------------------
+
+console.log('\n── visibleTokens volume sort ─────────────────────────────────')
+
+{
+  // verified-first: verified token with no volume sorts before unverified with volume
+  const vHigh: ArcToken = makeToken('0xVH', 'V High', 'VH', 6, 100, 0, 'Other', '', null, null)
+  const uHigh: ArcToken = makeToken('0xUH', 'U High', 'UH', 6, 50,  0, 'Other', '', 9999, null)
+  const vset = new Set(['0xvh'])
+  const result = visibleTokens([uHigh, vHigh], 'All', 'volume', '', vset)
+  check('volume: verified first even with no volume', result.indexOf(vHigh) < result.indexOf(uHigh), true)
+}
+
+{
+  // non-null volume desc, null-volume last (zero treated as null)
+  const tVol1000: ArcToken = makeToken('0xV1', 'One',  'ONE',  6, 10, 0, 'Other', '', 1000, null)
+  const tVol500:  ArcToken = makeToken('0xV2', 'Two',  'TWO',  6, 10, 0, 'Other', '', 500,  null)
+  const tVolZero: ArcToken = makeToken('0xV3', 'Zer',  'ZER',  6, 10, 0, 'Other', '', 0,    null)
+  const tVolNull: ArcToken = makeToken('0xV4', 'Nul',  'NUL',  6, 10, 0, 'Other', '', null, null)
+  const result = visibleTokens([tVolNull, tVolZero, tVol500, tVol1000], 'All', 'volume', '')
+  // 1000 and 500 sort first (desc by volume); 0 and null are both "no activity"
+  // — tie-break by name asc since holders(10) and marketCap(null) are equal.
+  // 'Nul' < 'Zer' so tVolNull sorts before tVolZero.
+  check('volume: 1000 and 500 sort first; zero and null tie-break by name', result.map(t => t.address), ['0xV1', '0xV2', '0xV4', '0xV3'])
+}
+
+{
+  // null and zero are both treated as "no volume" — tie-break by holders desc
+  const zeroVol: ArcToken = makeToken('0xZ1', 'Zero', 'ZR', 6, 200, 0, 'Other', '', 0,    null)
+  const nullVol: ArcToken = makeToken('0xZ2', 'Null', 'NL', 6, 100, 0, 'Other', '', null, null)
+  const result = visibleTokens([nullVol, zeroVol], 'All', 'volume', '')
+  // both "no volume" — tie-break by holders: zeroVol(200) before nullVol(100)
+  check('volume: zero and null both count as no-volume, tie-break by holders', result.indexOf(zeroVol) < result.indexOf(nullVol), true)
+}
+
+{
+  // equal volume → tie-break by holders desc
+  const tH500: ArcToken = makeToken('0xH1', 'Alpha', 'A', 6, 500, 0, 'Other', '', 1000, null)
+  const tH200: ArcToken = makeToken('0xH2', 'Beta',  'B', 6, 200, 0, 'Other', '', 1000, null)
+  const result = visibleTokens([tH200, tH500], 'All', 'volume', '')
+  check('volume: equal volume → holders desc', result.indexOf(tH500) < result.indexOf(tH200), true)
+}
+
+{
+  // equal volume and holders → tie-break by marketCap desc
+  const tMcHigh: ArcToken = makeToken('0xMC1', 'Alpha', 'A', 6, 100, 0, 'Other', '', 1000, 5_000_000)
+  const tMcNull: ArcToken = makeToken('0xMC2', 'Beta',  'B', 6, 100, 0, 'Other', '', 1000, null)
+  const result = visibleTokens([tMcNull, tMcHigh], 'All', 'volume', '')
+  check('volume: equal vol+holders → marketCap desc (null last)', result.indexOf(tMcHigh) < result.indexOf(tMcNull), true)
+}
+
+{
+  // equal vol/holders/marketCap → name asc
+  const tNB: ArcToken = makeToken('0xN2', 'Beta', 'B', 6, 100, 0, 'Other', '', 1000, 1_000_000)
+  const tNA: ArcToken = makeToken('0xN1', 'Alpha','A', 6, 100, 0, 'Other', '', 1000, 1_000_000)
+  const result = visibleTokens([tNB, tNA], 'All', 'volume', '')
+  check('volume: equal all → name asc', result.map(t => t.name), ['Alpha', 'Beta'])
+}
+
+{
+  // input not mutated
+  const tkA: ArcToken = makeToken('0xMUT1', 'A', 'A', 6, 100, 0, 'Other', '', 500,  null)
+  const tkB: ArcToken = makeToken('0xMUT2', 'B', 'B', 6, 200, 0, 'Other', '', 1000, null)
+  const original = [tkA, tkB]
+  const before = original.map(t => t.address)
+  visibleTokens(original, 'All', 'volume', '')
+  check('volume sort: input not mutated', original.map(t => t.address), before)
+}
+
+{
+  // full ordering: verified-first → volume desc → holders desc → marketCap desc → name asc
+  const vTop: ArcToken   = makeToken('0xFO1', 'Alpha', 'A', 6, 50, 0, 'Other', '', 5000, 100_000)
+  const uV2k: ArcToken   = makeToken('0xFO2', 'Beta',  'B', 6, 10, 0, 'Other', '', 2000, null)
+  const uV1k: ArcToken   = makeToken('0xFO3', 'Gamma', 'G', 6, 10, 0, 'Other', '', 1000, null)
+  const uV1kHigh: ArcToken = makeToken('0xFO4', 'Delta','D', 6, 99, 0, 'Other', '', 1000, null)
+  const uVNone: ArcToken = makeToken('0xFO5', 'Zulu',  'Z', 6, 1,  0, 'Other', '', null, null)
+  const vset = new Set(['0xfo1'])
+  const result = visibleTokens([uVNone, uV1k, uV2k, vTop, uV1kHigh], 'All', 'volume', '', vset)
+  // expected: vTop (verified), uV2k, uV1kHigh (1000 but 99 holders), uV1k (1000, 10 holders), uVNone (null)
+  check('volume: full sort order addresses', result.map(t => t.address), ['0xFO1', '0xFO2', '0xFO4', '0xFO3', '0xFO5'])
+}
+
+// ---------------------------------------------------------------------------
+// cmpNullableDesc via marketCap sort
+// ---------------------------------------------------------------------------
+console.log('\n── visibleTokens marketCap sort ──────────────────────────────')
+
+{
+  const tMc1: ArcToken = makeToken('0xMCA', 'A', 'A', 6, 10, 0, 'Other', '', null, 1_000_000)
+  const tMc2: ArcToken = makeToken('0xMCB', 'B', 'B', 6, 10, 0, 'Other', '', null, null)
+  const tMc3: ArcToken = makeToken('0xMCC', 'C', 'C', 6, 10, 0, 'Other', '', null, 500_000)
+  const result = visibleTokens([tMc2, tMc3, tMc1], 'All', 'marketCap', '')
+  check('marketCap sort: desc with null last', result.map(t => t.address), ['0xMCA', '0xMCC', '0xMCB'])
+}
+
+{
+  // verified first even in marketCap sort
+  const vmc: ArcToken  = makeToken('0xVMC', 'A', 'A', 6, 10, 0, 'Other', '', null, null)
+  const uvmc: ArcToken = makeToken('0xUMC', 'B', 'B', 6, 10, 0, 'Other', '', null, 9_000_000)
+  const vset = new Set(['0xvmc'])
+  const result = visibleTokens([uvmc, vmc], 'All', 'marketCap', '', vset)
+  check('marketCap sort: verified first regardless of value', result.indexOf(vmc) < result.indexOf(uvmc), true)
 }
 
 console.log(`\n${'─'.repeat(52)}`)

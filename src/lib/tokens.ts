@@ -13,6 +13,12 @@ export interface ArcToken {
   supply: number
   group: TokenGroup
   iconUrl: string | null
+  /** 24-hour USD volume from ArcScan. Null when not provided, non-numeric, NaN, negative, or Infinity. */
+  volume24h: number | null
+  /** Circulating market cap in USD from ArcScan. Null when not provided, non-numeric, NaN, negative, or Infinity. */
+  marketCap: number | null
+  /** USD price per token from ArcScan. Null when not provided, non-numeric, NaN, negative, or Infinity. */
+  price: number | null
 }
 
 export interface RawToken {
@@ -23,6 +29,25 @@ export interface RawToken {
   holders_count: string | null
   total_supply: string | null
   icon_url: string | null
+  /** volume_24h in USD, string or null (only ~5% of tokens have a non-null value). */
+  volume_24h?: string | null
+  /** circulating_market_cap in USD, string or null. */
+  circulating_market_cap?: string | null
+  /** exchange_rate (USD price per token), string or null. */
+  exchange_rate?: string | null
+}
+
+/**
+ * Parse a market number (USD volume, market cap, price) from a raw string field.
+ * Returns null for: missing/undefined, empty string, non-numeric, NaN, negative, Infinity.
+ */
+export function parseMarketNum(raw: string | null | undefined): number | null {
+  if (raw == null) return null
+  const trimmed = raw.trim()
+  if (trimmed === '') return null
+  const n = Number(trimmed)
+  if (!Number.isFinite(n) || n < 0) return null
+  return n
 }
 
 const STABLE = /^(w|a|x)?(usdc|eurc|usdt)(\.a)?$/i
@@ -48,5 +73,25 @@ export function toArcToken(t: RawToken): ArcToken {
     supply: scaled(t.total_supply, decimals),
     group: groupOf(cleanDisplayText(t.name), cleanDisplayText(t.symbol)),
     iconUrl: t.icon_url,
+    volume24h: parseMarketNum(t.volume_24h),
+    marketCap: parseMarketNum(t.circulating_market_cap),
+    price: parseMarketNum(t.exchange_rate),
   }
+}
+
+/**
+ * Union of two token lists by contract address (case-insensitive). Entries of `primary` win;
+ * entries of `extra` are appended only when their address is not in `primary`.
+ * Used to keep tokens the indexer knows (for example USYC) when ArcScan's list leaves them out.
+ */
+export function mergeTokenSources(primary: readonly ArcToken[], extra: readonly ArcToken[]): ArcToken[] {
+  const seen = new Set(primary.map(t => t.address.toLowerCase()))
+  const out = [...primary]
+  for (const t of extra) {
+    const k = t.address.toLowerCase()
+    if (seen.has(k)) continue
+    seen.add(k)
+    out.push(t)
+  }
+  return out
 }
