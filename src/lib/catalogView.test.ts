@@ -5,7 +5,12 @@
  */
 
 import assert from 'node:assert/strict'
-import { visibleNfts, visibleTokens, tokenGroupCounts, topWalletsOf } from './catalogView.ts'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { join, dirname } from 'node:path'
+import { visibleNfts, visibleTokens, tokenGroupCounts, topWalletsOf, verifiedTokenSet } from './catalogView.ts'
+import { parseCatalog, toTokenRows } from './catalog.ts'
+import { appsForNetwork } from '../data/appRegistries.ts'
 import type { NftCollection } from './nfts.ts'
 import type { ArcToken } from './tokens.ts'
 import type { AppSample, AnchorSample, ActivityEvent } from './appMetrics.ts'
@@ -536,6 +541,306 @@ check('undefined -> []', topWalletsOf(undefined), [])
       ['0xDouble', { n: 2, usd: 20 }],
       ['0xOnce', { n: 1, usd: 10 }],
     ],
+  )
+}
+
+// ---------------------------------------------------------------------------
+// visibleTokens — 'featured' sort
+// ---------------------------------------------------------------------------
+
+console.log('\n── visibleTokens featured sort ──────────────────────────────')
+
+// Fixtures: one token per group, with varied supply.
+const fStable: ArcToken = makeToken('0xF100', 'USDC', 'USDC', 6, 0, 1_000_000, 'Stablecoin', '')
+const fRwa: ArcToken = makeToken('0xF200', 'US Yield Coin', 'USYC', 6, 0, 500_000, 'RWA', '')
+const fLp: ArcToken = makeToken('0xF300', 'Arc LP', 'ALP', 18, 0, 750_000, 'LP & Vaults', '')
+const fOther1: ArcToken = makeToken('0xF401', 'Zappa', 'ZAP', 18, 0, 200_000, 'Other', '')
+const fOther2: ArcToken = makeToken('0xF402', 'Apple Inc', 'AAPL', 18, 0, 200_000, 'Other', '')
+const featuredAll: ArcToken[] = [fOther1, fOther2, fLp, fRwa, fStable]
+
+// Stablecoin and RWA appear before Other
+{
+  const result: ArcToken[] = visibleTokens(featuredAll, 'All', 'featured', '')
+  const groups: string[] = result.map(t => t.group)
+  const firstOtherIdx: number = groups.indexOf('Other')
+  const lastNonOtherIdx: number = [...groups].reverse().findIndex(g => g !== 'Other')
+  const lastNonOtherIdxFromStart: number = groups.length - 1 - lastNonOtherIdx
+  check(
+    'featured: all non-Other groups appear before first Other',
+    firstOtherIdx > lastNonOtherIdxFromStart || firstOtherIdx === -1,
+    true,
+  )
+}
+
+// Group order: Stablecoin (0) < RWA (1) < LP & Vaults (2) < Other (3)
+{
+  const result: ArcToken[] = visibleTokens(featuredAll, 'All', 'featured', '')
+  check(
+    'featured: Stablecoin before RWA',
+    result.indexOf(fStable) < result.indexOf(fRwa),
+    true,
+  )
+  check(
+    'featured: RWA before LP & Vaults',
+    result.indexOf(fRwa) < result.indexOf(fLp),
+    true,
+  )
+  check(
+    'featured: LP & Vaults before Other',
+    result.indexOf(fLp) < result.indexOf(fOther1),
+    true,
+  )
+}
+
+// Within-group: supply descending
+{
+  const hi: ArcToken = makeToken('0xG1', 'Alpha', 'A', 18, 0, 900_000, 'Other', '')
+  const lo: ArcToken = makeToken('0xG2', 'Beta', 'B', 18, 0, 100_000, 'Other', '')
+  const result: ArcToken[] = visibleTokens([lo, hi], 'All', 'featured', '')
+  check(
+    'featured: within-group supply desc (hi before lo)',
+    result,
+    [hi, lo],
+  )
+}
+
+// Equal supply within group: name localeCompare 'en' ascending
+{
+  // fOther1.name = 'Zappa', fOther2.name = 'Apple Inc' — both supply 200_000
+  const result: ArcToken[] = visibleTokens([fOther1, fOther2], 'All', 'featured', '')
+  check(
+    'featured: equal supply within group — name localeCompare asc',
+    result,
+    [fOther2, fOther1], // 'Apple Inc' < 'Zappa'
+  )
+}
+
+// Two Stablecoin tokens: higher supply first
+{
+  const s1: ArcToken = makeToken('0xS1', 'USDC', 'USDC', 6, 0, 5_000_000, 'Stablecoin', '')
+  const s2: ArcToken = makeToken('0xS2', 'EURC', 'EURC', 6, 0, 2_000_000, 'Stablecoin', '')
+  const result: ArcToken[] = visibleTokens([s2, s1], 'All', 'featured', '')
+  check(
+    'featured: Stablecoin higher supply first',
+    result,
+    [s1, s2],
+  )
+}
+
+// existing 'supply' sort is unchanged (regression)
+check(
+  "featured: existing 'supply' sort unchanged",
+  visibleTokens(featuredAll, 'All', 'supply', '').map(t => t.supply),
+  [...featuredAll].sort((a, b) => b.supply - a.supply).map(t => t.supply),
+)
+
+// existing 'name' sort is unchanged (regression)
+{
+  const sorted: string[] = featuredAll.map(t => t.name).sort((a, b) => a.localeCompare(b))
+  check(
+    "featured: existing 'name' sort unchanged",
+    visibleTokens(featuredAll, 'All', 'name', '').map(t => t.name),
+    sorted,
+  )
+}
+
+// existing 'holders' sort is unchanged (regression)
+{
+  const withHolders: ArcToken[] = [
+    makeToken('0xH1', 'A', 'A', 6, 300, 0, 'Stablecoin', ''),
+    makeToken('0xH2', 'B', 'B', 6, 100, 0, 'Other', ''),
+    makeToken('0xH3', 'C', 'C', 6, 200, 0, 'RWA', ''),
+  ]
+  check(
+    "featured: existing 'holders' sort unchanged",
+    visibleTokens(withHolders, 'All', 'holders', '').map(t => t.holders),
+    [300, 200, 100],
+  )
+}
+
+// ---------------------------------------------------------------------------
+// verifiedTokenSet
+// ---------------------------------------------------------------------------
+
+console.log('\n── verifiedTokenSet ─────────────────────────────────────────')
+
+{
+  // Only token anchors are included; contract anchors are excluded.
+  const apps = [
+    { anchors: [{ address: '0xABC', kind: 'token' }, { address: '0xDEF', kind: 'contract' }] },
+    { anchors: [{ address: '0xGHI', kind: 'token' }] },
+  ]
+  const result: Set<string> = verifiedTokenSet(apps)
+  check('includes token anchors', result.has('0xabc'), true)
+  check('excludes contract anchors', result.has('0xdef'), false)
+  check('second app token included', result.has('0xghi'), true)
+  check('size is 2 (token anchors only)', result.size, 2)
+}
+
+{
+  // Addresses are lower-cased regardless of input casing.
+  const apps = [{ anchors: [{ address: '0xAbCdEf1234567890AbCdEf1234567890AbCdEf12', kind: 'token' }] }]
+  const result: Set<string> = verifiedTokenSet(apps)
+  check(
+    'address is lower-cased in output',
+    result.has('0xabcdef1234567890abcdef1234567890abcdef12'),
+    true,
+  )
+  check(
+    'original mixed-case not in set',
+    result.has('0xAbCdEf1234567890AbCdEf1234567890AbCdEf12'),
+    false,
+  )
+}
+
+{
+  // Empty input → empty set.
+  const result: Set<string> = verifiedTokenSet([])
+  check('empty apps → empty set', result.size, 0)
+}
+
+{
+  // App with no token anchors → contributes nothing.
+  const apps = [{ anchors: [{ address: '0x999', kind: 'contract' }] }]
+  const result: Set<string> = verifiedTokenSet(apps)
+  check('no token anchors → empty set', result.size, 0)
+}
+
+// ---------------------------------------------------------------------------
+// visibleTokens — verified param in 'featured' sort
+// ---------------------------------------------------------------------------
+
+console.log('\n── visibleTokens featured — verified param ──────────────────')
+
+{
+  // A verified 'Other' token should sort before an unverified 'Other' token.
+  const vOther: ArcToken = makeToken('0xV01', 'Verified Wrap', 'VW', 18, 0, 100_000, 'Other', '')
+  const uOther: ArcToken = makeToken('0xU01', 'Unverified Meme', 'UMEME', 18, 0, 200_000, 'Other', '')
+  const vset: Set<string> = new Set(['0xv01']) // lower-cased
+  const result: ArcToken[] = visibleTokens([uOther, vOther], 'All', 'featured', '', vset)
+  check(
+    'featured: verified Other token before unverified Other token',
+    result.indexOf(vOther) < result.indexOf(uOther),
+    true,
+  )
+}
+
+{
+  // Verified 'Other' still comes after unverified 'Stablecoin'? No —
+  // verified bit is the primary key, so a verified Other beats an unverified Stablecoin.
+  const vOther: ArcToken = makeToken('0xV02', 'Verified Other', 'VO', 18, 0, 1_000, 'Other', '')
+  const uStable: ArcToken = makeToken('0xU02', 'Unverified Stablecoin', 'US', 6, 0, 9_000_000, 'Stablecoin', '')
+  const vset: Set<string> = new Set(['0xv02'])
+  const result: ArcToken[] = visibleTokens([uStable, vOther], 'All', 'featured', '', vset)
+  check(
+    'featured: verified Other before unverified Stablecoin (verified is primary key)',
+    result.indexOf(vOther) < result.indexOf(uStable),
+    true,
+  )
+}
+
+{
+  // Within verified tokens, group order is still respected.
+  const vStable: ArcToken = makeToken('0xVS1', 'V Stable', 'VS', 6, 0, 500_000, 'Stablecoin', '')
+  const vOther2: ArcToken = makeToken('0xVO2', 'V Other', 'VOT', 18, 0, 800_000, 'Other', '')
+  const vset: Set<string> = new Set(['0xvs1', '0xvo2'])
+  const result: ArcToken[] = visibleTokens([vOther2, vStable], 'All', 'featured', '', vset)
+  check(
+    'featured: among verified, Stablecoin before Other',
+    result.indexOf(vStable) < result.indexOf(vOther2),
+    true,
+  )
+}
+
+{
+  // When no verified set is provided (5th param omitted), old featured behaviour is preserved:
+  // group order only, no verified-first promotion.
+  const otherHigh: ArcToken = makeToken('0xOH', 'Other High', 'OH', 18, 0, 999_999, 'Other', '')
+  const stableHigh: ArcToken = makeToken('0xSH', 'Stable High', 'SH', 6, 0, 1_000_000, 'Stablecoin', '')
+  const result: ArcToken[] = visibleTokens([otherHigh, stableHigh], 'All', 'featured', '')
+  check(
+    'featured: no verified param — Stablecoin still before Other (group order preserved)',
+    result.indexOf(stableHigh) < result.indexOf(otherHigh),
+    true,
+  )
+}
+
+{
+  // When verified set is empty, all tokens are treated equally on the verified axis —
+  // falls back to group order as before.
+  const otherToken: ArcToken = makeToken('0xOE', 'Other Empty', 'OE', 18, 0, 999_999, 'Other', '')
+  const stableToken: ArcToken = makeToken('0xSE', 'Stable Empty', 'SE', 6, 0, 1_000_000, 'Stablecoin', '')
+  const result: ArcToken[] = visibleTokens([otherToken, stableToken], 'All', 'featured', '', new Set<string>())
+  check(
+    'featured: empty verified set — group order still applies',
+    result.indexOf(stableToken) < result.indexOf(otherToken),
+    true,
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Real mainnet data: featured sort with real MAINNET_APPS verified set
+// ---------------------------------------------------------------------------
+
+console.log('\n── visibleTokens featured — real mainnet data + registry ────')
+
+{
+  const __filename: string = fileURLToPath(import.meta.url)
+  const __dirname: string = dirname(__filename)
+  const fixturePath: string = join(__dirname, 'fixtures', 'catalog', 'mainnet-catalog-2026-10-14.json')
+  const raw: unknown = JSON.parse(readFileSync(fixturePath, 'utf8'))
+  const catalog = parseCatalog(raw)
+  assert.ok(catalog !== null, 'fixture parsed successfully')
+  const tokenRows: ArcToken[] = toTokenRows(catalog)
+  assert.ok(tokenRows.length > 0, 'fixture has token rows')
+
+  // Build verified set from real MAINNET_APPS (chain id 5042).
+  const mainnetApps = appsForNetwork(5042)
+  const vset: Set<string> = verifiedTokenSet(mainnetApps)
+
+  // Sanity: WETH and cirBTC are in the verified set.
+  check(
+    'WETH address in verified set',
+    vset.has('0x128cc466b61f542da60c70e3aa11c10e19b84edb'),
+    true,
+  )
+  check(
+    'cirBTC address in verified set',
+    vset.has('0x171a4217b86a807a64eb94757db6849fb4bdbaa0'),
+    true,
+  )
+
+  const featured: ArcToken[] = visibleTokens(tokenRows, 'All', 'featured', '', vset)
+
+  // Top 5 must include USDC, EURC, USYC, WETH, cirBTC.
+  const top5Addresses: string[] = featured.slice(0, 5).map(t => t.address.toLowerCase())
+  const USDC_MAINNET = '0x3600000000000000000000000000000000000000'
+  const EURC_MAINNET = '0xbef5f6d51cb62b58e6a8f77868681825c6fe21c1'
+  const USYC_MAINNET = '0x8a5d989bbb96929f689b0200f435f53da42bf490'
+  const WETH_MAINNET = '0x128cc466b61f542da60c70e3aa11c10e19b84edb'
+  const CIRBTC_MAINNET = '0x171a4217b86a807a64eb94757db6849fb4bdbaa0'
+
+  check('real data: top 5 contains USDC', top5Addresses.includes(USDC_MAINNET), true)
+  check('real data: top 5 contains EURC', top5Addresses.includes(EURC_MAINNET), true)
+  check('real data: top 5 contains USYC', top5Addresses.includes(USYC_MAINNET), true)
+  check('real data: top 5 contains WETH', top5Addresses.includes(WETH_MAINNET), true)
+  check('real data: top 5 contains cirBTC', top5Addresses.includes(CIRBTC_MAINNET), true)
+
+  // None of the top 5 should be unverified (i.e., all are in vset).
+  const top5AllVerified: boolean = featured.slice(0, 5).every(t => vset.has(t.address.toLowerCase()))
+  check('real data: none of top 5 are unverified', top5AllVerified, true)
+
+  // First row must not be Other.
+  check(
+    'real mainnet data: featured first row is not Other',
+    featured[0]?.group !== 'Other',
+    true,
+  )
+  // Last row should be an unverified Other.
+  check(
+    'real mainnet data: featured last row is Other',
+    featured[featured.length - 1]?.group,
+    'Other',
   )
 }
 

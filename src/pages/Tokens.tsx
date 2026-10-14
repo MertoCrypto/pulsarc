@@ -5,10 +5,11 @@ import { SplitLines } from '@/components/shared/SplitLines'
 import { StatCard } from '@/components/shared/StatCard'
 import { useChainOverview, useCatalogMeta, useTokens } from '@/hooks/useTokens'
 import { compact, explorerToken } from '@/lib/arcscan'
-import { tokenGroupCounts, visibleTokens, type TokenFilter, type TokenSortKey } from '@/lib/catalogView'
+import { tokenGroupCounts, verifiedTokenSet, visibleTokens, type TokenFilter, type TokenSortKey } from '@/lib/catalogView'
 import { FxRateCard } from '@/components/tokens/FxRateCard'
 import { EcbRateCard } from '@/components/tokens/EcbRateCard'
 import { NETWORK } from '@/lib/chain'
+import { appsForNetwork } from '@/data/appRegistries'
 
 type Filter = TokenFilter
 type SortKey = TokenSortKey
@@ -22,6 +23,7 @@ const SORTS_TESTNET: { key: SortKey; label: string }[] = [
   { key: 'name', label: 'Name' },
 ]
 const SORTS_MAINNET: { key: SortKey; label: string }[] = [
+  { key: 'featured', label: 'Featured' },
   { key: 'supply', label: 'Supply' },
   { key: 'name', label: 'Name' },
 ]
@@ -181,11 +183,12 @@ function TokensMainnetContent() {
   const { data: tokens, isLoading, error } = useTokens()
   const { data: meta } = useCatalogMeta()
   const [filter, setFilter] = useState<Filter>('All')
-  // Mainnet default sort is 'supply'; 'holders' is not offered (catalog has none).
-  const [sort, setSort] = useState<SortKey>('supply')
+  // Mainnet default sort is 'featured'; 'holders' is not offered (catalog has none).
+  const [sort, setSort] = useState<SortKey>('featured')
   const [query, setQuery] = useState('')
 
-  const rows = useMemo(() => visibleTokens(tokens ?? [], filter, sort, query), [tokens, filter, sort, query])
+  const verified = useMemo(() => verifiedTokenSet(appsForNetwork(NETWORK.id)), [])
+  const rows = useMemo(() => visibleTokens(tokens ?? [], filter, sort, query, verified), [tokens, filter, sort, query, verified])
   const counts = useMemo(() => tokenGroupCounts(tokens ?? []), [tokens])
 
   // Catalog not produced yet — honest empty state
@@ -234,6 +237,10 @@ function TokensMainnetContent() {
           </div>
         </div>
 
+        <p className="mb-3 text-sm text-[var(--muted)]">
+          Token names and symbols come from the contracts themselves and can imitate real companies. Only tokens labelled by Pulsarc are verified.
+        </p>
+
         <Reveal className="arc-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] border-collapse">
@@ -272,7 +279,17 @@ function TokensMainnetContent() {
                           {t.symbol.slice(0, 2)}
                         </span>
                         <div className="min-w-0">
-                          <p className="max-w-[260px] truncate text-[15px] text-white">{t.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="max-w-[220px] truncate text-[15px] text-white">{t.name}</p>
+                            {!verified.has(t.address.toLowerCase()) && (
+                              <span
+                                className="arc-chip !px-1.5 !py-0.5 !text-[10px] opacity-60"
+                                title="Name and symbol are set by whoever deployed the contract; Pulsarc has not verified them."
+                              >
+                                Unverified
+                              </span>
+                            )}
+                          </div>
                           <p className="font-['Geist_Mono'] text-[11px] text-[var(--muted)]">{t.symbol}</p>
                         </div>
                       </div>
@@ -329,7 +346,13 @@ export function Tokens() {
           <SplitLines
             as="h1"
             className="arc-display text-[clamp(40px,6vw,80px)] text-white"
-            lines={[{ text: 'Every token,' }, { text: 'counted by holders.', className: 'text-[var(--periwinkle)]' }]}
+            lines={[
+              { text: 'Every token,' },
+              {
+                text: IS_MAINNET ? 'read from the chain.' : 'counted by holders.',
+                className: 'text-[var(--periwinkle)]',
+              },
+            ]}
           />
           <p className="mt-6 max-w-[560px] text-lg font-light leading-relaxed text-[var(--muted)]">
             {IS_MAINNET

@@ -6,7 +6,34 @@ import type { AppSample } from './appMetrics.ts'
 export type NftFilter = 'All' | NftKind
 export type NftSortKey = 'holders' | 'items' | 'transfers'
 export type TokenFilter = 'All' | TokenGroup
-export type TokenSortKey = 'holders' | 'supply' | 'name'
+export type TokenSortKey = 'holders' | 'supply' | 'name' | 'featured'
+
+/**
+ * Build a lower-cased set of token anchor addresses from an app registry.
+ * Only anchors with kind === 'token' are included.
+ */
+export function verifiedTokenSet(
+  apps: readonly { anchors: readonly { address: string; kind: string }[] }[],
+): Set<string> {
+  const out = new Set<string>()
+  for (const a of apps) {
+    for (const anchor of a.anchors) {
+      if (anchor.kind === 'token') out.add(anchor.address.toLowerCase())
+    }
+  }
+  return out
+}
+
+/**
+ * Group priority for 'featured' sort: recognised groups come first in definition order,
+ * 'Other' last. Any unknown group value falls back to the 'Other' bucket.
+ */
+const FEATURED_GROUP_ORDER: Record<string, number> = {
+  Stablecoin: 0,
+  RWA: 1,
+  'LP & Vaults': 2,
+  Other: 3,
+}
 
 const matches = (q: string, ...fields: string[]) => !q || fields.some(f => f.toLowerCase().includes(q))
 
@@ -17,9 +44,28 @@ export function visibleNfts(data: readonly NftCollection[], filter: NftFilter, s
     .sort((a, b) => (b[sort] ?? -1) - (a[sort] ?? -1))
 }
 
-export function visibleTokens(tokens: readonly ArcToken[], filter: TokenFilter, sort: TokenSortKey, query: string): ArcToken[] {
+export function visibleTokens(
+  tokens: readonly ArcToken[],
+  filter: TokenFilter,
+  sort: TokenSortKey,
+  query: string,
+  verified?: ReadonlySet<string>,
+): ArcToken[] {
   const q = query.trim().toLowerCase()
   const list = tokens.filter(t => (filter === 'All' || t.group === filter) && matches(q, t.name, t.symbol, t.address))
+  if (sort === 'featured') {
+    const vset: ReadonlySet<string> = verified ?? new Set<string>()
+    return [...list].sort((a, b) => {
+      const av = vset.has(a.address.toLowerCase()) ? 0 : 1
+      const bv = vset.has(b.address.toLowerCase()) ? 0 : 1
+      if (av !== bv) return av - bv
+      const ga = FEATURED_GROUP_ORDER[a.group] ?? FEATURED_GROUP_ORDER['Other']
+      const gb = FEATURED_GROUP_ORDER[b.group] ?? FEATURED_GROUP_ORDER['Other']
+      if (ga !== gb) return ga - gb
+      if (b.supply !== a.supply) return b.supply - a.supply
+      return a.name.localeCompare(b.name, 'en')
+    })
+  }
   return [...list].sort((a, b) => (sort === 'name' ? a.name.localeCompare(b.name) : b[sort] - a[sort]))
 }
 
