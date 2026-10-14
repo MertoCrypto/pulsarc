@@ -52,6 +52,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: () => '/',
       },
+      '/dx': {
+        target: 'https://cdn.dexscreener.com',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/dx\//, '/cms/images/') + '?width=64&height=64&quality=80&format=auto',
+      },
     },
   },
 })

@@ -6,6 +6,10 @@
     { "source": "/rpc", "destination": "https://rpc.mainnet.arc.io" },
     { "source": "/rpc-testnet", "destination": "https://rpc.testnet.arc.io" },
     {
+      "source": "/dx/:id",
+      "destination": "https://cdn.dexscreener.com/cms/images/:id?width=64&height=64&quality=80&format=auto"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

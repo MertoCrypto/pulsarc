@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { ArrowDown, ArrowUpRight, Coins, Search, Users } from 'lucide-react'
 import { TokenBTC, TokenEURC, TokenUSDC } from '@web3icons/react'
 import { getTokenLogo } from '@/lib/tokenLogos'
+import { dexLogoSrc } from '@/lib/dexLogos'
+import { useDexLogos } from '@/hooks/useDexLogos'
 import { Reveal } from '@/components/shared/Reveal'
 import { SplitLines } from '@/components/shared/SplitLines'
 import { StatCard } from '@/components/shared/StatCard'
@@ -24,7 +26,15 @@ type SortKey = TokenSortKey
  * renders logos for verified addresses (via tokenLogos) to avoid
  * misleading icons from unverified contracts.
  */
-function TokenIcon({ address, symbol }: { address: string; symbol: string }) {
+function TokenIcon({
+  address,
+  symbol,
+  dexMap,
+}: {
+  address: string
+  symbol: string
+  dexMap: Record<string, string>
+}) {
   const logo = getTokenLogo(address)
   if (logo !== null) {
     if (logo.kind === 'web3icon') {
@@ -45,6 +55,20 @@ function TokenIcon({ address, symbol }: { address: string; symbol: string }) {
       />
     )
   }
+
+  const dexSrc = dexLogoSrc(dexMap, address)
+  if (dexSrc !== null) {
+    return (
+      <img
+        src={dexSrc}
+        alt=""
+        loading="lazy"
+        className="h-8 w-8 rounded-full bg-[#0b182c] object-contain p-0.5 opacity-80"
+        onError={(e) => { (e.currentTarget).style.display = 'none' }}
+      />
+    )
+  }
+
   return (
     <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--line-strong)] font-['Geist_Mono'] text-[10px] uppercase text-[var(--periwinkle)]">
       {symbol.slice(0, 2)}
@@ -95,11 +119,12 @@ interface TokenTableProps {
   noHolders?: boolean
   emptyMessage?: string
   counts: Record<string, number>
+  dexMap: Record<string, string>
 }
 
 function TokenTable({
   tokens, isLoading, error, filter, setFilter, sort, setSort,
-  query, setQuery, verified, noHolders = false, emptyMessage, counts,
+  query, setQuery, verified, noHolders = false, emptyMessage, counts, dexMap,
 }: TokenTableProps) {
   const rows = useMemo(
     () => visibleTokens(tokens ?? [], filter, sort, query, verified),
@@ -175,7 +200,7 @@ function TokenTable({
                   <td className="px-5 py-3.5 text-sm tabular-nums text-[var(--faint)]">{i + 1}</td>
                   <td className="px-3 py-3.5">
                     <div className="flex items-center gap-3">
-                      <TokenIcon address={t.address} symbol={t.symbol} />
+                      <TokenIcon address={t.address} symbol={t.symbol} dexMap={dexMap} />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="max-w-[220px] truncate text-[15px] text-white">{t.name}</p>
@@ -242,6 +267,7 @@ function TokensTestnetContent() {
 
   const verified = useMemo(() => verifiedTokenSet(appsForNetwork(NETWORK.id)), [])
   const counts = useMemo(() => tokenGroupCounts(tokens ?? []), [tokens])
+  const dexMap = useDexLogos()
   const topHolders = tokens?.[0]?.holders ?? 0
 
   return (
@@ -267,6 +293,7 @@ function TokensTestnetContent() {
           query={query} setQuery={setQuery}
           verified={verified}
           counts={counts}
+          dexMap={dexMap}
           emptyMessage="ArcScan did not answer. It will retry on its own."
         />
 
@@ -291,6 +318,7 @@ function TokensMainnetContent() {
 
   const verified = useMemo(() => verifiedTokenSet(appsForNetwork(NETWORK.id)), [])
   const counts = useMemo(() => tokenGroupCounts(tokens ?? []), [tokens])
+  const dexMap = useDexLogos()
 
   // Catalog not produced yet — honest empty state (only applies when ArcScan also fails)
   const catalogBuilding = !isLoading && !error && (tokens ?? []).length === 0 && !meta
@@ -317,6 +345,7 @@ function TokensMainnetContent() {
             query={query} setQuery={setQuery}
             verified={verified}
             counts={counts}
+            dexMap={dexMap}
             emptyMessage="Could not fetch token data. It will retry on its own."
           />
         )}

@@ -123,6 +123,14 @@ const ALLOWED: AllowEntry[] = [
     line_contains: 'https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/mainnet/catalog.json',
   },
   {
+    file: 'src/hooks/useDexLogos.ts',
+    reason:
+      'Mainnet logo map URL: the query is disabled unless NETWORK.id === 5042, and the ' +
+      'URL points to a fixed GitHub raw path for the mainnet indexer job; there is no ' +
+      'testnet equivalent (DexScreener has no Arc testnet).',
+    line_contains: 'https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/mainnet/logos.json',
+  },
+  {
     file: 'src/hooks/useNfts.ts',
     reason:
       'Mainnet catalog URL: this constant (MAINNET_CATALOG_URL) is only used inside ' +
