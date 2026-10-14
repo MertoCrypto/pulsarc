@@ -38,7 +38,6 @@ const MORE: NavItem[] = [
   { to: '/status', label: 'Status', match: p => p.startsWith('/status') },
   { to: '/discover', label: 'Discover', match: p => p.startsWith('/discover') },
   { to: '/check', label: 'Wallet check', match: p => p.startsWith('/check') },
-  { to: '/data', label: 'Open data', match: p => p.startsWith('/data') },
 ]
 
 const ALL_NAV = [...NAV, ...MORE]

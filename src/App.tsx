@@ -31,7 +31,6 @@ const Brand       = lazy(() => import('@/pages/Brand').then(m => ({ default: m.B
 const Digest      = lazy(() => import('@/pages/Digest').then(m => ({ default: m.Digest })))
 const Status      = lazy(() => import('@/pages/Status').then(m => ({ default: m.Status })))
 const Discover    = lazy(() => import('@/pages/Discover').then(m => ({ default: m.Discover })))
-const DataCatalog = lazy(() => import('@/pages/DataCatalog').then(m => ({ default: m.DataCatalog })))
 const Answers     = lazy(() => import('@/pages/Answers').then(m => ({ default: m.Answers })))
 const AnswerPage  = lazy(() => import('@/pages/Answers').then(m => ({ default: m.AnswerPage })))
 const NotFound    = lazy(() => import('@/pages/NotFound').then(m => ({ default: m.NotFound })))
@@ -79,7 +78,6 @@ function Layout() {
                   <Route path="/status" element={<Status />} />
                   <Route path="/discover" element={<Discover />} />
                   <Route path="/check" element={<WalletCheck />} />
-                  <Route path="/data" element={<DataCatalog />} />
                   <Route path="/answers" element={<Answers />} />
                   <Route path="/answers/:slug" element={<AnswerPage />} />
                   <Route path="*" element={<NotFound />} />

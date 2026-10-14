@@ -108,11 +108,6 @@ const EXACT: Record<string, PageMeta> = {
     description:
       'Plain facts about any wallet address on Arc from Pulsarc\'s wallet index, closed days only.',
   },
-  '/data': {
-    title: 'Data · Pulsarc',
-    description:
-      'Open data: every Pulsarc file is public JSON on GitHub, with no API key and open CORS.',
-  },
   '/answers': {
     title: 'Answers · Pulsarc',
     description:

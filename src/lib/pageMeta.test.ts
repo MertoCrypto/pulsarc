@@ -53,7 +53,7 @@ const EXACT_PATHS = [
   '/network', '/tokens', '/wallets', '/deploy', '/compare',
   '/trends', '/nfts', '/agents', '/leaderboard', '/method',
   '/brand', '/digest', '/status', '/discover', '/check',
-  '/data', '/answers',
+  '/answers',
 ]
 
 for (const path of EXACT_PATHS) {

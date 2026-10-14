@@ -11,8 +11,8 @@ import { NOT_FOUND_LINKS } from './notFoundLinks.ts'
 // 1. Exactly six entries
 // ---------------------------------------------------------------------------
 
-assert.strictEqual(NOT_FOUND_LINKS.length, 6, 'must have exactly 6 links')
-console.log('PASS  list has exactly 6 entries')
+assert.strictEqual(NOT_FOUND_LINKS.length, 5, 'must have exactly 5 links')
+console.log('PASS  list has exactly 5 entries')
 
 // ---------------------------------------------------------------------------
 // 2. Exact order and hand-written values
@@ -23,7 +23,6 @@ const EXPECTED: { to: string; label: string }[] = [
   { to: '/network', label: 'Network'       },
   { to: '/tokens',  label: 'Tokens'        },
   { to: '/answers', label: 'Answers'       },
-  { to: '/data',    label: 'Open data'     },
   { to: '/check',   label: 'Wallet checker' },
 ]
 

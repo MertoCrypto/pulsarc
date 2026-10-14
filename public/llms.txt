@@ -16,9 +16,6 @@ Files are partitioned by network. Replace <net> with `mainnet` or `testnet`:
 
     https://raw.githubusercontent.com/MertoCrypto/pulsarc-indexer/data/<net>/<file>
 
-The data catalog page on this site:
-    https://pulsarc.vercel.app/data
-
 ## Important: wallet counts are upper bounds
 
 Fields named `walletHours` count distinct active wallets per hour and sum

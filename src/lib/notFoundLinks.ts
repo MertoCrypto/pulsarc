@@ -13,6 +13,5 @@ export const NOT_FOUND_LINKS: NotFoundLink[] = [
   { to: '/network', label: 'Network'      },
   { to: '/tokens',  label: 'Tokens'       },
   { to: '/answers', label: 'Answers'      },
-  { to: '/data',    label: 'Open data'    },
   { to: '/check',   label: 'Wallet checker' },
 ]
