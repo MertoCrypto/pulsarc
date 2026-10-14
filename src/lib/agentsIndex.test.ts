@@ -284,6 +284,21 @@ test('out-of-range page returns empty', () => assert.deepEqual(pageOf(ITEMS, 10,
 test('page 0 returns empty', () => assert.deepEqual(pageOf(ITEMS, 0, 3), []))
 test('size 0 returns empty', () => assert.deepEqual(pageOf(ITEMS, 1, 0), []))
 
+section('parseAgentsIndex — names cannot disguise themselves')
+
+test('direction-override and zero-width characters are removed from name and description', () => {
+  const result = parseAgentsIndex(validFile({ agents: [{ ...VALID_AGENT, name: '\u202EtnegA\u200B lacoL', description: 'a\u2066b\uFEFFc' }] }))
+  assert.ok(result !== null)
+  assert.equal(result.agents[0]?.name, 'tnegA lacoL')
+  assert.equal(result.agents[0]?.description, 'abc')
+})
+
+test('a name made only of invisible characters is dropped', () => {
+  const result = parseAgentsIndex(validFile({ agents: [{ ...VALID_AGENT, name: '\u200B\u202E' }] }))
+  assert.ok(result !== null)
+  assert.equal(result.agents[0]?.name, undefined)
+})
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 
 console.log(`\n=== ${passed} passed, ${failed} failed ===\n`)

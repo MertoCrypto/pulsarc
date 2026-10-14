@@ -1,5 +1,6 @@
 /** Pure token helpers: our own grouping and the mapping from ArcScan's raw token rows. */
 import { scaled } from './numberFormat.ts'
+import { cleanDisplayText } from './displayText.ts'
 
 export type TokenGroup = 'Stablecoin' | 'RWA' | 'LP & Vaults' | 'Other'
 
@@ -36,14 +37,16 @@ export function groupOf(name: string, symbol: string): TokenGroup {
 
 export function toArcToken(t: RawToken): ArcToken {
   const decimals = Number(t.decimals ?? 0)
+  const name   = (t.name == null ? 'Unnamed' : cleanDisplayText(t.name))
+  const symbol = (t.symbol == null ? '—' : cleanDisplayText(t.symbol))
   return {
     address: t.address_hash,
-    name: t.name ?? 'Unnamed',
-    symbol: t.symbol ?? '—',
+    name,
+    symbol,
     decimals,
     holders: Number(t.holders_count ?? 0),
     supply: scaled(t.total_supply, decimals),
-    group: groupOf(t.name ?? '', t.symbol ?? ''),
+    group: groupOf(cleanDisplayText(t.name), cleanDisplayText(t.symbol)),
     iconUrl: t.icon_url,
   }
 }

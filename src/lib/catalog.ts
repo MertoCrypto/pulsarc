@@ -10,6 +10,7 @@
 import { groupOf } from './tokens.ts'
 import type { ArcToken } from './tokens.ts'
 import type { NftCollection, NftKind } from './nfts.ts'
+import { cleanDisplayText } from './displayText.ts'
 
 // ─── Schema types ─────────────────────────────────────────────────────────────
 
@@ -125,8 +126,8 @@ export function parseCatalog(raw: unknown): CatalogFile | null {
  */
 export function toTokenRows(cat: CatalogFile): ArcToken[] {
   return cat.tokens.map(t => {
-    const name = t.name ?? 'Unnamed'
-    const symbol = t.symbol ?? '—'
+    const name   = (t.name == null ? 'Unnamed' : cleanDisplayText(t.name))
+    const symbol = (t.symbol == null ? '—' : cleanDisplayText(t.symbol))
     return {
       address: t.address,
       name,
@@ -150,8 +151,8 @@ export function toTokenRows(cat: CatalogFile): ArcToken[] {
 export function toNftRows(cat: CatalogFile): NftCollection[] {
   return cat.nfts.map(n => ({
     address: n.address,
-    name: n.name ?? 'Unnamed collection',
-    symbol: n.symbol ?? '—',
+    name:   (n.name == null ? 'Unnamed collection' : cleanDisplayText(n.name)),
+    symbol: (n.symbol == null ? '—' : cleanDisplayText(n.symbol)),
     kind: n.kind,
     holders: 0,
     items: null,

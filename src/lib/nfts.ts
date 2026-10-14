@@ -1,4 +1,5 @@
 /** Pure NFT-collection helpers: mapping ArcScan token rows and ordering collections. */
+import { cleanDisplayText } from './displayText.ts'
 
 export type NftKind = 'ERC-721' | 'ERC-1155'
 
@@ -23,8 +24,8 @@ export interface RawNftToken {
 export function toNftCollection(t: RawNftToken, kind: NftKind): NftCollection {
   return {
     address: t.address_hash,
-    name: t.name ?? 'Unnamed collection',
-    symbol: t.symbol ?? '—',
+    name:    (t.name == null ? 'Unnamed collection' : cleanDisplayText(t.name)),
+    symbol:  (t.symbol == null ? '—' : cleanDisplayText(t.symbol)),
     kind,
     holders: Number(t.holders_count ?? 0),
     items: t.total_supply ? Number(t.total_supply) : null,

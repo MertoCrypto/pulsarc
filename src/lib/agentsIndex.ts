@@ -6,6 +6,8 @@
  * We strip control characters, cap lengths, and only allow safe URI schemes.
  */
 
+import { cleanDisplayText } from './displayText.ts'
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface AgentIndexEntry {
@@ -36,7 +38,8 @@ const CTRL_RE = /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g
 
 function sanitiseText(v: unknown, max: number): string | undefined {
   if (typeof v !== 'string') return undefined
-  const s = v.replace(CTRL_RE, '').trim().slice(0, max)
+  // cleanDisplayText also drops invisible and direction-changing characters that could disguise a name.
+  const s = cleanDisplayText(v.replace(CTRL_RE, ''), max)
   return s.length > 0 ? s : undefined
 }
 
