@@ -53,9 +53,9 @@ test('WETH address maps to img with self-hosted src', () => {
   )
 })
 
-test('USYC address returns null (no logo asset)', () => {
+test('USYC address maps to its self-hosted logo', () => {
   const logo = getTokenLogo(USYC_ADDR)
-  assert.equal(logo, null, 'USYC must have no logo (returns null)')
+  assert.deepEqual(logo, { kind: 'img', src: '/portal-assets/tokens/usyc.svg' })
 })
 
 test('unverified / unknown address returns null', () => {

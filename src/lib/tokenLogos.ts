@@ -21,7 +21,7 @@ export type TokenLogo =
  * EURC:   0xbef5f6d51cb62b58e6a8f77868681825c6fe21c1  → web3icon eurc
  * cirBTC: 0x171a4217b86a807a64eb94757db6849fb4bdbaa0  → web3icon btc
  * WETH:   0x128cc466b61f542da60c70e3aa11c10e19b84edb  → img /portal-assets/tokens/weth.svg
- * USYC:   0x8a5d989bbb96929f689b0200f435f53da42bf490  → null (no logo asset available)
+ * USYC:   0x8a5d989bbb96929f689b0200f435f53da42bf490  → img /portal-assets/tokens/usyc.svg (official logo from usyc.hashnote.com)
  */
 const LOGO_MAP: Record<string, TokenLogo> = {
   // USDC — Circle dollar stablecoin
@@ -32,7 +32,8 @@ const LOGO_MAP: Record<string, TokenLogo> = {
   '0x171a4217b86a807a64eb94757db6849fb4bdbaa0': { kind: 'web3icon', icon: 'btc' },
   // WETH — Wrapped Ether; logo is self-hosted (listed in portal-tokens.txt)
   '0x128cc466b61f542da60c70e3aa11c10e19b84edb': { kind: 'img', src: '/portal-assets/tokens/weth.svg' },
-  // USYC — US Yield Coin; no logo asset available; intentionally absent (returns null)
+  // USYC — US Yield Coin; official logo, self-hosted
+  '0x8a5d989bbb96929f689b0200f435f53da42bf490': { kind: 'img', src: '/portal-assets/tokens/usyc.svg' },
 }
 
 /**

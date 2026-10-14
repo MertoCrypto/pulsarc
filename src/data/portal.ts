@@ -26,6 +26,10 @@ export const PORTAL_APPS: PortalApp[] = [
 export const APP_LOGOS: Record<string, { img?: string; icon?: 'usdc' | 'eurc' | 'btc' }> = {
   xylonet: { img: portalLogo('discover/xylonet.webp') },
   synthra: { img: portalLogo('discover/synthra.png') },
+  uniswap: { img: portalLogo('discover/uniswap.png') },
+  across: { img: portalLogo('discover/across.png') },
+  weth: { img: portalLogo('tokens/weth.svg') },
+  usyc: { img: portalLogo('tokens/usyc.svg') },
   usdc: { icon: 'usdc' },
   eurc: { icon: 'eurc' },
   cirbtc: { icon: 'btc' },
