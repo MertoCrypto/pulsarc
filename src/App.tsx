@@ -16,6 +16,8 @@ const Network     = lazy(() => import('@/pages/Network').then(m => ({ default: m
 const Tokens      = lazy(() => import('@/pages/Tokens').then(m => ({ default: m.Tokens })))
 const Wallets     = lazy(() => import('@/pages/Wallets').then(m => ({ default: m.Wallets })))
 const DeployStudio = lazy(() => import('@/pages/DeployStudio').then(m => ({ default: m.DeployStudio })))
+// Local-only: the import is behind import.meta.env.DEV so production builds never bundle it.
+const LocalDeploy = import.meta.env.DEV ? lazy(() => import('@/pages/LocalDeploy').then(m => ({ default: m.LocalDeploy }))) : null
 const DApp        = lazy(() => import('@/pages/DApp').then(m => ({ default: m.DApp })))
 const Compare     = lazy(() => import('@/pages/Compare').then(m => ({ default: m.Compare })))
 const Trends      = lazy(() => import('@/pages/Trends').then(m => ({ default: m.Trends })))
@@ -64,6 +66,7 @@ function Layout() {
                   <Route path="/tokens" element={<Tokens />} />
                   <Route path="/wallets" element={<Wallets />} />
                   <Route path="/deploy" element={<DeployStudio />} />
+                  {LocalDeploy && <Route path="/deploy-local" element={<LocalDeploy />} />}
                   <Route path="/compare" element={<Compare />} />
                   <Route path="/trends" element={<Trends />} />
                   <Route path="/nfts" element={<NFTs />} />

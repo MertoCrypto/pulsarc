@@ -48,6 +48,11 @@ const EXACT: Record<string, PageMeta> = {
     description:
       'Deploy standard OpenZeppelin contracts on Arc from your own wallet. No owner keys, no hidden mint.',
   },
+  '/deploy-local': {
+    title: 'Local deploy · Pulsarc',
+    description:
+      'Development-only page for deploying Pulsarc contracts from your own wallet. Not part of the production site.',
+  },
   '/compare': {
     title: 'Compare · Pulsarc',
     description:

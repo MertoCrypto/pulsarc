@@ -53,7 +53,7 @@ assert.ok(allRoutePaths.length > 0, 'No <Route path=…> found in App.tsx — re
 const staticRoutes = allRoutePaths.filter(p => !p.includes(':') && !p.includes('*'))
 
 // Routes intentionally excluded from the sitemap
-const EXCLUDED_ROUTES = new Set(['/deploy', '/brand'])
+const EXCLUDED_ROUTES = new Set(['/deploy', '/brand', '/deploy-local'])
 
 // The routes we expect to appear in the sitemap
 const expectedRoutes = staticRoutes.filter(p => !EXCLUDED_ROUTES.has(p))
