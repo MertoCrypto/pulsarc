@@ -1,6 +1,7 @@
-/** Apps and assets listed on Arc Portal (portal.arc.io/discover). Logos are loaded from the portal itself. */
+/** Apps and assets listed on Arc Portal (portal.arc.io/discover). */
 export const PORTAL = 'https://portal.arc.io'
-export const portalLogo = (path: string) => `${PORTAL}/assets/${path}`
+/** Logos are self-hosted under public/portal-assets (copied from the portal): ad blockers and shields block hotlinks to it. */
+export const portalLogo = (path: string) => `/portal-assets/${path}`
 
 export interface PortalApp {
   key: string
