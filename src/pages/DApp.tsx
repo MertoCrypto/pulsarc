@@ -15,6 +15,7 @@ import { WatchlistButton } from '@/components/interact/WatchlistButton'
 import { HealthScore, computeHealth } from '@/components/shared/HealthScore'
 import { ShareButton } from '@/components/shared/ShareButton'
 import { CommentsPanel } from '@/components/dapp/CommentsPanel'
+import { RankBadges } from '@/components/dapp/RankBadges'
 import { useAppHistory } from '@/hooks/useAppHistory'
 import { computeMetrics, describeSpan, RANGE_MS, type TimeRange } from '@/lib/appActivity'
 import { HIGH_FREQUENCY, useWalletLevels } from '@/hooks/useWalletLevels'
@@ -91,6 +92,10 @@ export function DApp() {
                   <HealthScore health={health} />
                 </div>
               )}
+
+              <div className="mt-4">
+                <RankBadges appId={app.id} />
+              </div>
 
               <div className="mt-6 flex flex-wrap items-center gap-2" onClick={e => { e.stopPropagation() }}>
                 <UpvoteButton dappId={app.id} />
