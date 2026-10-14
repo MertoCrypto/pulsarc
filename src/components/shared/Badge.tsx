@@ -14,6 +14,9 @@ import {
   CircuitBoard,
   TrendingUp,
   Send,
+  MoveDiagonal,
+  Expand,
+  ArrowDownUp,
   type LucideProps,
 } from 'lucide-react'
 import { TokenBTC, TokenEURC, TokenUSDC } from '@web3icons/react'
@@ -82,6 +85,9 @@ const GLYPH_COMPONENTS: Record<GlyphKey, React.ComponentType<LucideProps>> = {
   'circuit-board':     CircuitBoard,
   'trending-up':       TrendingUp,
   'send':              Send,
+  'move-diagonal':     MoveDiagonal,
+  'expand':            Expand,
+  'arrow-down-up':     ArrowDownUp,
 }
 
 export function AppLogoBadge({ initials, logo, logoIcon, category, appId, size = 'md' }: AppLogoBadgeProps) {

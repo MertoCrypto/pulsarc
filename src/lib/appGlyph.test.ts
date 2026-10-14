@@ -33,11 +33,11 @@ describe('glyphFor — category fallbacks', () => {
 })
 
 describe('glyphFor — id overrides', () => {
-  test('cctp → arrows-left-right', () => {
-    assert.equal(glyphFor('cctp', 'Infra'), 'arrows-left-right')
+  test('cctp → move-diagonal', () => {
+    assert.equal(glyphFor('cctp', 'Infra'), 'move-diagonal')
   })
-  test('gateway → arrows-left-right', () => {
-    assert.equal(glyphFor('gateway', 'Infra'), 'arrows-left-right')
+  test('gateway → expand', () => {
+    assert.equal(glyphFor('gateway', 'Infra'), 'expand')
   })
   test('across → arrows-left-right', () => {
     assert.equal(glyphFor('across', 'Infra'), 'arrows-left-right')
@@ -54,8 +54,8 @@ describe('glyphFor — id overrides', () => {
   test('memo → message-square', () => {
     assert.equal(glyphFor('memo', 'Payments'), 'message-square')
   })
-  test('stablefx → repeat', () => {
-    assert.equal(glyphFor('stablefx', 'Payments'), 'repeat')
+  test('stablefx → arrow-down-up', () => {
+    assert.equal(glyphFor('stablefx', 'Payments'), 'arrow-down-up')
   })
   test('swaparc → repeat', () => {
     assert.equal(glyphFor('swaparc', 'DeFi'), 'repeat')
@@ -95,9 +95,9 @@ describe('glyphFor — unknowns fall back to box', () => {
 describe('glyphFor — id wins over category', () => {
   test('cctp id wins over Infra category', () => {
     const result = glyphFor('cctp', 'Infra')
-    assert.equal(result, 'arrows-left-right')
+    assert.equal(result, 'move-diagonal')
     // confirm the category alone would give something different
-    assert.notEqual(glyphFor(undefined, 'Infra'), 'arrows-left-right')
+    assert.notEqual(glyphFor(undefined, 'Infra'), 'move-diagonal')
   })
   test('memo id wins over Payments category', () => {
     // Payments → 'send', but memo id → 'message-square'
