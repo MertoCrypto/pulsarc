@@ -165,8 +165,6 @@ export const TESTNET_APPS: ArcApp[] = [
 // position / kind match); usd flag from mainnet JSON.
 //
 // New ids (3): across, uniswap, weth — names from names.mjs.
-// KARAR GEREKTIRIYOR: across/uniswap/weth kategori+aciklama
-// Description for new ids: neutral "Observed on Arc Mainnet."
 export const MAINNET_APPS: ArcApp[] = [
   // ── Shared ──────────────────────────────────────────────────────────────
   app('usdc', 'USDC', 'Stablecoin',
@@ -210,23 +208,23 @@ export const MAINNET_APPS: ArcApp[] = [
     [contract('0x8004a169fb4a3325136eb29fa0ceb6d2e539a432', 'IdentityRegistry')], true),
 
   // ── Mainnet-only ─────────────────────────────────────────────────────────
-  // KARAR GEREKTIRIYOR: weth kategori+aciklama
+  // Verified via RPC 2026-10-14: name() = "Wrapped Ether", symbol WETH, 18 decimals.
   app('weth', 'WETH', 'DeFi',
-    'Observed on Arc Mainnet.',
+    'Wrapped Ether, an ERC-20 version of ETH.',
     [token('0x128cc466b61f542da60c70e3aa11c10e19b84edb', 'WETH')]),
 
-  // KARAR GEREKTIRIYOR: uniswap kategori+aciklama
+  // Verified via RPC 2026-10-14: all three anchors report the same poolManager(); one is named "Uniswap v4 Positions NFT".
   app('uniswap', 'Uniswap', 'DeFi',
-    'Observed on Arc Mainnet.',
+    'Uniswap v4: a decentralized exchange where anyone can swap tokens and provide liquidity.',
     [
       contract('0x4fca4a51ab4f23a7447b3284fbd7d73289a89fb1', 'Uniswap'),
       contract('0x8702463e73f74d0b6765abceb314ef07acb92650', 'Uniswap'),
       contract('0x6049c9a0e26405c0985f9e3685c87d0ae917f82b', 'Uniswap'),
     ]),
 
-  // KARAR GEREKTIRIYOR: across kategori+aciklama
-  app('across', 'Across', 'DeFi',
-    'Observed on Arc Mainnet.',
+  // Only chainId() = 5042 verified via RPC (2026-10-14); kept generic on purpose.
+  app('across', 'Across', 'Infra',
+    'Across: a bridge for moving tokens between chains.',
     [contract('0x9b4a302a548c7e313c2b74c461db7b84d3074a84', 'Across')]),
 ]
 
