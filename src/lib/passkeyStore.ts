@@ -5,9 +5,10 @@ const STORAGE_KEY = 'pulsarc:passkey:credential'
 
 /** Reads back a persisted P256Credential from localStorage.
  *
- * TODO (production): move this to an httpOnly cookie via a small serverless
- * function.  localStorage is acceptable for testnet demos but is vulnerable
- * to XSS — do NOT use it in a production environment with real funds.
+ * What is stored is the credential id and the PUBLIC key only (viem's P256Credential: id, publicKey, raw).
+ * The private key never leaves the authenticator, and every signature needs the user's biometric/PIN
+ * confirmation through navigator.credentials.get, so reading this value does not let anyone sign.
+ * Clearing it only means the user picks the passkey again on the next visit.
  */
 export function loadStoredCredential(): P256Credential | null {
   try {
@@ -19,10 +20,7 @@ export function loadStoredCredential(): P256Credential | null {
   }
 }
 
-/** Persists a P256Credential so the user stays logged in across page reloads.
- *
- * TODO (production): replace with an httpOnly cookie.
- */
+/** Persists a P256Credential (id + public key, no secret) so the user stays signed in across page reloads. */
 export function saveCredential(cred: P256Credential): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cred))
