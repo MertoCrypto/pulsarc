@@ -2,7 +2,8 @@
 pragma solidity ^0.8.20;
 
 /// @title GmBoard
-/// @notice On-chain GM registry — anyone can say GM once per day.
+/// @notice On-chain GM registry — anyone can say GM once per UTC day.
+///         The day resets at 00:00 UTC (03:00 Turkey time), not 24h after the last GM.
 ///         Stores the last GM timestamp and streak count per address.
 contract GmBoard {
     struct GmRecord {
@@ -23,17 +24,18 @@ contract GmBoard {
 
     uint64 private constant ONE_DAY = 86_400;
 
-    /// @notice Say GM. Callable once per 24h per address.
+    /// @notice Say GM. Callable once per UTC day per address (resets at 00:00 UTC).
     function gm() external {
         GmRecord storage rec = _records[msg.sender];
         uint64 now64 = uint64(block.timestamp);
+        uint64 today = now64 / ONE_DAY;
 
-        if (rec.lastGm > 0 && now64 < rec.lastGm + ONE_DAY) {
-            revert CooldownNotOver(rec.lastGm + ONE_DAY);
+        if (rec.lastGm > 0 && rec.lastGm / ONE_DAY >= today) {
+            revert CooldownNotOver((today + 1) * ONE_DAY);
         }
 
-        // Streak: still alive if within 48 h (missed at most one day)
-        bool streakAlive = rec.lastGm > 0 && now64 < rec.lastGm + ONE_DAY * 2;
+        // Streak: still alive if the last GM was on the previous UTC day.
+        bool streakAlive = rec.lastGm > 0 && rec.lastGm / ONE_DAY + 1 == today;
         rec.streak = streakAlive ? rec.streak + 1 : 1;
         rec.total  += 1;
         rec.lastGm  = now64;
@@ -55,12 +57,13 @@ contract GmBoard {
         return (r.lastGm, r.streak, r.total);
     }
 
-    /// @notice Seconds until this wallet can GM again (0 if ready).
+    /// @notice Seconds until this wallet can GM again, i.e. until the next 00:00 UTC (0 if ready).
     function cooldownRemaining(address wallet) external view returns (uint64) {
         GmRecord memory r = _records[wallet];
         if (r.lastGm == 0) return 0;
-        uint64 next = r.lastGm + ONE_DAY;
         uint64 now64 = uint64(block.timestamp);
-        return now64 < next ? next - now64 : 0;
+        uint64 today = now64 / ONE_DAY;
+        if (r.lastGm / ONE_DAY < today) return 0;
+        return (today + 1) * ONE_DAY - now64;
     }
 }

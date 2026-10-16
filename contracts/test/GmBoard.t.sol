@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import "forge-std/Test.sol";
 import "../GmBoard.sol";
 
+/// The GM day resets at 00:00 UTC (03:00 Turkey time), not 24h after the last GM.
 contract GmBoardTest is Test {
     GmBoard board;
 
@@ -11,241 +12,163 @@ contract GmBoardTest is Test {
     address bob   = address(0xB0B);
 
     uint64 constant ONE_DAY = 86_400;
+    /// A midnight UTC (03:00 TR) far from 0.
+    uint64 constant DAY0 = 100 * 86_400;
 
     function setUp() public {
         board = new GmBoard();
-        // Start at a timestamp that isn't 0 so cooldown math is clean.
-        vm.warp(1_000_000);
+        vm.warp(DAY0 + 10 hours); // 10:00 UTC on day 100
     }
 
-    // -----------------------------------------------------------------------
+    function _gm(address who) internal {
+        vm.prank(who);
+        board.gm();
+    }
+
     // First GM
-    // -----------------------------------------------------------------------
 
     function test_firstGm_setsRecord() public {
         uint64 ts = uint64(block.timestamp);
 
         vm.expectEmit(true, false, false, true);
         emit GmBoard.Gm(alice, 1, 1, ts);
-
-        vm.prank(alice);
-        board.gm();
+        _gm(alice);
 
         (uint64 lastGm, uint32 streak, uint32 total) = board.getRecord(alice);
-        assertEq(lastGm,  ts);
-        assertEq(streak,  1);
-        assertEq(total,   1);
-        assertEq(board.totalGms(),    1);
-        assertEq(board.lastGmSender(), alice);
-        assertEq(board.lastGmTime(),   ts);
-    }
-
-    // -----------------------------------------------------------------------
-    // Cooldown
-    // -----------------------------------------------------------------------
-
-    function test_secondGmWithin24h_reverts() public {
-        vm.prank(alice);
-        board.gm();
-
-        uint64 lastGm = uint64(block.timestamp);
-        vm.warp(block.timestamp + 1); // still within 24 h
-
-        vm.prank(alice);
-        vm.expectRevert(
-            abi.encodeWithSelector(GmBoard.CooldownNotOver.selector, lastGm + ONE_DAY)
-        );
-        board.gm();
-    }
-
-    function test_gmAtExactly24h_succeeds_streak2() public {
-        vm.prank(alice);
-        board.gm();
-        uint64 lastGm = uint64(block.timestamp);
-
-        vm.warp(lastGm + ONE_DAY);
-
-        vm.prank(alice);
-        board.gm();
-
-        (, uint32 streak,) = board.getRecord(alice);
-        assertEq(streak, 2);
-    }
-
-    function test_gmAtOneLessThan24h_reverts() public {
-        vm.prank(alice);
-        board.gm();
-        uint64 lastGm = uint64(block.timestamp);
-
-        vm.warp(lastGm + ONE_DAY - 1);
-
-        vm.prank(alice);
-        vm.expectRevert(
-            abi.encodeWithSelector(GmBoard.CooldownNotOver.selector, lastGm + ONE_DAY)
-        );
-        board.gm();
-    }
-
-    // -----------------------------------------------------------------------
-    // Streak logic
-    // -----------------------------------------------------------------------
-
-    function test_gmAt172799_keepStreak() public {
-        vm.prank(alice);
-        board.gm();
-        uint64 lastGm = uint64(block.timestamp);
-
-        // 48 h - 1 s: streak alive
-        vm.warp(lastGm + ONE_DAY * 2 - 1);
-        vm.prank(alice);
-        board.gm();
-
-        (, uint32 streak,) = board.getRecord(alice);
-        assertEq(streak, 2);
-    }
-
-    function test_gmAt172800_resetsStreak() public {
-        vm.prank(alice);
-        board.gm();
-        uint64 lastGm = uint64(block.timestamp);
-
-        // exactly 48 h: streak breaks
-        vm.warp(lastGm + ONE_DAY * 2);
-        vm.prank(alice);
-        board.gm();
-
-        (, uint32 streak,) = board.getRecord(alice);
+        assertEq(lastGm, ts);
         assertEq(streak, 1);
+        assertEq(total, 1);
+        assertEq(board.totalGms(), 1);
+        assertEq(board.lastGmSender(), alice);
+        assertEq(board.lastGmTime(), ts);
     }
 
-    function test_totalAlwaysIncrements_evenOnReset() public {
-        vm.prank(alice);
-        board.gm();
-        uint64 lastGm = uint64(block.timestamp);
+    // Once per UTC day
 
-        // Streak resets
-        vm.warp(lastGm + ONE_DAY * 2);
+    function test_secondGmSameDay_reverts_withNextMidnight() public {
+        _gm(alice);
+        vm.warp(DAY0 + 23 hours + 59 minutes + 59);
         vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(GmBoard.CooldownNotOver.selector, DAY0 + ONE_DAY));
         board.gm();
+    }
 
-        (,, uint32 total) = board.getRecord(alice);
+    function test_gmJustAfterMidnight_succeeds_streak2() public {
+        _gm(alice);
+        vm.warp(DAY0 + ONE_DAY); // exactly 00:00 UTC next day, only 14h after the first GM
+        _gm(alice);
+        (, uint32 streak, uint32 total) = board.getRecord(alice);
+        assertEq(streak, 2);
+        assertEq(total, 2);
+    }
+
+    function test_gmAtLateNight_thenJustAfterMidnight_isAllowed() public {
+        vm.warp(DAY0 + 23 hours + 59 minutes);
+        _gm(alice);
+        vm.warp(DAY0 + ONE_DAY + 1); // two minutes later, new day
+        _gm(alice);
+        (, uint32 streak,) = board.getRecord(alice);
+        assertEq(streak, 2);
+    }
+
+    function test_gmEarlyMorning_thenLaterSameDay_reverts() public {
+        vm.warp(DAY0); // exactly 00:00 UTC
+        _gm(alice);
+        vm.warp(DAY0 + 23 hours);
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(GmBoard.CooldownNotOver.selector, DAY0 + ONE_DAY));
+        board.gm();
+    }
+
+    // Streak: alive only if the last GM was on the previous UTC day
+
+    function test_nextDayAtEndOfDay_keepsStreak() public {
+        _gm(alice);
+        vm.warp(DAY0 + 2 * ONE_DAY - 1); // 23:59:59 UTC the next day
+        _gm(alice);
+        (, uint32 streak,) = board.getRecord(alice);
+        assertEq(streak, 2);
+    }
+
+    function test_skippingAFullDay_resetsStreak() public {
+        _gm(alice);
+        vm.warp(DAY0 + 2 * ONE_DAY); // 00:00 UTC two days later: one day skipped
+        _gm(alice);
+        (, uint32 streak, uint32 total) = board.getRecord(alice);
+        assertEq(streak, 1);
         assertEq(total, 2);
         assertEq(board.totalGms(), 2);
     }
 
-    // -----------------------------------------------------------------------
-    // Long streak (10 consecutive days)
-    // -----------------------------------------------------------------------
-
     function test_longStreak_10days() public {
-        uint64 ts = uint64(block.timestamp);
-
         for (uint32 i = 0; i < 10; i++) {
-            vm.warp(ts + ONE_DAY * i);
-            vm.prank(alice);
-            board.gm();
+            vm.warp(DAY0 + ONE_DAY * i + 10 hours);
+            _gm(alice);
         }
-
         (, uint32 streak, uint32 total) = board.getRecord(alice);
         assertEq(streak, 10);
-        assertEq(total,  10);
+        assertEq(total, 10);
         assertEq(board.totalGms(), 10);
     }
 
-    // -----------------------------------------------------------------------
-    // Multiple addresses – independent records, global state
-    // -----------------------------------------------------------------------
+    // Independent addresses, global state
 
     function test_independentAddresses() public {
-        uint64 ts = uint64(block.timestamp);
+        _gm(alice);
+        vm.warp(block.timestamp + 3600);
+        _gm(bob);
 
         vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(GmBoard.CooldownNotOver.selector, DAY0 + ONE_DAY));
         board.gm();
 
-        // Bob gms one hour later – within alice's cooldown but that's fine for bob
-        vm.warp(ts + 3600);
-        vm.prank(bob);
-        board.gm();
-
-        // Alice still in cooldown
-        vm.prank(alice);
-        vm.expectRevert(
-            abi.encodeWithSelector(GmBoard.CooldownNotOver.selector, ts + ONE_DAY)
-        );
-        board.gm();
-
-        // Check global
-        assertEq(board.totalGms(),    2);
+        assertEq(board.totalGms(), 2);
         assertEq(board.lastGmSender(), bob);
-        assertEq(board.lastGmTime(),   uint64(ts + 3600));
+        assertEq(board.lastGmTime(), uint64(DAY0 + 11 hours));
     }
 
     function test_getRecord_unknownWallet_returnsZeros() public view {
         (uint64 lastGm, uint32 streak, uint32 total) = board.getRecord(address(0xDEAD));
         assertEq(lastGm, 0);
         assertEq(streak, 0);
-        assertEq(total,  0);
+        assertEq(total, 0);
     }
 
-    // -----------------------------------------------------------------------
-    // cooldownRemaining
-    // -----------------------------------------------------------------------
+    // cooldownRemaining: seconds until the next 00:00 UTC
 
     function test_cooldownRemaining_neverGm_isZero() public view {
         assertEq(board.cooldownRemaining(alice), 0);
     }
 
-    function test_cooldownRemaining_rightAfterGm_is86400() public {
-        vm.prank(alice);
-        board.gm();
-        assertEq(board.cooldownRemaining(alice), ONE_DAY);
+    function test_cooldownRemaining_isTimeUntilMidnightUtc() public {
+        _gm(alice); // 10:00 UTC
+        assertEq(board.cooldownRemaining(alice), 14 hours);
+        vm.warp(block.timestamp + 1000);
+        assertEq(board.cooldownRemaining(alice), 14 hours - 1000);
     }
 
-    function test_cooldownRemaining_afterWarp() public {
-        vm.prank(alice);
-        board.gm();
-
-        uint64 n = 1000;
-        vm.warp(block.timestamp + n);
-        assertEq(board.cooldownRemaining(alice), ONE_DAY - n);
-    }
-
-    function test_cooldownRemaining_atExactly86400_isZero() public {
-        vm.prank(alice);
-        board.gm();
-        uint64 lastGm = uint64(block.timestamp);
-
-        vm.warp(lastGm + ONE_DAY);
+    function test_cooldownRemaining_atMidnight_isZero() public {
+        _gm(alice);
+        vm.warp(DAY0 + ONE_DAY);
+        assertEq(board.cooldownRemaining(alice), 0);
+        vm.warp(DAY0 + ONE_DAY + 500);
         assertEq(board.cooldownRemaining(alice), 0);
     }
 
-    function test_cooldownRemaining_after86400_isZero() public {
-        vm.prank(alice);
-        board.gm();
-        uint64 lastGm = uint64(block.timestamp);
-
-        vm.warp(lastGm + ONE_DAY + 500);
-        assertEq(board.cooldownRemaining(alice), 0);
+    function test_cooldownRemaining_oneSecondBeforeMidnight_is1() public {
+        _gm(alice);
+        vm.warp(DAY0 + ONE_DAY - 1);
+        assertEq(board.cooldownRemaining(alice), 1);
     }
 
-    // -----------------------------------------------------------------------
-    // Fuzz: any warp in [86400, 172799] keeps streak alive
-    // -----------------------------------------------------------------------
+    // Fuzz: any time on the next UTC day keeps the streak
 
-    function testFuzz_streakAlive_withinWindow(uint64 delta) public {
-        delta = uint64(bound(uint256(delta), ONE_DAY, ONE_DAY * 2 - 1));
-
-        vm.prank(alice);
-        board.gm();
-        (, uint32 streakBefore,) = board.getRecord(alice);
-
-        uint64 lastGm = uint64(block.timestamp);
-        vm.warp(lastGm + delta);
-
-        vm.prank(alice);
-        board.gm();
-
-        (, uint32 streakAfter,) = board.getRecord(alice);
-        assertEq(streakAfter, streakBefore + 1);
+    function testFuzz_nextUtcDay_keepsStreak(uint64 offset) public {
+        offset = uint64(bound(uint256(offset), 0, ONE_DAY - 1));
+        _gm(alice);
+        vm.warp(DAY0 + ONE_DAY + offset);
+        _gm(alice);
+        (, uint32 streak,) = board.getRecord(alice);
+        assertEq(streak, 2);
     }
 }

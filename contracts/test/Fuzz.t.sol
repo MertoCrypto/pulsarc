@@ -272,37 +272,37 @@ contract GmBoardFuzzTest is Test {
     GmBoard public board;
 
     uint64 constant ONE_DAY = 86_400;
+    uint64 constant DAY0 = 100 * 86_400; // a midnight UTC (03:00 Turkey time)
 
     function setUp() public {
         board = new GmBoard();
-        vm.warp(1_000_000); // start well above 0 so lastGm+2days doesn't underflow
+        vm.warp(DAY0 + 10 hours);
     }
 
-    // ── cooldown enforcement ─────────────────────────────────────────────────
+    // ── once per UTC day ─────────────────────────────────────────────────────
 
-    function testFuzz_gm_cooldownPreventsDouble(address caller) public {
+    function testFuzz_gm_sameDayPreventsDouble(address caller, uint64 later) public {
         vm.assume(caller != address(0));
         vm.prank(caller);
         board.gm();
 
-        // Any warp less than ONE_DAY after first gm should revert
-        uint64 delta = uint64(bound(block.timestamp, 1, ONE_DAY - 1));
-        vm.warp(block.timestamp + delta);
+        // any later moment before the next 00:00 UTC reverts
+        later = uint64(bound(later, 0, DAY0 + ONE_DAY - 1 - block.timestamp));
+        vm.warp(block.timestamp + later);
 
         vm.prank(caller);
         vm.expectRevert();
         board.gm();
     }
 
-    function testFuzz_gm_allowedAfterOneDayPasses(address caller, uint64 extra) public {
+    function testFuzz_gm_allowedFromNextMidnight(address caller, uint64 extra) public {
         vm.assume(caller != address(0));
         extra = uint64(bound(extra, 0, 1 days));
 
         vm.prank(caller);
         board.gm();
 
-        vm.warp(block.timestamp + ONE_DAY + extra);
-
+        vm.warp(DAY0 + ONE_DAY + extra);
         vm.prank(caller);
         board.gm(); // must not revert
     }
@@ -325,7 +325,6 @@ contract GmBoardFuzzTest is Test {
 
     // ── streak logic ─────────────────────────────────────────────────────────
 
-    /// @notice First GM always sets streak to 1.
     function testFuzz_gm_firstCallStreak1(address caller) public {
         vm.assume(caller != address(0));
         vm.prank(caller);
@@ -334,33 +333,30 @@ contract GmBoardFuzzTest is Test {
         assertEq(streak, 1);
     }
 
-    /// @notice Streak increments when called within the 48 h window.
-    function testFuzz_gm_streakIncrements(address caller, uint64 delta) public {
+    /// Streak increments when the next GM falls on the following UTC day.
+    function testFuzz_gm_streakIncrements(address caller, uint64 offset) public {
         vm.assume(caller != address(0));
-        // delta in (ONE_DAY, ONE_DAY*2) keeps streak alive
-        delta = uint64(bound(delta, ONE_DAY, ONE_DAY * 2 - 1));
+        offset = uint64(bound(offset, 0, ONE_DAY - 1));
 
         vm.prank(caller);
         board.gm();
-        (, uint32 s1,) = board.getRecord(caller);
-        assertEq(s1, 1);
 
-        vm.warp(block.timestamp + delta);
+        vm.warp(DAY0 + ONE_DAY + offset);
         vm.prank(caller);
         board.gm();
         (, uint32 s2,) = board.getRecord(caller);
         assertEq(s2, 2);
     }
 
-    /// @notice Streak resets to 1 when gap > 48 h.
-    function testFuzz_gm_streakResetsAfterTwoDays(address caller, uint64 extra) public {
+    /// Streak resets to 1 when at least one whole UTC day is skipped.
+    function testFuzz_gm_streakResetsAfterSkippedDay(address caller, uint64 extra) public {
         vm.assume(caller != address(0));
-        extra = uint64(bound(extra, 1, 30 days));
+        extra = uint64(bound(extra, 0, 30 days));
 
         vm.prank(caller);
         board.gm();
 
-        vm.warp(block.timestamp + ONE_DAY * 2 + extra);
+        vm.warp(DAY0 + ONE_DAY * 2 + extra);
         vm.prank(caller);
         board.gm();
 
@@ -368,11 +364,10 @@ contract GmBoardFuzzTest is Test {
         assertEq(s, 1);
     }
 
-    // ── event args ──────────────────────────────────────────────────────────
+    // ── record matches ───────────────────────────────────────────────────────
 
-    function testFuzz_gm_eventArgsMatchRecord(address caller) public {
+    function testFuzz_gm_recordMatches(address caller) public {
         vm.assume(caller != address(0));
-        vm.recordLogs();
         vm.prank(caller);
         board.gm();
 
@@ -386,31 +381,28 @@ contract GmBoardFuzzTest is Test {
 
     // ── cooldownRemaining ────────────────────────────────────────────────────
 
-    function testFuzz_cooldownRemaining_decreasesWithTime(address caller, uint64 elapsed) public {
+    function testFuzz_cooldownRemaining_endsAtMidnightUtc(address caller, uint64 elapsed) public {
         vm.assume(caller != address(0));
-        elapsed = uint64(bound(elapsed, 0, ONE_DAY - 1));
-
         vm.prank(caller);
         board.gm();
 
-        uint64 cd0 = board.cooldownRemaining(caller);
+        elapsed = uint64(bound(elapsed, 0, DAY0 + ONE_DAY - 1 - block.timestamp));
         vm.warp(block.timestamp + elapsed);
-        uint64 cd1 = board.cooldownRemaining(caller);
-        assertLe(cd1, cd0);
+        assertEq(board.cooldownRemaining(caller), DAY0 + ONE_DAY - block.timestamp);
     }
 
-    // ── totalGms increments per unique gm call ────────────────────────────────
+    // ── totalGms increments per valid gm call ────────────────────────────────
 
-    function testFuzz_gm_totalGmsIncrementsEachValidCall(address caller, uint64 delta) public {
+    function testFuzz_gm_totalGmsIncrementsEachValidCall(address caller, uint64 extra) public {
         vm.assume(caller != address(0));
-        delta = uint64(bound(delta, ONE_DAY, ONE_DAY + 1 days));
+        extra = uint64(bound(extra, 0, 1 days));
 
         uint256 before = board.totalGms();
         vm.prank(caller);
         board.gm();
         assertEq(board.totalGms(), before + 1);
 
-        vm.warp(block.timestamp + delta);
+        vm.warp(DAY0 + ONE_DAY + extra);
         vm.prank(caller);
         board.gm();
         assertEq(board.totalGms(), before + 2);
