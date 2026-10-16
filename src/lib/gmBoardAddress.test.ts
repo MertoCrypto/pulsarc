@@ -8,7 +8,7 @@ describe('gmBoardAddressFor', () => {
   it('each network defaults to its own board', () => {
     assert.equal(gmBoardAddressFor(5042002, undefined), TESTNET_GM_BOARD)
     assert.equal(gmBoardAddressFor(5042, undefined), MAINNET_GM_BOARD)
-    assert.equal(MAINNET_GM_BOARD, '0x658DF92C72990B265023025d655Ea79DF6d91e07')
+    assert.equal(MAINNET_GM_BOARD, '0x7FAb4269110F6D98f28bff1dDdA44aFb14723993')
     assert.notEqual(TESTNET_GM_BOARD.toLowerCase(), MAINNET_GM_BOARD.toLowerCase())
   })
   it('a valid override wins on both networks', () => {
