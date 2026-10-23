@@ -21,6 +21,8 @@ const LocalDeploy = import.meta.env.DEV ? lazy(() => import('@/pages/LocalDeploy
 const DApp        = lazy(() => import('@/pages/DApp').then(m => ({ default: m.DApp })))
 const Compare     = lazy(() => import('@/pages/Compare').then(m => ({ default: m.Compare })))
 const Trends      = lazy(() => import('@/pages/Trends').then(m => ({ default: m.Trends })))
+const MapPage     = lazy(() => import('@/pages/Map').then(m => ({ default: m.MapPage })))
+const Defi        = lazy(() => import('@/pages/Defi').then(m => ({ default: m.Defi })))
 const NFTs        = lazy(() => import('@/pages/NFTs').then(m => ({ default: m.NFTs })))
 const Agents      = lazy(() => import('@/pages/Agents').then(m => ({ default: m.Agents })))
 const LeaderboardV2 = lazy(() => import('@/pages/LeaderboardV2').then(m => ({ default: m.LeaderboardV2 })))
@@ -68,6 +70,8 @@ function Layout() {
                   {LocalDeploy && <Route path="/deploy-local" element={<LocalDeploy />} />}
                   <Route path="/compare" element={<Compare />} />
                   <Route path="/trends" element={<Trends />} />
+                  <Route path="/map" element={<MapPage />} />
+                  <Route path="/defi" element={<Defi />} />
                   <Route path="/nfts" element={<NFTs />} />
                   <Route path="/agents" element={<Agents />} />
                   <Route path="/leaderboard" element={<LeaderboardV2 />} />

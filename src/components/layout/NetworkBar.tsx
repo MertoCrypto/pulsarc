@@ -21,6 +21,7 @@ const NAV: NavItem[] = [
   { to: '/nfts', label: 'NFTs', match: p => p.startsWith('/nfts') },
   { to: '/agents', label: 'Agents', match: p => p.startsWith('/agents') },
   { to: '/network', label: 'Network', match: p => p.startsWith('/network') },
+  { to: '/map', label: 'Map', match: p => p.startsWith('/map') },
   { to: '/wallets', label: 'Wallets', match: p => p.startsWith('/wallet') },
 ]
 
@@ -32,6 +33,7 @@ const MORE: NavItem[] = [
   ...(ENGAGEMENT_LIVE ? [{ to: '/leaderboard', label: 'Engagement', match: (p: string) => p.startsWith('/leaderboard') }] : []),
   { to: '/compare', label: 'Compare', match: p => p.startsWith('/compare') },
   { to: '/trends', label: 'Trends', match: p => p.startsWith('/trends') },
+  { to: '/defi', label: 'DeFi', match: p => p.startsWith('/defi') },
   { to: '/deploy', label: 'Deploy', match: p => p.startsWith('/deploy') },
   { to: '/method', label: 'Method', match: p => p.startsWith('/method') },
   { to: '/digest', label: 'Digest', match: p => p.startsWith('/digest') },

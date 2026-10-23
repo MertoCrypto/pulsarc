@@ -63,6 +63,16 @@ const EXACT: Record<string, PageMeta> = {
     description:
       'How busy the whole Arc chain has been day by day, and which kinds of apps the activity flows into.',
   },
+  '/map': {
+    title: 'Map · Pulsarc',
+    description:
+      'Every tracked app on Arc drawn as a transit map: lines are categories, the busiest stations sit closest to the hub.',
+  },
+  '/defi': {
+    title: 'DeFi · Pulsarc',
+    description:
+      'DeFi on Arc from DefiLlama: assets in DeFi apps, protocol fees, DEX volume, launchpad fees and stablecoin supply.',
+  },
   '/nfts': {
     title: 'NFTs · Pulsarc',
     description:

@@ -23,6 +23,16 @@ those counts across the window. This is an upper bound (noted as ≤) on
 unique wallets — a wallet active in multiple hours is counted more than once.
 The files include a `note` field where this applies.
 
+## Pages
+
+Live pages on the Pulsarc site. No login or API key needed.
+
+    https://pulsarc.vercel.app/map
+Every tracked app on Arc drawn as a transit map: lines are categories, the busiest stations sit closest to the hub.
+
+    https://pulsarc.vercel.app/defi
+DeFi on Arc from DefiLlama: assets in DeFi apps, protocol fees, DEX volume, launchpad fees and stablecoin supply.
+
 ## Answer pages
 
 Short, sourced answers read live from the files below (each page names its source file and method):
