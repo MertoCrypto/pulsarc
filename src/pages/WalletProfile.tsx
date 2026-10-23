@@ -11,6 +11,8 @@ import { useWalletIndex } from '@/hooks/useWalletIndex'
 import { compact, explorerAddress, isAddress, timeAgo } from '@/lib/arcscan'
 import { formatLiveBalance, liveKind } from '@/lib/walletLive'
 import { NETWORK } from '@/lib/chain'
+import { WalletGasCard } from '@/components/wallet/WalletGasCard'
+import { gasReport } from '@/lib/walletGas'
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
@@ -183,6 +185,13 @@ function WalletDataMainnet({ address }: WalletDataProps) {
               </p>
             )}
           </section>
+        </Reveal>
+      )}
+
+      {/* Gas report — shown when indexed */}
+      {state === 'found' && summary && (
+        <Reveal delay={0.06}>
+          <WalletGasCard report={gasReport(summary, live)} />
         </Reveal>
       )}
 
