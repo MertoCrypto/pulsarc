@@ -57,6 +57,21 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/dx\//, '/cms/images/') + '?width=64&height=64&quality=80&format=auto',
       },
+      '/llama-api': {
+        target: 'https://api.llama.fi',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/llama-api/, ''),
+      },
+      '/llama-stables': {
+        target: 'https://stablecoins.llama.fi',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/llama-stables/, ''),
+      },
+      '/llama-icons': {
+        target: 'https://icons.llamao.fi',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/llama-icons/, ''),
+      },
     },
   },
 })

@@ -203,6 +203,37 @@ for (const block of config.headers ?? []) {
   }
 }
 
+// Rule 5 – Three /llama-* rewrites exist and come before the catch-all
+// -----------------------------------------------------------------------
+// Required proxies: /llama-api, /llama-stables, /llama-icons.
+// All three must appear in rewrites BEFORE the catch-all { source: "/(.*)" }.
+
+const rewrites = config.rewrites ?? []
+const catchAllIdx = rewrites.findIndex(
+  (r) => r.source === "/(.*)" && r.destination === "/index.html"
+)
+
+const expectedLlama = [
+  { source: "/llama-api/:path*",    destination: "https://api.llama.fi/:path*" },
+  { source: "/llama-stables/:path*", destination: "https://stablecoins.llama.fi/:path*" },
+  { source: "/llama-icons/:path*",  destination: "https://icons.llamao.fi/:path*" },
+]
+
+for (const expected of expectedLlama) {
+  const idx = rewrites.findIndex(
+    (r) => r.source === expected.source && r.destination === expected.destination
+  )
+  if (idx === -1) {
+    failures.push(
+      `Rule 5 [llama rewrites]: missing rewrite { source: "${expected.source}", destination: "${expected.destination}" }`
+    )
+  } else if (catchAllIdx !== -1 && idx > catchAllIdx) {
+    failures.push(
+      `Rule 5 [llama rewrites]: rewrite for "${expected.source}" appears AFTER the catch-all "/(.*)" at index ${catchAllIdx} (found at ${idx})`
+    )
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Single assertion – all failures reported at once
 // ---------------------------------------------------------------------------

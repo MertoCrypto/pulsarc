@@ -10,6 +10,18 @@
       "destination": "https://cdn.dexscreener.com/cms/images/:id?width=64&height=64&quality=80&format=auto"
     },
     {
+      "source": "/llama-api/:path*",
+      "destination": "https://api.llama.fi/:path*"
+    },
+    {
+      "source": "/llama-stables/:path*",
+      "destination": "https://stablecoins.llama.fi/:path*"
+    },
+    {
+      "source": "/llama-icons/:path*",
+      "destination": "https://icons.llamao.fi/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
