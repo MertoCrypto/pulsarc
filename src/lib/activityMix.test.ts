@@ -25,7 +25,7 @@ import {
   type SupplyJson,
   type BridgeJson,
 } from './activityMix.ts'
-import { parseLatest, type IndexedWindow } from './networkHealth.ts'
+import { parseLatest } from './networkHealth.ts'
 
 let pass = 0
 let fail = 0
@@ -350,6 +350,265 @@ test('bridgeCoverageHours = 0 returns null', () => {
   assert.equal(bridgeSummary(win), null)
 })
 
+// Old shape (in.length === 1): inUsdc null, topSources [], netUsdc null, direction by counts
+test('old shape: inUsdc null, netUsdc null, topSources empty, direction by counts', () => {
+  const win = makeWindow({
+    bridge: {
+      out: [5, 3000, 6.0],
+      in: [2],
+      byDomain: { '0': [3, 1500], '6': [2, 1500] },
+    },
+    bridgeCoverageHours: 1,
+  })
+  const result = bridgeSummary(win)
+  assert.ok(result !== null)
+  assert.equal(result.inUsdc, null)
+  assert.equal(result.inFees, null)
+  assert.equal(result.netUsdc, null)
+  // direction: inCount(2) < outCount(5) → 'out'
+  assert.equal(result.netDirection, 'out')
+  assert.deepEqual(result.topSources, [])
+  assert.equal(result.inAmountsPartial, false)
+})
+
+// New shape: exact sums
+test('new shape: inUsdc and netUsdc computed correctly', () => {
+  // out: [5, 3000, 6], in: [10, 8000, 5], byDomainIn: {6: [7, 6000], 0: [3, 2000]}
+  // inUsdc = 8000, inFees = 5, netUsdc = 8000 - 3000 = 5000 (in)
+  const win = makeWindow({
+    bridge: {
+      out: [5, 3000, 6.0],
+      in: [10, 8000, 5],
+      byDomain: { '0': [3, 1500], '6': [2, 1500] },
+      byDomainIn: { '6': [7, 6000], '0': [3, 2000] },
+    },
+    bridgeCoverageHours: 1,
+  })
+  const result = bridgeSummary(win)
+  assert.ok(result !== null)
+  assert.equal(result.inUsdc, 8000)
+  assert.equal(result.inFees, 5)
+  assert.equal(result.netUsdc, 5000)      // 8000 - 3000
+  assert.equal(result.netDirection, 'in')
+  assert.equal(result.topSources.length, 2)
+  assert.equal(result.topSources[0].domainId, 6) // Base: 6000 > Ethereum: 2000
+  assert.equal(result.topSources[0].usdc, 6000)
+  assert.equal(result.topSources[1].domainId, 0)
+  assert.equal(result.topSources[1].usdc, 2000)
+})
+
+// Net sign: outUsdc > inUsdc → negative → direction 'out'
+test('new shape: net is negative when outUsdc > inUsdc', () => {
+  // out: [5, 10000, 6], in: [3, 4000, 2]
+  // netUsdc = 4000 - 10000 = -6000 → direction 'out'
+  const win = makeWindow({
+    bridge: {
+      out: [5, 10000, 6.0],
+      in: [3, 4000, 2],
+      byDomain: {},
+      byDomainIn: { '0': [3, 4000] },
+    },
+    bridgeCoverageHours: 1,
+  })
+  const result = bridgeSummary(win)
+  assert.ok(result !== null)
+  assert.equal(result.netUsdc, -6000)
+  assert.equal(result.netDirection, 'out')
+})
+
+// Net is zero → direction 'flat'
+test('new shape: net zero → flat', () => {
+  const win = makeWindow({
+    bridge: {
+      out: [3, 5000, 1],
+      in: [3, 5000, 1],
+      byDomain: {},
+      byDomainIn: { '6': [3, 5000] },
+    },
+    bridgeCoverageHours: 1,
+  })
+  const result = bridgeSummary(win)
+  assert.ok(result !== null)
+  assert.equal(result.netUsdc, 0)
+  assert.equal(result.netDirection, 'flat')
+})
+
+// Mixed (in[0]=5, byDomainIn counts total 3) → inAmountsPartial true
+test('inAmountsPartial: in count > byDomainIn count sum', () => {
+  // in[0]=5, byDomainIn: {6:[3,3000]} → sum=3 < 5 → partial
+  const win = makeWindow({
+    bridge: {
+      out: [2, 1000, 1],
+      in: [5, 4000, 2],
+      byDomain: {},
+      byDomainIn: { '6': [3, 3000] },
+    },
+    bridgeCoverageHours: 1,
+  })
+  const result = bridgeSummary(win)
+  assert.ok(result !== null)
+  assert.equal(result.inAmountsPartial, true)
+})
+
+// When counts match byDomainIn totals → NOT partial
+test('inAmountsPartial false when counts match byDomainIn totals', () => {
+  // in[0]=3, byDomainIn: {6:[2,2000], 0:[1,1000]} → sum=3 = in[0]
+  const win = makeWindow({
+    bridge: {
+      out: [2, 1000, 1],
+      in: [3, 3000, 1],
+      byDomain: {},
+      byDomainIn: { '6': [2, 2000], '0': [1, 1000] },
+    },
+    bridgeCoverageHours: 1,
+  })
+  const result = bridgeSummary(win)
+  assert.ok(result !== null)
+  assert.equal(result.inAmountsPartial, false)
+})
+
+// '-1' (unknown source) always sorted last regardless of its USDC amount
+test("'-1' unknown source always sorted last", () => {
+  // domain -1: 50000 usdc, domain 6: 100, domain 0: 200
+  // Expected order: domain 0 (200), domain 6 (100), domain -1 (50000 — last)
+  const win = makeWindow({
+    bridge: {
+      out: [1, 100, 0],
+      in: [3, 50300, 0],
+      byDomain: {},
+      byDomainIn: { '-1': [1, 50000], '6': [1, 100], '0': [1, 200] },
+    },
+    bridgeCoverageHours: 1,
+  })
+  const result = bridgeSummary(win)
+  assert.ok(result !== null)
+  assert.equal(result.topSources.length, 3)
+  assert.equal(result.topSources[result.topSources.length - 1].domainId, -1)
+  assert.equal(result.topSources[result.topSources.length - 1].name, 'Unknown source')
+})
+
+// More than 5 sources → only top 5 returned (unknown last if present)
+test('>5 sources → top 5, unknown last', () => {
+  // 6 known sources + domain -1; after sort top 5 should be highest by usdc, -1 last
+  const byDomainIn: Record<string, [number, number]> = {}
+  for (let i = 0; i < 6; i++) {
+    byDomainIn[String(i)] = [1, (6 - i) * 1000] // domain 0: 6000, domain 1: 5000, …, domain 5: 1000
+  }
+  byDomainIn['-1'] = [1, 99999] // huge but must be last
+  const totalIn = 7
+  const win = makeWindow({
+    bridge: {
+      out: [1, 100, 0],
+      in: [totalIn, 120000, 0],
+      byDomain: {},
+      byDomainIn,
+    },
+    bridgeCoverageHours: 1,
+  })
+  const result = bridgeSummary(win)
+  assert.ok(result !== null)
+  assert.equal(result.topSources.length, 5)
+  // The last of the returned 5 must NOT be -1 (it would've been cut before reaching position 5
+  // in a 7-entry list where only top 5 are kept; -1 would rank 7th if sorted last).
+  // Actually with 7 entries sorted as: 0(6000),1(5000),2(4000),3(3000),4(2000),5(1000),-1(last)
+  // top 5 = domains 0,1,2,3,4
+  assert.equal(result.topSources[0].domainId, 0)
+  assert.equal(result.topSources[0].usdc, 6000)
+  assert.equal(result.topSources[4].domainId, 4)
+  // -1 not in the result at all
+  assert.equal(result.topSources.find(s => s.domainId === -1), undefined)
+  // inCountWithAmounts counts ALL 7 byDomainIn entries (6 known + 1 unknown)
+  assert.equal(result.inCountWithAmounts, 7)
+})
+
+// New-shape complete (in[0] === sum of byDomainIn counts) → net = in − out
+test('complete new shape: net = inUsdc − outUsdc, netUsdc non-null', () => {
+  // in[0]=5, byDomainIn counts sum to 5 → NOT partial
+  // inUsdc=7000, outUsdc=4000 → netUsdc=3000, direction 'in'
+  const win = makeWindow({
+    bridge: {
+      out: [3, 4000, 2],
+      in: [5, 7000, 3],
+      byDomain: {},
+      byDomainIn: { '6': [3, 5000], '0': [2, 2000] },
+    },
+    bridgeCoverageHours: 1,
+  })
+  const result = bridgeSummary(win)
+  assert.ok(result !== null)
+  assert.equal(result.inAmountsPartial, false)
+  assert.equal(result.inCountWithAmounts, 5)
+  assert.equal(result.netUsdc, 3000)   // 7000 - 4000
+  assert.equal(result.netDirection, 'in')
+})
+
+// Partial → netUsdc null; direction uses count fallback
+test('partial: netUsdc null, netDirection from counts', () => {
+  // in[0]=10, byDomainIn sum=4 → partial
+  // inUsdc=6000 (understated), outUsdc=2000 — net must be null (would show false surplus)
+  // count: inCount(10) > outCount(3) → direction 'in' from counts
+  const win = makeWindow({
+    bridge: {
+      out: [3, 2000, 1],
+      in: [10, 6000, 2],
+      byDomain: {},
+      byDomainIn: { '6': [2, 4000], '0': [2, 2000] },
+    },
+    bridgeCoverageHours: 1,
+  })
+  const result = bridgeSummary(win)
+  assert.ok(result !== null)
+  assert.equal(result.inAmountsPartial, true)
+  assert.equal(result.netUsdc, null)
+  assert.equal(result.netDirection, 'in')  // count fallback: 10 > 3
+})
+
+// Partial where count fallback says 'out' (inCount < outCount despite positive inUsdc)
+test('partial: netUsdc null, count fallback gives out', () => {
+  // in[0]=2, byDomainIn sum=1 → partial
+  // inUsdc=9999 (understated), outUsdc=100 — must not use amounts → direction by counts
+  // count: inCount(2) < outCount(5) → 'out'
+  const win = makeWindow({
+    bridge: {
+      out: [5, 100, 0],
+      in: [2, 9999, 0],
+      byDomain: {},
+      byDomainIn: { '6': [1, 9999] },
+    },
+    bridgeCoverageHours: 1,
+  })
+  const result = bridgeSummary(win)
+  assert.ok(result !== null)
+  assert.equal(result.inAmountsPartial, true)
+  assert.equal(result.netUsdc, null)
+  assert.equal(result.netDirection, 'out')  // count fallback: 2 < 5
+})
+
+// All-old-hours-after-update: { in:[4,0,0], byDomainIn:{} } → inUsdc 0, partial true, netUsdc null
+test('all-old-hours after indexer update: in[0]=4,in[1]=0,byDomainIn={} → inUsdc 0, partial, netUsdc null', () => {
+  // The indexer initialises in as [0,0,0] and adds 0 for hours before new fields existed.
+  // After the update every window has in.length===3 even when all hours are old.
+  // in[0]=4 (4 arrivals counted), in[1]=0 (no usdc recorded — old hours), byDomainIn={}
+  // → byDomainIn sum = 0 < inCount(4) → partial
+  // → inUsdc = 0 (as-recorded, labelled partial)
+  // → netUsdc must be null
+  const win = makeWindow({
+    bridge: {
+      out: [2, 1500, 1],
+      in: [4, 0, 0],
+      byDomain: { '6': [2, 1500] },
+      byDomainIn: {},
+    },
+    bridgeCoverageHours: 1,
+  })
+  const result = bridgeSummary(win)
+  assert.ok(result !== null)
+  assert.equal(result.inUsdc, 0)
+  assert.equal(result.inAmountsPartial, true)
+  assert.equal(result.netUsdc, null)
+  assert.equal(result.inCountWithAmounts, 0)
+})
+
 // ── supplyChange ──────────────────────────────────────────────────────────────
 console.log('\nsupplyChange')
 
@@ -562,7 +821,7 @@ test('windows["24h"] carries new optional fields after parseLatest', () => {
 test('automatedShare returns non-null result from parseLatest windows["24h"]', () => {
   const snap = parseLatest(latestJson)
   assert.ok(snap !== null)
-  const w24 = snap.windows['24h'] as ExtendedWindow
+  const w24 = snap.windows['24h'] as unknown as ExtendedWindow
   const result = automatedShare(w24, snap.series)
   assert.ok(result !== null, 'automatedShare returned null — new fields were not passed through')
   assert.ok(result.senders > 0, `expected senders > 0, got ${result.senders}`)
@@ -572,7 +831,7 @@ test('automatedShare returns non-null result from parseLatest windows["24h"]', (
 test('paymentBuckets returns non-null result from parseLatest windows["24h"]', () => {
   const snap = parseLatest(latestJson)
   assert.ok(snap !== null)
-  const w24 = snap.windows['24h'] as ExtendedWindow
+  const w24 = snap.windows['24h'] as unknown as ExtendedWindow
   const result = paymentBuckets(w24)
   assert.ok(result !== null, 'paymentBuckets returned null — buckets field was not passed through')
   assert.equal(result.buckets.length, 3)
@@ -581,7 +840,7 @@ test('paymentBuckets returns non-null result from parseLatest windows["24h"]', (
 test('bridgeSummary returns non-null result from parseLatest windows["24h"]', () => {
   const snap = parseLatest(latestJson)
   assert.ok(snap !== null)
-  const w24 = snap.windows['24h'] as ExtendedWindow
+  const w24 = snap.windows['24h'] as unknown as ExtendedWindow
   const result = bridgeSummary(w24)
   assert.ok(result !== null, 'bridgeSummary returned null — bridge field was not passed through')
 })

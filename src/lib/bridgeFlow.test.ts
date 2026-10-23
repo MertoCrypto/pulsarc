@@ -9,7 +9,7 @@
  */
 
 import assert from 'node:assert/strict'
-import { domainName, summarizeBridgeLogs, USDC } from './bridgeFlow.ts'
+import { domainName, summarizeBridgeLogs, USDC, CCTP_DOMAINS } from './bridgeFlow.ts'
 import type { LogItem, BridgeFlow, Param } from './bridgeFlow.ts'
 
 // ---------------------------------------------------------------------------
@@ -95,11 +95,26 @@ assert.strictEqual(domainName(12), 'Codex');         ok('domain 12 → Codex')
 assert.strictEqual(domainName(13), 'Sonic');         ok('domain 13 → Sonic')
 assert.strictEqual(domainName(14), 'World Chain');   ok('domain 14 → World Chain')
 
-// Domain 4 is not in the lookup table → falls through to `Domain ${id}`.
-assert.strictEqual(domainName(4),  'Domain 4');      ok('domain 4  → Domain 4 (not in table)')
+// Domain 4 = Noble (V1 only — included per task spec).
+assert.strictEqual(domainName(4),  'Noble');         ok('domain 4  → Noble (V1 only)')
 
-// Unknown id → `Domain ${id}`.
-assert.strictEqual(domainName(18), 'Domain 18');     ok('domain 18 → Domain 18 (unknown)')
+// Domain 18 = XDC (now in the table).
+assert.strictEqual(domainName(18), 'XDC');           ok('domain 18 → XDC')
+
+// New domains added in this iteration:
+assert.strictEqual(domainName(15), 'Monad');         ok('domain 15 → Monad')
+assert.strictEqual(domainName(19), 'HyperEVM');      ok('domain 19 → HyperEVM')
+assert.strictEqual(domainName(26), 'Arc');           ok('domain 26 → Arc')
+assert.strictEqual(domainName(37), 'X Layer');       ok('domain 37 → X Layer')
+
+// -1 sentinel = unknown source (indexer uses this for arrivals with no source domain).
+assert.strictEqual(domainName(-1), 'Unknown source'); ok('domain -1 → Unknown source')
+
+// Truly unknown id → `Domain ${id}`.
+assert.strictEqual(domainName(999), 'Domain 999');   ok('domain 999 → Domain 999 (unknown)')
+
+// CCTP_DOMAINS export sanity: key -1 is present and resolves correctly.
+assert.strictEqual(CCTP_DOMAINS[-1], 'Unknown source'); ok('CCTP_DOMAINS[-1] exported correctly')
 
 // ---------------------------------------------------------------------------
 // 2. summarizeBridgeLogs — empty list

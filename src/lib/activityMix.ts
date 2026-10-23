@@ -4,16 +4,8 @@
  * Numbers and dates are always formatted with the fixed locale 'en-US'.
  */
 
-// ── CCTP domain names (kept in sync with useBridgeFlow.ts) ───────────────────
-
-const CCTP_DOMAINS: Record<number, string> = {
-  0: 'Ethereum', 1: 'Avalanche', 2: 'OP Mainnet', 3: 'Arbitrum', 5: 'Solana', 6: 'Base', 7: 'Polygon PoS',
-  10: 'Unichain', 11: 'Linea', 12: 'Codex', 13: 'Sonic', 14: 'World Chain',
-}
-
-function resolveDomainName(id: number): string {
-  return CCTP_DOMAINS[id] ?? `Domain ${id}`
-}
+// ── CCTP domain names — single source of truth is bridgeFlow.ts ──────────────
+import { domainName as resolveDomainName } from './bridgeFlow.ts'
 
 // ── Types exported for use in hooks / pages ───────────────────────────────────
 
@@ -29,8 +21,11 @@ export interface MbField {
 
 export interface BridgeWindowField {
   out: [number, number, number]   // [count, usdc, fees]
-  in: [number]                    // [count]
-  byDomain: Record<string, [number, number]>  // domainId -> [count, usdc]
+  /** Old shape: [count]. New shape: [count, usdc, fees]. A window may have in.length === 1. */
+  in: [number] | [number, number, number]
+  byDomain: Record<string, [number, number]>  // destDomain -> [count, usdc]
+  /** New field: sourceDomain -> [count, usdc]. Key "-1" = unknown source. */
+  byDomainIn?: Record<string, [number, number]>
 }
 
 /** Window shape from latest.json (extended with optional new fields). */
@@ -93,8 +88,9 @@ export interface BridgeSeriesPoint {
 
 export interface BridgeWindowJson {
   out: [number, number, number]
-  in: [number]
+  in: [number] | [number, number, number]
   byDomain: Record<string, [number, number]>
+  byDomainIn?: Record<string, [number, number]>
 }
 
 export interface BridgeJson {
@@ -333,11 +329,35 @@ export interface BridgeSummary {
   outUsdc: number
   fees: number
   inCount: number
-  /** Positive = more came in; negative = more left */
-  netUsdc: number
+  /** Inbound USDC when the new shape is present; null for old shape (in.length === 1). */
+  inUsdc: number | null
+  /** Inbound fees when the new shape is present; null for old shape. */
+  inFees: number | null
+  /**
+   * True when in.length >= 3 AND in[0] > sum of byDomainIn counts —
+   * i.e. some counted arrivals have no per-source amount (older hours or non-USDC messages).
+   */
+  inAmountsPartial: boolean
+  /**
+   * Sum of ALL byDomainIn counts (not only the top 5). Used for "amounts for X of N" display.
+   * 0 when byDomainIn is absent.
+   */
+  inCountWithAmounts: number
+  /**
+   * Positive = more came in; negative = more left.
+   * null when inUsdc is null (old shape) OR when inAmountsPartial is true
+   * (understated inUsdc minus complete outUsdc would show false "money leaving").
+   */
+  netUsdc: number | null
+  /**
+   * Direction derived from amounts when known and complete; falls back to count comparison
+   * when amounts are unavailable or partial.
+   */
   netDirection: 'in' | 'out' | 'flat'
-  /** Top 5 domains by USDC volume */
+  /** Top 5 destination domains by USDC volume (outbound) */
   topDomains: DomainStat[]
+  /** Top 5 source domains by USDC volume (inbound); '-1' sorted last regardless of size. Empty for old shape. */
+  topSources: DomainStat[]
   note: string | null
   coverageHours: number
 }
@@ -348,9 +368,14 @@ export function bridgeSummary(window: ExtendedWindow): BridgeSummary | null {
   if (!br || typeof n !== 'number' || n <= 0) return null
 
   const [outCount, outUsdc, fees] = br.out
-  const [inCount] = br.in
+  const inCount = br.in[0]
 
-  const domains: DomainStat[] = Object.entries(br.byDomain)
+  // New shape: in has 3 elements [count, usdc, fees]
+  const inUsdc: number | null = br.in.length >= 3 ? (br.in as [number, number, number])[1] : null
+  const inFees: number | null = br.in.length >= 3 ? (br.in as [number, number, number])[2] : null
+
+  // topDomains: outbound, top 5 by USDC
+  const topDomains: DomainStat[] = Object.entries(br.byDomain)
     .map(([id, [count, usdc]]) => ({
       domainId: Number(id),
       name: resolveDomainName(Number(id)),
@@ -360,21 +385,57 @@ export function bridgeSummary(window: ExtendedWindow): BridgeSummary | null {
     .sort((a, b) => b.usdc - a.usdc)
     .slice(0, 5)
 
-  const netUsdc = inCount > 0 || outUsdc > 0
-    ? (inCount > 0 ? 0 : 0) - outUsdc  // net = in value (unknown) - out; use counts for direction
+  // topSources: inbound, top 5 by USDC — domain -1 (unknown) always sorted last
+  let topSources: DomainStat[] = []
+  if (br.byDomainIn && Object.keys(br.byDomainIn).length > 0) {
+    topSources = Object.entries(br.byDomainIn)
+      .map(([id, [count, usdc]]) => ({
+        domainId: Number(id),
+        name: resolveDomainName(Number(id)),
+        count,
+        usdc,
+      }))
+      .sort((a, b) => {
+        // -1 (unknown) always last
+        if (a.domainId === -1) return 1
+        if (b.domainId === -1) return -1
+        return b.usdc - a.usdc
+      })
+      .slice(0, 5)
+  }
+
+  // inCountWithAmounts: sum of ALL byDomainIn counts (whole map, not only top 5)
+  const inCountWithAmounts: number = br.byDomainIn
+    ? Object.values(br.byDomainIn).reduce((s, [c]) => s + c, 0)
     : 0
-  // For direction we compare in count vs out count
-  const netDirection: 'in' | 'out' | 'flat' =
-    inCount > outCount ? 'in' : outCount > inCount ? 'out' : 'flat'
+
+  // inAmountsPartial: new shape present AND counted arrivals > byDomainIn sum
+  const inAmountsPartial =
+    br.in.length >= 3 && inCount > inCountWithAmounts
+
+  // netUsdc: null when amounts unavailable (old shape) OR partial (understated in would
+  // show false "money leaving" against a complete out figure)
+  const netUsdc: number | null =
+    inUsdc !== null && !inAmountsPartial ? inUsdc - outUsdc : null
+
+  // netDirection: prefer amounts when full; fall back to count comparison otherwise
+  const netDirection: 'in' | 'out' | 'flat' = netUsdc !== null
+    ? (netUsdc > 0 ? 'in' : netUsdc < 0 ? 'out' : 'flat')
+    : (inCount > outCount ? 'in' : outCount > inCount ? 'out' : 'flat')
 
   return {
     outCount,
     outUsdc,
     fees,
     inCount,
+    inUsdc,
+    inFees,
+    inAmountsPartial,
+    inCountWithAmounts,
     netUsdc,
     netDirection,
-    topDomains: domains,
+    topDomains,
+    topSources,
     note: coverageNote(n, window.hours),
     coverageHours: n,
   }
@@ -487,6 +548,14 @@ function parseBridgeWindow(raw: unknown): BridgeWindowJson | null {
   if (!Array.isArray(inn) || inn.length < 1) return null
   if (!isFiniteNum(inn[0])) return null
 
+  // New shape: in may carry [count, usdc, fees]
+  let parsedIn: [number] | [number, number, number]
+  if (inn.length >= 3 && isFiniteNum(inn[1]) && isFiniteNum(inn[2])) {
+    parsedIn = [inn[0], inn[1], inn[2]]
+  } else {
+    parsedIn = [inn[0]]
+  }
+
   const byDomain: Record<string, [number, number]> = {}
   const bd = r['byDomain']
   if (bd && typeof bd === 'object' && !Array.isArray(bd)) {
@@ -497,10 +566,23 @@ function parseBridgeWindow(raw: unknown): BridgeWindowJson | null {
     }
   }
 
+  // New optional field: byDomainIn
+  const byDomainIn: Record<string, [number, number]> = {}
+  const bdi = r['byDomainIn']
+  if (bdi && typeof bdi === 'object' && !Array.isArray(bdi)) {
+    for (const [k, v] of Object.entries(bdi as Record<string, unknown>)) {
+      if (Array.isArray(v) && v.length >= 2 && isFiniteNum(v[0]) && isFiniteNum(v[1])) {
+        byDomainIn[k] = [v[0], v[1]]
+      }
+    }
+  }
+  const hasByDomainIn = Object.keys(byDomainIn).length > 0
+
   return {
     out: [out[0], out[1], out[2]],
-    in: [inn[0]],
+    in: parsedIn,
     byDomain,
+    ...(hasByDomainIn ? { byDomainIn } : {}),
   }
 }
 

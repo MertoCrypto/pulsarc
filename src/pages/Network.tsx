@@ -1,6 +1,6 @@
 import { DownloadMenu } from '@/components/shared/DownloadMenu'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { useState, useRef } from 'react'
+import React, { useState, useRef } from 'react'
 import { Activity, ArrowDownLeft, ArrowUpRight, ExternalLink, Gauge, Layers, Receipt, Timer, Users, Zap } from 'lucide-react'
 import { Reveal } from '@/components/shared/Reveal'
 import { SplitLines } from '@/components/shared/SplitLines'
@@ -463,6 +463,32 @@ function IndexerBridgeSection({
   if (!br) return null
 
   const maxDomainUsdc = br.topDomains[0]?.usdc ?? 0
+  const maxSourceUsdc = br.topSources[0]?.usdc ?? 0
+
+  // "Received on Arc" tile sub text — use inCountWithAmounts (all sources, not only top 5)
+  const receivedSubValue = br.inUsdc !== null
+    ? `${fmtCount(br.inCount)} mints${br.inAmountsPartial ? ` · amounts for ${fmtCount(br.inCountWithAmounts)} of ${fmtCount(br.inCount)}` : ''}${br.note ? ` · ${br.note}` : ''}`
+    : `mints${br.note ? ` · ${br.note}` : ''}`
+
+  // "Net direction" tile — show signed amount when net is known and complete; count fallback otherwise
+  const netTile = br.netUsdc !== null ? (
+    <StatCard
+      label="Net direction"
+      value={Math.abs(br.netUsdc)}
+      format={n => `${br.netUsdc! >= 0 ? '+' : '−'}$${compact(n, 2)}`}
+      valueColor={br.netUsdc > 0 ? 'var(--positive)' : br.netUsdc < 0 ? 'var(--negative)' : undefined}
+      subValue={br.netDirection === 'in' ? 'more came in' : br.netDirection === 'out' ? 'more left' : 'balanced'}
+      icon={Layers}
+    />
+  ) : (
+    <StatCard
+      label="Net direction"
+      value={Math.abs(br.inCount - br.outCount)}
+      format={n => fmtCount(n)}
+      subValue={br.netDirection === 'in' ? 'more came in' : br.netDirection === 'out' ? 'more left' : 'balanced'}
+      icon={Layers}
+    />
+  )
 
   return (
     <section>
@@ -478,13 +504,24 @@ function IndexerBridgeSection({
           subValue={`${fmtCount(br.outCount)} burns${br.note ? ` · ${br.note}` : ''}`}
           icon={ArrowUpRight}
         />
-        <StatCard
-          label="Received on Arc"
-          value={br.inCount}
-          format={n => fmtCount(n)}
-          subValue={`mints${br.note ? ` · ${br.note}` : ''}`}
-          icon={ArrowDownLeft}
-        />
+        {br.inUsdc !== null ? (
+          <StatCard
+            label="Received on Arc"
+            value={br.inUsdc}
+            format={n => `$${compact(n, 2)}`}
+            valueText={br.inAmountsPartial ? `$${compact(br.inUsdc, 2)}+` : undefined}
+            subValue={receivedSubValue}
+            icon={ArrowDownLeft}
+          />
+        ) : (
+          <StatCard
+            label="Received on Arc"
+            value={br.inCount}
+            format={n => fmtCount(n)}
+            subValue={receivedSubValue}
+            icon={ArrowDownLeft}
+          />
+        )}
         <StatCard
           label="Bridge fees"
           value={br.fees}
@@ -492,36 +529,58 @@ function IndexerBridgeSection({
           subValue="collected on burns"
           icon={Receipt}
         />
-        <StatCard
-          label="Net direction"
-          value={Math.abs(br.inCount - br.outCount)}
-          format={n => fmtCount(n)}
-          subValue={br.netDirection === 'in' ? 'more came in' : br.netDirection === 'out' ? 'more left' : 'balanced'}
-          icon={Layers}
-        />
+        {netTile}
       </Reveal>
 
-      {br.topDomains.length > 0 && (
-        <Reveal delay={0.05} className="arc-card mt-4 p-5">
-          <p className="arc-eyebrow mb-4">Top destination chains (by USDC)</p>
-          <ul className="space-y-3.5">
-            {br.topDomains.map((d, i) => (
-              <li key={d.domainId}>
-                <div className="mb-1.5 flex items-baseline justify-between">
-                  <span className="text-[15px] font-light text-white">{d.name}</span>
-                  <span className="text-sm tabular-nums text-[var(--muted)]">${compact(d.usdc, 2)} · {fmtCount(d.count)}×</span>
-                </div>
-                <div className="h-px w-full bg-[var(--line)]">
-                  <div
-                    className="h-px bg-[var(--periwinkle)]"
-                    style={{ width: barWidth(d.usdc, maxDomainUsdc), opacity: Math.max(0.35, 1 - i * 0.14) }}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Reveal>
-      )}
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        {br.topDomains.length > 0 && (
+          <Reveal delay={0.05} className="arc-card p-5">
+            <p className="arc-eyebrow mb-4">Top destination chains (by USDC)</p>
+            <ul className="space-y-3.5">
+              {br.topDomains.map((d, i) => (
+                <li key={d.domainId}>
+                  <div className="mb-1.5 flex items-baseline justify-between">
+                    <span className="text-[15px] font-light text-white">{d.name}</span>
+                    <span className="text-sm tabular-nums text-[var(--muted)]">${compact(d.usdc, 2)} · {fmtCount(d.count)}×</span>
+                  </div>
+                  <div className="h-px w-full bg-[var(--line)]">
+                    <div
+                      className="h-px bg-[var(--periwinkle)]"
+                      style={{ width: barWidth(d.usdc, maxDomainUsdc), opacity: Math.max(0.35, 1 - i * 0.14) }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Reveal>
+        )}
+
+        {br.topSources.length > 0 ? (
+          <Reveal delay={0.05} className="arc-card p-5">
+            <p className="arc-eyebrow mb-4">Top source chains (by USDC)</p>
+            <ul className="space-y-3.5">
+              {br.topSources.map((d, i) => (
+                <li key={d.domainId}>
+                  <div className="mb-1.5 flex items-baseline justify-between">
+                    <span className="text-[15px] font-light text-white">{d.name}</span>
+                    <span className="text-sm tabular-nums text-[var(--muted)]">${compact(d.usdc, 2)} · {fmtCount(d.count)}×</span>
+                  </div>
+                  <div className="h-px w-full bg-[var(--line)]">
+                    <div
+                      className="h-px bg-[var(--periwinkle)]"
+                      style={{ width: barWidth(d.usdc, maxSourceUsdc), opacity: Math.max(0.35, 1 - i * 0.14) }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Reveal>
+        ) : (
+          <p className="text-sm text-[var(--muted)]">
+            Source chains appear once the indexer has recorded arrivals with amounts.
+          </p>
+        )}
+      </div>
     </section>
   )
 }

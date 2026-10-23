@@ -9,6 +9,10 @@ interface StatCardProps {
   icon: LucideIcon
   accentColor?: string
   isLoading?: boolean
+  /** When provided, shown instead of the animated formatted number. */
+  valueText?: string
+  /** CSS colour for the value line (default: white). */
+  valueColor?: string
 }
 
 export function StatCard({
@@ -19,6 +23,8 @@ export function StatCard({
   icon: Icon,
   accentColor = '#a9c4ea',
   isLoading,
+  valueText,
+  valueColor,
 }: StatCardProps) {
   const animated = useCountUp(isLoading ? 0 : value)
 
@@ -41,8 +47,11 @@ export function StatCard({
       {isLoading ? (
         <div className="relative mt-5 h-10 w-32 animate-pulse rounded-lg bg-white/8" />
       ) : (
-        <p className="relative mt-5 text-[38px] font-light leading-none tracking-tight tabular-nums text-white">
-          {format(animated)}
+        <p
+          className="relative mt-5 text-[38px] font-light leading-none tracking-tight tabular-nums"
+          style={{ color: valueColor ?? 'white' }}
+        >
+          {valueText !== undefined ? valueText : format(animated)}
         </p>
       )}
 
