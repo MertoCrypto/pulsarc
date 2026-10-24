@@ -66,7 +66,7 @@ const EXACT: Record<string, PageMeta> = {
   '/map': {
     title: 'Map · Pulsarc',
     description:
-      'Every tracked app on Arc drawn as a transit map: lines are categories, the busiest stations sit closest to the hub.',
+      'Arc live in orbit: every new block pulses from the core, transactions fly to the tracked apps they touch, and categories orbit by 24-hour activity.',
   },
   '/defi': {
     title: 'DeFi · Pulsarc',
