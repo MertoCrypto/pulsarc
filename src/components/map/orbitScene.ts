@@ -1,52 +1,72 @@
 /**
- * Imperative canvas engine for the Arc Orbit. React owns data and panels; this owns pixels.
- * One requestAnimationFrame loop, no React state per frame, at most MAX_COMETS comets alive.
+ * Imperative engine for the Arc galaxy on the map. It is the landing hero's technique: a Canvas-2D dust
+ * spiral around the Arc core, with DOM planets and ports positioned from the same projection every frame.
+ * React owns data and panels; this owns pixels and per-frame positions (no React state per frame).
+ * Layers, bottom to top: dust and rings, comets (canvas), planets and ports (DOM), core (DOM).
+ *
+ * Safari performance notes:
+ * - Canvas DPR is capped via canvasDpr() so total pixel budget stays ≤ 2_400_000.
+ * - Haze fog uses pre-rendered offscreen sprites (one per size bucket, rebuilt when zoom changes > 3%).
+ * - Core glow uses a single offscreen sprite, rebuilt on resize.
+ * - Dust is batched: filled dots grouped by tone+alpha bucket with one beginPath/fill per group.
+ * - QualityGovernor reduces draw work when frame time exceeds thresholds.
+ * - globalCompositeOperation 'lighter' is disabled at quality level 2.
  */
-import { compact } from '@/lib/numberFormat'
+import { DISC, makeDust, type Dust } from '@/lib/arcFieldMath'
 import {
-  CATEGORY_COLORS, FLATTEN, TILT,
-  cometPath, ellipsePoint, flattenFor, mulberry32, orbitRadii, planetAngle, planetRadius,
-  placeLabels, pointOnBezier, seedFromString,
-  type Blocker, type LabelItem, type OrbitKey, type Point,
+  CATEGORY_COLORS, FIELD_ROLL, FIELD_TILT, PORT_COUNT_NARROW,
+  QualityGovernor,
+  appRingRadii, canvasDpr, cctpPill, ellipseExtent, ellipsePoint, mulberry32, pillAmount, projectPoint, ringSpeed,
+  scatterNodes, seedFromString, placeLabels, type LabelItem, type Blocker, type OrbitKey, type Point,
 } from '@/lib/orbitMap'
+import {
+  CCTP_COLOR, CCTP_TRAIL_POINTS, TX_TRAIL_POINTS, paintComet, paintPill, trailOf, type Comet, type Endpoint,
+} from './cometDraw'
 
 export const MAX_COMETS = 400
-const TRAIL_POINTS = 24
-const PULSE_MS = 1600
-const FLASH_MS = 520
-const NARROW = 640
+export const NARROW = 640
 
-export interface ScenePlanet { id: string; name: string; category: string; tx: number }
-export interface SceneData {
-  /** Category names from the core outward; "Unlisted" is always appended as the outermost orbit. */
-  order: string[]
-  planets: ScenePlanet[]
-  /** Orbit label per orbit key, e.g. "DeFi · 32%". */
-  labels: Record<string, string>
-}
+const DUST = 1700
+const HAZE = 60
+const STARS = 150
+const CORE_SCALE = 0.88
+const FLASH_MS = 560
+const FRAME_MS = 1000 / 60
+const PORT_COLOR = '#a9c4ea'
+/** Estimated chars × px for planet label width (10 px Geist Mono, 0.14em spacing). */
+const LABEL_PX_PER_CHAR = 7.5
+const LABEL_H = 14
+/** Gap between face bottom and label top (px, unscaled). */
+const LABEL_GAP = 6
+
+/** Number of distinct fog radius buckets (matches the (38+(i%5)*9)*zoom series). */
+const HAZE_BUCKETS = 5
+/** Zoom change threshold that triggers a haze sprite rebuild (3%). */
+const HAZE_ZOOM_THRESHOLD = 0.03
+
+export const appKey = (id: string) => `app:${id}`
+export const portKey = (domain: number) => `port:${domain}`
+
+export interface SceneRing { key: string; label: string }
+export interface SceneApp { id: string; name: string; category: string; ring: number; slot: number; size: number; tx: number }
+/** Free-body network port: size drives the visual radius. */
+export interface ScenePort { domain: number; name: string; size: number; weight: number }
+export interface SceneData { rings: SceneRing[]; apps: SceneApp[]; ports: ScenePort[] }
 export interface SceneTx { appId: string | null; category: string | null; usdc: number | null }
-
-interface Orbit { key: string; rx: number; ry: number; phase: number; color: string; label: string }
-interface PlacedPlanet extends ScenePlanet {
-  orbit: number; index: number; count: number; r: number; color: string; showLabel: boolean; x: number; y: number
-}
-interface Comet {
-  start: number; life: number; from: Point; seed: number; color: string
-  planetId: string | null; fixed: Point; flashKey: string
-  usdc: number | null; pill: string | null; flashed: boolean
-}
-
-const easeInOut = (t: number) => 0.5 - 0.5 * Math.cos(Math.PI * t)
-const easeOut = (t: number) => 1 - (1 - t) * (1 - t) * (1 - t)
-
-function cssVar(name: string, fallback: string): string {
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-  return v || fallback
+export interface SceneMove { direction: 'in' | 'out'; domain: number; usdc: number | null; name: string }
+/** DOM the scene moves each frame; React fills it through callback refs. */
+export class SceneDom {
+  readonly nodes = new Map<string, HTMLElement>()
+  core: HTMLElement | null = null
+  halo: HTMLElement | null = null
+  setNode(key: string, el: HTMLElement | null) { if (el) this.nodes.set(key, el); else this.nodes.delete(key) }
+  setCore(el: HTMLElement | null) { this.core = el }
+  setHalo(el: HTMLElement | null) { this.halo = el }
 }
 
-function formatPill(usdc: number, target: string): string {
-  const amount = usdc < 0.01 ? '<$0.01' : `$${compact(usdc)}`
-  return `${amount} USDC → ${target}`
+interface Node {
+  key: string; kind: 'app' | 'port'; ring: number; angle: number; size: number; color: string
+  hidden: boolean; lift: number; active: boolean; x: number; y: number; scale: number
 }
 
 export class OrbitScene {
@@ -54,467 +74,743 @@ export class OrbitScene {
   private w = 0
   private h = 0
   private dpr = 1
-  private data: SceneData = { order: [], planets: [], labels: {} }
-  private orbits: Orbit[] = []
-  private planets: PlacedPlanet[] = []
-  private byId = new Map<string, PlacedPlanet>()
+  private insetRight = 0
+  private data: SceneData = { rings: [], apps: [], ports: [] }
+  private nodes: Node[] = []
+  private byKey = new Map<string, Node>()
+  /** Free-body scatter positions for port nodes (stage-space, no zoom applied). Recomputed on resize/layout. */
+  private portPositions = new Map<string, Point>()
+  private dust: Dust[] = Array.from({ length: DUST }, makeDust)
+  private stars = Array.from({ length: STARS }, () => ({
+    x: Math.random(), y: Math.random(), s: 0.4 + Math.random() * 1.1, p: Math.random() * Math.PI * 2, v: 0.004 + Math.random() * 0.012,
+  }))
   private comets: Comet[] = []
-  private pulses: number[] = []
   private flashes = new Map<string, number>()
-  private stars: HTMLCanvasElement | null = null
   private raf = 0
   private active = false
   private reduced = false
-  private t0 = performance.now()
-  private selectedId: string | null = null
-  private hoverId: string | null = null
-  private faint = '#8397b1'
-  private text = '#eaf1fb'
-  private core = '#a9c4ea'
-  private sans = 'system-ui, sans-serif'
+  private paused = false
+  private last = 0
+  private t = 0
+  private spin = 0
+  private excite = 0
+  private exciteTarget = 0
+  private px = 0
+  private py = 0
+  private tx = 0
+  private ty = 0
+  private cx = 0
+  private cy = 0
+  private zoom = 1
+  private hover: string | null = null
+  private selected: string | null = null
+  /** Cached .om-label child element per node key, populated lazily each frame. */
+  private labelCache = new Map<string, HTMLElement | null>()
 
-  constructor(private canvas: HTMLCanvasElement) {
-    const ctx = canvas.getContext('2d')
+  // ── Sprite caches (Safari perf) ──────────────────────────────────────────
+  /** Haze fog sprites: one per radius bucket, keyed by bucket index 0–4. Rebuilt when zoom changes > 3%. */
+  private hazeSprites: (OffscreenCanvas | null)[] = Array.from({ length: HAZE_BUCKETS }, () => null)
+  /** Zoom at which the haze sprites were last built. */
+  private hazeSpriteZoom = -1
+  /** Core glow sprite. Rebuilt on resize. */
+  private coreGlowSprite: OffscreenCanvas | null = null
+  /** Core glow sprite's last-built zoom (for rebuild detection). */
+  private coreGlowZoom = -1
+  /** Core glow sprite's last-built excite level. */
+  private coreGlowExcite = -1
+
+  // ── Quality governor (Safari perf) ───────────────────────────────────────
+  private governor = new QualityGovernor()
+  private quality = 0
+  private frameStart = 0
+
+  constructor(private canvas: HTMLCanvasElement, private dom: SceneDom) {
+    const ctx = canvas.getContext('2d', { alpha: true })
     if (!ctx) throw new Error('Canvas 2D is not available')
     this.ctx = ctx
-    this.faint = cssVar('--faint', this.faint)
-    this.text = cssVar('--text', this.text)
-    this.core = cssVar('--periwinkle', this.core)
-    this.sans = getComputedStyle(canvas).fontFamily || this.sans
+    window.addEventListener('pointermove', this.onPointer, { passive: true })
+    document.addEventListener('pointerleave', this.onLeave)
   }
 
   // ── public API ────────────────────────────────────────────────────────────
-  setData(data: SceneData) { this.data = data; this.layout() }
+  setData(data: SceneData) { this.data = data; this.layout(); this.scatterPorts(); this.labelCache.clear() }
   setReducedMotion(v: boolean) { this.reduced = v; if (v) this.comets = [] }
-  setSelected(id: string | null) { this.selectedId = id }
-  setHover(id: string | null) { this.hoverId = id }
+  setPaused(v: boolean) { this.paused = v; if (v) this.comets = [] }
+  setHover(key: string | null) { this.hover = key }
+  setSelected(key: string | null) { this.selected = key }
 
-  /** Pixels from the bottom of the canvas that pills must not enter (0 = no restriction). */
-  private reservedBottom = 0
-
-  setReservedBottom(px: number) { this.reservedBottom = Math.max(0, px) }
-
-  resize(w: number, h: number, dpr: number) {
+  resize(w: number, h: number, dpr: number, insetRight: number) {
     this.w = Math.max(1, Math.floor(w))
     this.h = Math.max(1, Math.floor(h))
-    this.dpr = Math.min(2, Math.max(1, dpr))
+    // Apply pixel-budget cap via canvasDpr()
+    this.dpr = canvasDpr(this.w, this.h, dpr)
+    this.insetRight = Math.max(0, insetRight)
     this.canvas.width = Math.round(this.w * this.dpr)
     this.canvas.height = Math.round(this.h * this.dpr)
-    this.stars = this.buildStars()
+    this.canvas.style.width = `${this.w}px`
+    this.canvas.style.height = `${this.h}px`
+    // Invalidate cached sprites on resize
+    this.coreGlowSprite = null
+    this.coreGlowZoom = -1
+    this.coreGlowExcite = -1
+    this.hazeSprites = Array.from({ length: HAZE_BUCKETS }, () => null)
+    this.hazeSpriteZoom = -1
     this.layout()
-    if (!this.active) this.drawFrame(performance.now())
+    this.scatterPorts()
+    if (!this.active) this.frame(performance.now())
   }
 
   setActive(active: boolean) {
     this.active = active
-    if (active && !this.raf) this.raf = requestAnimationFrame(this.loop)
+    if (active && !this.raf) { this.last = 0; this.raf = requestAnimationFrame(this.loop) }
     if (!active && this.raf) { cancelAnimationFrame(this.raf); this.raf = 0 }
   }
 
-  destroy() { this.setActive(false); this.comets = []; this.pulses = [] }
+  destroy() {
+    this.setActive(false)
+    this.comets = []
+    window.removeEventListener('pointermove', this.onPointer)
+    document.removeEventListener('pointerleave', this.onLeave)
+  }
 
-  /** One pulse ring per block (staggered when several arrive together) and one comet per transaction. */
-  addBlock(blockNumber: number, txs: SceneTx[], batchIndex: number) {
+  /** One comet per transaction: from the stage edge to its app, or into the outer dashed ring when unlisted. */
+  addBlock(blockNumber: number, txs: SceneTx[]) {
     const now = performance.now()
-    if (!this.reduced) this.pulses.push(now + batchIndex * 200)
-    if (this.pulses.length > 24) this.pulses.splice(0, this.pulses.length - 24)
-    const unlisted = this.orbits[this.orbits.length - 1]
     txs.forEach((tx, i) => {
-      const planet = tx.appId ? this.byId.get(tx.appId) : undefined
-      const key = planet ? planet.id : 'orbit:Unlisted'
-      if (this.reduced) { this.flashes.set(key, now); return }
+      const node = tx.appId ? this.byKey.get(appKey(tx.appId)) : undefined
+      const flashKey = node ? node.key : 'ring'
+      if (this.reduced || this.paused) { this.flashes.set(flashKey, now); return }
       const rng = mulberry32(seedFromString(`${blockNumber}:${i}`))
-      const angle = rng() * Math.PI * 2
+      const from: Endpoint = { t: 'edge', angle: rng() * Math.PI * 2 }
       const life = 1600 + rng() * 800
       const delay = rng() * 1200
-      const color = planet ? planet.color : CATEGORY_COLORS.Unlisted
-      const fixed = unlisted && !planet
-        ? ellipsePoint(this.w / 2, this.h / 2, unlisted.rx, unlisted.ry, TILT, rng() * Math.PI * 2)
-        : { x: this.w / 2, y: this.h / 2 }
-      const pill = tx.usdc === null ? null : formatPill(tx.usdc, planet ? planet.name : 'unlisted address')
-      this.comets.push({
-        start: now + delay, life, seed: seedFromString(`${blockNumber}:${i}:path`), color,
-        from: ellipsePoint(this.w / 2, this.h / 2, this.w / 2, this.h / 2, 0, angle),
-        planetId: planet ? planet.id : null, fixed, flashKey: key, usdc: tx.usdc, pill, flashed: false,
+      const to: Endpoint = node ? { t: 'node', key: node.key } : { t: 'ring', angle: rng() * Math.PI * 2 }
+      const target = node ? this.data.apps.find(a => appKey(a.id) === node.key)?.name ?? 'app' : 'unlisted address'
+      this.push({
+        kind: 'tx', start: now + delay, life, seed: seedFromString(`${blockNumber}:${i}:path`),
+        color: node ? node.color : CATEGORY_COLORS.Unlisted, from, to, flashKey, usdc: tx.usdc,
+        pill: tx.usdc === null ? null : `${pillAmount(tx.usdc)} USDC → ${target}`, flashed: false,
       })
     })
+  }
+
+  /** One bright comet per CCTP move: port → core when USDC arrives, core → port when it leaves. */
+  addCctp(move: SceneMove, index: number, salt: string) {
+    const now = performance.now()
+    const node = this.byKey.get(portKey(move.domain))
+    const rng = mulberry32(seedFromString(`${salt}:${index}`))
+    const port: Endpoint = node && !node.hidden ? { t: 'node', key: node.key } : { t: 'ring', angle: rng() * Math.PI * 2 }
+    const inbound = move.direction === 'in'
+    const flashKey = inbound ? 'core' : port.t === 'node' ? port.key : 'ring'
+    if (this.reduced || this.paused) { this.flashes.set(flashKey, now); return }
+    this.push({
+      kind: move.direction, start: now + index * 350 + rng() * 500, life: 2400 + rng() * 700,
+      seed: seedFromString(`${salt}:${index}:path`), color: CCTP_COLOR,
+      from: inbound ? port : { t: 'core' }, to: inbound ? { t: 'core' } : port, flashKey,
+      usdc: move.usdc, pill: cctpPill(move.direction, move.name, move.usdc), flashed: false,
+    })
+  }
+
+  // ── internals ─────────────────────────────────────────────────────────────
+  private push(c: Comet) {
+    this.comets.push(c)
     if (this.comets.length > MAX_COMETS) this.comets.splice(0, this.comets.length - MAX_COMETS)
   }
 
-  /** The planet under a CSS-pixel point, if any. Touch events use a larger radius. */
-  hit(x: number, y: number, pointerType?: string): string | null {
-    const baseRadius = pointerType === 'touch' ? 20 : 0
-    let best: string | null = null
-    let bestD = Infinity
-    for (const p of this.planets) {
-      const d = Math.hypot(p.x - x, p.y - y)
-      const hitR = Math.max(14, p.r + 6, baseRadius)
-      if (d <= hitR && d < bestD) { best = p.id; bestD = d }
-    }
-    return best
+  private onPointer = (e: PointerEvent) => {
+    const r = this.canvas.getBoundingClientRect()
+    if (!r.width || !r.height) return
+    const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom
+    this.tx = ((e.clientX - r.left) / r.width - 0.5) * 2
+    this.ty = ((e.clientY - r.top) / r.height - 0.5) * 2
+    this.exciteTarget = inside ? 1 : 0
   }
+  private onLeave = () => { this.exciteTarget = 0 }
 
-  // ── layout ────────────────────────────────────────────────────────────────
+  private get narrow() { return this.w < NARROW }
+
+  /** Planets and ports from the data; app angles survive a data refresh so nothing jumps. */
   private layout() {
-    if (!this.w || !this.h) return
-    const keys = [...this.data.order, 'Unlisted']
-    const fy = flattenFor(this.w, this.h)
-    const radii = orbitRadii(keys.length, this.w, this.h * 0.94, 16, fy)
-    this.orbits = keys.map((key, i) => ({
-      key, rx: radii[i], ry: radii[i] * fy, phase: i * 1.3,
-      color: CATEGORY_COLORS[key as OrbitKey] ?? CATEGORY_COLORS.Unlisted,
-      label: this.data.labels[key] ?? key,
-    }))
-    const maxTx = this.data.planets.reduce((m, p) => Math.max(m, p.tx), 0)
-    const labelled = new Set(
-      this.data.planets
-        .map((p, i) => ({ id: p.id, tx: p.tx, i }))
-        .sort((a, b) => b.tx - a.tx || a.i - b.i)
-        .slice(0, this.w < NARROW ? 4 : 8)
-        .map(p => p.id),
-    )
-    const placed: PlacedPlanet[] = []
-    this.data.order.forEach((cat, orbit) => {
-      const inOrbit = this.data.planets.filter(p => p.category === cat)
-      inOrbit.forEach((p, index) => placed.push({
-        ...p, orbit, index, count: inOrbit.length, r: planetRadius(p.tx, maxTx),
-        color: CATEGORY_COLORS[cat as OrbitKey] ?? CATEGORY_COLORS.Unlisted,
-        showLabel: labelled.has(p.id), x: this.w / 2, y: this.h / 2,
-      }))
+    const prev = this.byKey
+    const next: Node[] = []
+    const keep = (key: string, fallback: number) => prev.get(key)?.angle ?? fallback
+    for (const a of this.data.apps) {
+      const key = appKey(a.id)
+      next.push({
+        key, kind: 'app', ring: a.ring, angle: keep(key, a.slot * Math.PI * 2), size: a.size,
+        color: CATEGORY_COLORS[a.category as OrbitKey] ?? CATEGORY_COLORS.Unlisted,
+        hidden: false, lift: prev.get(key)?.lift ?? 0, active: false, x: 0, y: 0, scale: 1,
+      })
+    }
+    this.data.ports.forEach((p, i) => {
+      const key = portKey(p.domain)
+      next.push({
+        key, kind: 'port', ring: -1, angle: 0, size: p.size, color: PORT_COLOR,
+        hidden: this.narrow && i >= PORT_COUNT_NARROW, lift: prev.get(key)?.lift ?? 0, active: false, x: 0, y: 0, scale: 1,
+      })
     })
-    this.planets = placed
-    this.byId = new Map(placed.map(p => [p.id, p]))
-    this.place(0)
+    this.nodes = next
+    this.byKey = new Map(next.map(n => [n.key, n]))
   }
 
-  private place(tSec: number) {
-    const cx = this.w / 2
-    const cy = this.h / 2
-    for (const p of this.planets) {
-      const o = this.orbits[p.orbit]
-      if (!o) continue
-      const pt = ellipsePoint(cx, cy, o.rx, o.ry, TILT, planetAngle(p.index, p.count, o.phase, tSec, o.rx))
-      p.x = pt.x
-      p.y = pt.y
+  /** Compute free-body scatter positions for all ports, in stage space. */
+  private scatterPorts() {
+    if (!this.w || !this.h) return
+    const radii = this.ringRadii()
+    const outerR = (radii[radii.length - 1] ?? DISC * 0.92) * this.zoom
+    const keepOut = {
+      cx: this.cx,
+      cy: this.cy,
+      rx: outerR * 1.12,
+      ry: outerR * FIELD_TILT * 1.25,
     }
+    const scatterInput = this.data.ports
+      .filter((_, i) => !(this.narrow && i >= PORT_COUNT_NARROW))
+      .map(p => ({ id: portKey(p.domain), r: p.size / 2 }))
+    const scattered = scatterNodes(
+      scatterInput,
+      { w: this.w, h: this.h },
+      keepOut,
+      seedFromString('map-ports'),
+    )
+    this.portPositions = scattered
   }
 
-  private buildStars(): HTMLCanvasElement {
-    const c = document.createElement('canvas')
-    c.width = Math.round(this.w * this.dpr)
-    c.height = Math.round(this.h * this.dpr)
-    const g = c.getContext('2d')
-    if (!g) return c
-    g.scale(this.dpr, this.dpr)
-    const rng = mulberry32(140)
-    for (let i = 0; i < 140; i++) {
-      const x = rng() * this.w
-      const y = rng() * this.h
-      const r = 0.4 + rng() * 0.8
-      g.globalAlpha = 0.12 + rng() * 0.38
-      g.fillStyle = rng() < 0.2 ? this.core : '#ffffff'
-      g.beginPath()
-      g.arc(x, y, r, 0, Math.PI * 2)
-      g.fill()
-    }
-    return c
-  }
-
-  // ── frame ─────────────────────────────────────────────────────────────────
   private loop = (now: number) => {
     this.raf = 0
     if (!this.active) return
-    this.drawFrame(now)
+    this.frameStart = now
+    this.frame(now)
+    // Feed frame duration to governor
+    const dt = performance.now() - this.frameStart
+    this.quality = this.governor.feed(dt)
     this.raf = requestAnimationFrame(this.loop)
   }
 
-  private drawFrame(now: number) {
+  private frame(now: number) {
     const { ctx, w, h } = this
     if (!w || !h) return
-    const tSec = this.reduced ? 0 : (now - this.t0) / 1000
-    this.place(tSec)
+    const f = this.last ? Math.min(3, Math.max(0, (now - this.last) / FRAME_MS)) : 1
+    this.last = now
+    const frozen = this.reduced || this.paused
+    const k = 1 - Math.pow(0.95, f)
+    this.excite += (this.exciteTarget - this.excite) * k
+    if (!frozen) { this.t += (1 + this.excite * 2.2) * f; this.spin += 0.00075 * (1 + this.excite * 3.4) * f }
+    this.px += (this.tx - this.px) * k
+    this.py += (this.ty - this.py) * k
+
+    const wide = w >= NARROW
+    this.zoom = this.computeZoom() * (1 + this.excite * 0.035)
+    // Title is now above the stage — galaxy is always centred horizontally.
+    this.cx = w * 0.5 + this.px * (18 + this.excite * 16)
+    this.cy = h * 0.5 + this.py * (14 + this.excite * 12)
+
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
     ctx.clearRect(0, 0, w, h)
-    ctx.globalAlpha = 1
-    if (this.stars) ctx.drawImage(this.stars, 0, 0, w, h)
-    this.drawOrbits(now)
-    this.drawPulses(now)
-    this.drawCore(tSec)
-    this.drawPlanets(now)
+    this.drawBackdrop()
+    this.drawRings()
+    this.drawDust()
+    this.scatterPorts()
+    this.placeNodes(f, frozen)
+    this.placeNodeLabels()
+    this.drawActiveRingLabel(wide)
     this.drawComets(now)
+    this.drawFlashes(now)
+    this.placeCore(now)
   }
 
-  private drawOrbits(now: number) {
-    const { ctx } = this
-    const cx = this.w / 2
-    const cy = this.h / 2
-    const fontSize = this.w < NARROW ? 9 : 10
-    ctx.font = `${fontSize}px "Geist Mono", ui-monospace, monospace`
-    ctx.textBaseline = 'alphabetic'
+  private project(r: number, a: number) {
+    return projectPoint(r, a, this.cx, this.cy, this.zoom, FIELD_TILT, FIELD_ROLL)
+  }
 
-    // Draw ellipses first.
-    this.orbits.forEach(o => {
-      const flash = this.flashes.get(`orbit:${o.key}`)
-      const boost = flash !== undefined && now - flash < FLASH_MS ? 0.45 * (1 - (now - flash) / FLASH_MS) : 0
-      ctx.beginPath()
-      ctx.ellipse(cx, cy, o.rx, o.ry, TILT, 0, Math.PI * 2)
-      ctx.setLineDash(o.key === 'Unlisted' ? [4, 7] : [])
-      ctx.strokeStyle = o.color
-      ctx.globalAlpha = 0.2 + boost
-      ctx.lineWidth = 1
-      ctx.stroke()
-      ctx.setLineDash([])
-    })
-    ctx.globalAlpha = 1
+  // ── Offscreen sprite helpers ───────────────────────────────────────────────
 
-    // Build label boxes anchored at the orbit's top-left arc point (angle 200° = 200*π/180).
-    // Priority: orbit labels are highest so they are placed first.
-    const LABEL_ANGLE = (200 * Math.PI) / 180
-    const labelItems: LabelItem[] = this.orbits.map((o, i) => {
-      const pt = ellipsePoint(cx, cy, o.rx, o.ry, TILT, LABEL_ANGLE)
-      const tw = ctx.measureText(o.label).width
-      const lh = fontSize + 4  // text height approx
-      // place text to the left of the arc point
-      const x0 = pt.x - tw - 4
-      const y0 = pt.y - lh / 2
-      return { id: `orbit:${i}`, x: x0, y: y0, w: tw, h: lh, priority: 1000 + i }
-    })
-
-    // Core glow blocker: the radial gradient extends to coreR*3.4.
-    const coreR = this.coreRadius()
-    const coreGlowR = coreR * 3.4
-    const coreBlocker: Blocker = {
-      x: cx - coreGlowR, y: cy - coreGlowR, w: coreGlowR * 2, h: coreGlowR * 2,
+  /** Rebuild haze sprites for the 5 radius buckets at current zoom+excite if zoom drifted > threshold. */
+  private ensureHazeSprites(excite: number) {
+    if (Math.abs(this.zoom - this.hazeSpriteZoom) / Math.max(0.01, this.hazeSpriteZoom) <= HAZE_ZOOM_THRESHOLD) return
+    this.hazeSpriteZoom = this.zoom
+    for (let b = 0; b < HAZE_BUCKETS; b++) {
+      const rad = Math.ceil((38 + b * 9) * this.zoom) + 2
+      const size = rad * 2 + 2
+      const oc = new OffscreenCanvas(size, size)
+      const octx = oc.getContext('2d')
+      if (!octx) continue
+      const cx = size / 2
+      const fog = octx.createRadialGradient(cx, cx, 0, cx, cx, rad)
+      fog.addColorStop(0, `rgba(88,140,235,${0.055 + excite * 0.03})`)
+      fog.addColorStop(1, 'rgba(88,140,235,0)')
+      octx.fillStyle = fog
+      octx.beginPath()
+      octx.arc(cx, cx, rad, 0, Math.PI * 2)
+      octx.fill()
+      this.hazeSprites[b] = oc
     }
-    // Planet disc blockers (fixed positions from last place() call).
-    const planetBlockers: Blocker[] = this.planets.map(p => ({
-      x: p.x - p.r, y: p.y - p.r, w: p.r * 2, h: p.r * 2,
-    }))
-    const blockers: Blocker[] = [coreBlocker, ...planetBlockers]
-
-    // Filter: also exclude labels that bleed off canvas edges.
-    const inCanvas = (item: LabelItem) => item.x >= 2 && item.x + item.w <= this.w - 2
-    const visible = placeLabels(labelItems.filter(inCanvas), blockers)
-
-    ctx.fillStyle = this.faint
-    ctx.textAlign = 'left'
-    this.orbits.forEach((o, i) => {
-      if (!visible.has(`orbit:${i}`)) return
-      const item = labelItems[i]
-      ctx.globalAlpha = 1
-      // baseline sits at bottom of the box
-      ctx.fillText(o.label, item.x, item.y + item.h - 2)
-    })
-    ctx.globalAlpha = 1
   }
 
-  private pulseRadius(): number {
-    const outer = this.orbits[this.orbits.length - 1]
-    return (outer ? outer.rx : 200) * 0.8
+  /** Draw one haze fog particle using the pre-rendered sprite. */
+  private drawHazeSprite(x: number, y: number, bucketIndex: number, alpha: number) {
+    const sprite = this.hazeSprites[bucketIndex]
+    if (!sprite) return
+    const half = sprite.width / 2
+    this.ctx.globalAlpha = alpha
+    this.ctx.drawImage(sprite, x - half, y - half)
+    this.ctx.globalAlpha = 1
   }
 
-  private drawPulses(now: number) {
-    const { ctx } = this
-    const cx = this.w / 2
-    const cy = this.h / 2
-    const coreR = this.coreRadius()
-    ctx.strokeStyle = this.core
-    ctx.lineWidth = 1.5
-    if (this.reduced) {
-      ctx.globalAlpha = 0.28
-      ctx.beginPath()
-      ctx.ellipse(cx, cy, coreR * 2.2, coreR * 2.2 * FLATTEN, TILT, 0, Math.PI * 2)
-      ctx.stroke()
-      ctx.globalAlpha = 1
-      return
+  /** Rebuild the core glow sprite if needed (resize or significant zoom/excite change). */
+  private ensureCoreGlowSprite(excite: number): OffscreenCanvas | null {
+    const zoomBucket = Math.round(this.zoom * 20) / 20
+    const exciteBucket = Math.round(excite * 10) / 10
+    if (this.coreGlowSprite && zoomBucket === this.coreGlowZoom && exciteBucket === this.coreGlowExcite) {
+      return this.coreGlowSprite
     }
-    this.pulses = this.pulses.filter(s => now - s < PULSE_MS)
-    const max = this.pulseRadius()
-    for (const start of this.pulses) {
-      const p = (now - start) / PULSE_MS
-      if (p < 0) continue
-      const r = coreR + easeOut(p) * (max - coreR)
-      ctx.globalAlpha = 0.55 * (1 - p) * (1 - p)
-      ctx.beginPath()
-      ctx.ellipse(cx, cy, r, r * FLATTEN, TILT, 0, Math.PI * 2)
-      ctx.stroke()
-    }
-    ctx.globalAlpha = 1
+    this.coreGlowZoom = zoomBucket
+    this.coreGlowExcite = exciteBucket
+    const glowR = Math.ceil((190 + excite * 46) * this.zoom) + 4
+    const size = glowR * 2 + 4
+    const oc = new OffscreenCanvas(size, size)
+    const octx = oc.getContext('2d')
+    if (!octx) { this.coreGlowSprite = null; return null }
+    const cx = size / 2
+    const glow = octx.createRadialGradient(cx, cx, 0, cx, cx, glowR)
+    glow.addColorStop(0, `rgba(120,170,255,${0.5 + excite * 0.22})`)
+    glow.addColorStop(0.32, `rgba(59,123,255,${0.2 + excite * 0.1})`)
+    glow.addColorStop(1, 'rgba(59,123,255,0)')
+    octx.fillStyle = glow
+    octx.beginPath()
+    octx.arc(cx, cx, glowR, 0, Math.PI * 2)
+    octx.fill()
+    this.coreGlowSprite = oc
+    return oc
   }
 
-  private coreRadius(): number { return this.w < NARROW ? 20 : 30 }
+  // ── Draw methods ───────────────────────────────────────────────────────────
 
-  private drawCore(tSec: number) {
-    const { ctx } = this
-    const cx = this.w / 2
-    const cy = this.h / 2
-    const r = this.coreRadius()
-    const glow = ctx.createRadialGradient(cx, cy, r * 0.4, cx, cy, r * 3.4)
-    glow.addColorStop(0, 'rgba(169,196,234,0.38)')
-    glow.addColorStop(1, 'rgba(169,196,234,0)')
-    ctx.fillStyle = glow
-    ctx.beginPath()
-    ctx.arc(cx, cy, r * 3.4, 0, Math.PI * 2)
-    ctx.fill()
-
-    const disc = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r)
-    disc.addColorStop(0, '#e4eefb')
-    disc.addColorStop(0.55, this.core)
-    disc.addColorStop(1, '#6f93c4')
-    ctx.fillStyle = disc
-    ctx.beginPath()
-    ctx.arc(cx, cy, r, 0, Math.PI * 2)
-    ctx.fill()
-
-    // Slow inner swirl.
-    ctx.save()
-    ctx.beginPath()
-    ctx.arc(cx, cy, r, 0, Math.PI * 2)
-    ctx.clip()
-    ctx.translate(cx, cy)
-    ctx.rotate(tSec * 0.25)
-    ctx.lineCap = 'round'
-    ctx.strokeStyle = '#ffffff'
-    for (let i = 0; i < 3; i++) {
-      ctx.rotate((Math.PI * 2) / 3)
-      ctx.globalAlpha = 0.34
-      ctx.lineWidth = 3
+  private drawBackdrop() {
+    const { ctx, w, h, excite, t } = this
+    const starsToRender = this.quality >= 2 ? Math.floor(STARS * 0.6) : STARS
+    for (let si = 0; si < starsToRender; si++) {
+      const s = this.stars[si]
+      const a = 0.25 + 0.3 * Math.sin(s.p + t * s.v)
+      ctx.fillStyle = `rgba(200,220,255,${a})`
       ctx.beginPath()
-      ctx.arc(r * 0.18, 0, r * 0.62, -0.2, 1.7)
-      ctx.stroke()
-    }
-    ctx.restore()
-    ctx.globalAlpha = 1
-  }
-
-  private drawPlanets(now: number) {
-    const { ctx } = this
-    ctx.font = `11px ${this.sans}`
-    ctx.textAlign = 'left'
-    for (const p of this.planets) {
-      const flash = this.flashes.get(p.id)
-      const f = flash !== undefined && now - flash < FLASH_MS ? 1 - (now - flash) / FLASH_MS : 0
-      const focus = p.id === this.hoverId || p.id === this.selectedId
-      if (f > 0) {
-        ctx.globalAlpha = 0.7 * f
-        ctx.strokeStyle = p.color
-        ctx.lineWidth = 1.5
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.r + 3 + (1 - f) * 14, 0, Math.PI * 2)
-        ctx.stroke()
-      }
-      const halo = ctx.createRadialGradient(p.x, p.y, p.r * 0.5, p.x, p.y, p.r * 2.6)
-      halo.addColorStop(0, p.color)
-      halo.addColorStop(1, 'rgba(8,17,31,0)')
-      ctx.globalAlpha = 0.28 + 0.4 * f
-      ctx.fillStyle = halo
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, p.r * 2.6, 0, Math.PI * 2)
+      ctx.arc(s.x * w + this.px * 4, s.y * h + this.py * 4, s.s, 0, Math.PI * 2)
       ctx.fill()
-      ctx.globalAlpha = 1
-      ctx.fillStyle = f > 0.4 ? '#ffffff' : p.color
+    }
+    // Core glow: use sprite instead of per-frame createRadialGradient
+    const sprite = this.ensureCoreGlowSprite(excite)
+    if (sprite) {
+      const half = sprite.width / 2
+      ctx.drawImage(sprite, this.cx - half, this.cy - half)
+    } else {
+      // Fallback (OffscreenCanvas unavailable)
+      const glowR = (190 + excite * 46) * this.zoom
+      const glow = ctx.createRadialGradient(this.cx, this.cy, 0, this.cx, this.cy, glowR)
+      glow.addColorStop(0, `rgba(120,170,255,${0.5 + excite * 0.22})`)
+      glow.addColorStop(0.32, `rgba(59,123,255,${0.2 + excite * 0.1})`)
+      glow.addColorStop(1, 'rgba(59,123,255,0)')
+      ctx.fillStyle = glow
       ctx.beginPath()
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
+      ctx.arc(this.cx, this.cy, glowR, 0, Math.PI * 2)
       ctx.fill()
-      if (focus) {
-        ctx.strokeStyle = this.text
-        ctx.lineWidth = 1.5
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.r + 4, 0, Math.PI * 2)
-        ctx.stroke()
-      }
-      if (p.showLabel || focus) {
-        ctx.fillStyle = focus ? this.text : this.faint
-        ctx.fillText(p.name, p.x + p.r + 7, p.y + 4)
+    }
+  }
+
+  private ringRadii(): number[] { return appRingRadii(this.data.rings.length, DISC) }
+
+  private drawRings() {
+    const { ctx, cx, cy, zoom, excite } = this
+    const radii = this.ringRadii()
+    ctx.lineWidth = 1
+    // Active ring (hovered or selected app's ring): draw slightly brighter
+    const activeRing = this.activeRingIndex()
+    radii.forEach((r, i) => {
+      const isActive = i === activeRing
+      ctx.strokeStyle = isActive
+        ? `rgba(169,196,234,${0.42 + excite * 0.12})`
+        : `rgba(169,196,234,${0.12 + excite * 0.06})`
+      ctx.lineWidth = isActive ? 1.5 : 1
+      ctx.beginPath()
+      ctx.ellipse(cx, cy, r * zoom, r * zoom * FIELD_TILT, FIELD_ROLL, 0, Math.PI * 2)
+      ctx.stroke()
+    })
+    // No outer port ring — networks are now free bodies scattered in the space around the galaxy.
+  }
+
+  private drawDust() {
+    const { ctx, w, h, excite, zoom, spin, t } = this
+    const q = this.quality
+
+    // ── Haze fog: use pre-rendered sprites ────────────────────────────────────
+    if (q < 2) {
+      const hazeFraction = q === 0 ? 1 : 0.5
+      const hazeCount = Math.floor(HAZE * hazeFraction)
+      this.ensureHazeSprites(excite)
+      for (let i = 0; i < hazeCount; i++) {
+        const d = this.dust[i]
+        if (d.r > DISC * 0.72) continue
+        const { x, y } = this.project(d.r, d.a + spin * (1 + 60 / (d.r + 40)))
+        const bucketIndex = i % HAZE_BUCKETS
+        const baseAlpha = 0.055 + excite * 0.03
+        // Scale draw alpha down for partial draws
+        const alpha = hazeFraction < 1 ? baseAlpha * 0.75 : 1
+        this.drawHazeSprite(x, y, bucketIndex, alpha)
       }
     }
-    ctx.globalAlpha = 1
+    // q >= 2: no haze
+
+    // ── Dust particles: batched by tone+alpha bucket ───────────────────────────
+    // Determine how many dust particles to render based on quality.
+    const dustFraction = q === 0 ? 1 : q === 1 ? 0.6 : 0.35
+    const dustCount = Math.floor(DUST * dustFraction)
+
+    // Quantise alpha to 6 levels (0–5, step 1/6).
+    const ALPHA_LEVELS = 6
+    // Collect filled (non-ring) particles by tone bucket (index into toneKeys) and alpha band.
+    // Tone is identified by tone[0] (r channel) since tones are distinct.
+    // We build a map: toneR -> alphaLevel -> list of {x, y, size}
+    type DotBatch = { x: number; y: number; s: number }[]
+    const filledBatches = new Map<number, Map<number, DotBatch>>()
+    // Ring particles: still stroke individually (few), but quantised
+    type RingBatch = { x: number; y: number; s: number; lineW: number }[]
+    const ringBatches = new Map<number, Map<number, RingBatch>>()
+
+    for (let di = 0; di < dustCount; di++) {
+      const d = this.dust[di]
+      const { x, y, depth } = this.project(d.r, d.a + spin * (1 + 60 / (d.r + 40)))
+      if (x < -30 || x > w + 30 || y < -30 || y > h + 30) continue
+      const edge = Math.min(1, (DISC * 1.12 - d.r) / 140)
+      const twinkle = 0.78 + 0.22 * Math.sin(d.phase + t * 0.02)
+      const alpha = Math.min(1, d.alpha * (1 + excite * 0.35)) * edge * twinkle * (0.72 + 0.28 * depth)
+      if (alpha <= 0.015) continue
+      const size = d.size * zoom * (1 + depth * 0.22) * (1 + excite * 0.18)
+      const [r, g, b] = d.tone
+      const toneKey = r * 65536 + g * 256 + b
+
+      if (d.ring) {
+        const alphaLevel = Math.min(ALPHA_LEVELS - 1, Math.floor(alpha * 0.9 * ALPHA_LEVELS))
+        let toneMap = ringBatches.get(toneKey)
+        if (!toneMap) { toneMap = new Map(); ringBatches.set(toneKey, toneMap) }
+        let batch = toneMap.get(alphaLevel)
+        if (!batch) { batch = []; toneMap.set(alphaLevel, batch) }
+        batch.push({ x, y, s: size, lineW: Math.max(0.6, size * 0.15) })
+      } else {
+        const alphaLevel = Math.min(ALPHA_LEVELS - 1, Math.floor(alpha * ALPHA_LEVELS))
+        let toneMap = filledBatches.get(toneKey)
+        if (!toneMap) { toneMap = new Map(); filledBatches.set(toneKey, toneMap) }
+        let batch = toneMap.get(alphaLevel)
+        if (!batch) { batch = []; toneMap.set(alphaLevel, batch) }
+        batch.push({ x, y, s: size })
+      }
+    }
+
+    // Draw filled batches: one beginPath + fill per tone+alphaLevel bucket
+    for (const [toneKey, toneMap] of filledBatches) {
+      const r2 = (toneKey >> 16) & 0xff
+      const g2 = (toneKey >> 8) & 0xff
+      const b2 = toneKey & 0xff
+      for (const [alphaLevel, batch] of toneMap) {
+        const a = (alphaLevel + 0.5) / ALPHA_LEVELS
+        ctx.fillStyle = `rgba(${r2},${g2},${b2},${a})`
+        ctx.beginPath()
+        for (const dot of batch) {
+          ctx.moveTo(dot.x + dot.s, dot.y)
+          ctx.arc(dot.x, dot.y, dot.s, 0, Math.PI * 2)
+        }
+        ctx.fill()
+      }
+    }
+
+    // Draw ring batches: stroke per particle (still) but use quantised strokeStyle
+    for (const [toneKey, toneMap] of ringBatches) {
+      const r2 = (toneKey >> 16) & 0xff
+      const g2 = (toneKey >> 8) & 0xff
+      const b2 = toneKey & 0xff
+      for (const [alphaLevel, batch] of toneMap) {
+        const a = (alphaLevel + 0.5) / ALPHA_LEVELS
+        ctx.strokeStyle = `rgba(${r2},${g2},${b2},${a})`
+        for (const dot of batch) {
+          ctx.lineWidth = dot.lineW
+          ctx.beginPath()
+          ctx.arc(dot.x, dot.y, dot.s, 0, Math.PI * 2)
+          ctx.stroke()
+        }
+      }
+    }
+    ctx.lineWidth = 1
+  }
+
+  /** Moves every planet (DOM) along its orbit; positions free-body port nodes from scatter map. */
+  private placeNodes(f: number, frozen: boolean) {
+    const radii = this.ringRadii()
+    const iconScale = Math.min(1.15, Math.max(this.narrow ? 0.55 : 0.7, this.zoom))
+    for (const n of this.nodes) {
+      const hot = this.hover === n.key
+
+      if (n.kind === 'port') {
+        // Free-body: use scatter position (stage-space), apply float animation
+        const scatter = this.portPositions.get(n.key)
+        const el = this.dom.nodes.get(n.key)
+        if (n.hidden || !scatter) {
+          if (el) { el.style.opacity = '0'; el.style.pointerEvents = 'none' }
+          continue
+        }
+        n.lift += ((hot || this.selected === n.key ? 1 : 0) - n.lift) * 0.14
+        // Slow float: ±4 px, seeded per key
+        const floatSeed = seedFromString(n.key)
+        const floatPeriod = 6000 + (floatSeed % 5000)  // 6–11 s in ms
+        const floatPhase = (floatSeed % 1000) / 1000 * Math.PI * 2
+        const floatY = frozen ? 0 : Math.sin(this.t * 0.05 * (6000 / floatPeriod) + floatPhase) * 4
+        n.x = scatter.x
+        n.y = scatter.y + floatY
+        n.scale = 1 + n.lift * 0.22
+        if (el) {
+          el.style.transform = `translate3d(${n.x}px, ${n.y}px, 0) translate(-50%, -50%) scale(${n.scale})`
+          el.style.opacity = String(Math.min(1, 0.7 + n.lift * 0.3))
+          el.style.zIndex = hot ? '60' : '20'
+          el.style.pointerEvents = 'auto'
+          const on = hot || this.selected === n.key
+          if (on !== n.active) { n.active = on; el.dataset.active = String(on) }
+        }
+        continue
+      }
+
+      // App planet: orbit as before
+      const speed = ringSpeed(n.ring)
+      if (!frozen && !hot) n.angle += speed * (1 + this.excite * 1.6) * f
+      n.lift += ((hot || this.selected === n.key ? 1 : 0) - n.lift) * 0.14
+      const p = this.project(radii[n.ring] ?? 0, n.angle)
+      n.x = p.x
+      n.y = p.y
+      n.scale = iconScale * (0.86 + 0.2 * p.depth) * (1 + n.lift * 0.42)
+      const el = this.dom.nodes.get(n.key)
+      if (!el) continue
+      if (n.hidden) { el.style.opacity = '0'; el.style.pointerEvents = 'none'; continue }
+      el.style.transform = `translate3d(${p.x}px, ${p.y}px, 0) translate(-50%, -50%) scale(${n.scale})`
+      el.style.opacity = String(Math.min(1, 0.62 + (0.38 * (p.depth + 1)) / 2 + this.excite * 0.12 + n.lift * 0.5))
+      el.style.zIndex = hot ? '60' : p.depth > 0 ? '30' : '10'
+      el.style.pointerEvents = 'auto'
+      const on = hot || this.selected === n.key
+      if (on !== n.active) { n.active = on; el.dataset.active = String(on) }
+    }
+  }
+
+  private placeCore(now: number) {
+    const { core, halo } = this.dom
+    const boost = this.flashLevel('core', now)
+    if (core) {
+      core.style.transform = `translate3d(${this.cx}px, ${this.cy}px, 0) translate(-50%, -50%) scale(${Math.max(0.6, this.zoom) * CORE_SCALE})`
+    }
+    if (halo) {
+      const beat = this.reduced || this.paused ? 0 : (Math.sin(this.t * 0.045) + 1) / 2
+      halo.style.opacity = String(Math.min(1, 0.55 + beat * 0.3 + this.excite * 0.15 + boost * 0.3))
+      halo.style.transform = `scale(${1 + beat * 0.09 + this.excite * 0.12 + boost * 0.18})`
+    }
+  }
+
+  private flashLevel(key: string, now: number): number {
+    const at = this.flashes.get(key)
+    if (at === undefined) return 0
+    return Math.max(0, 1 - (now - at) / FLASH_MS)
+  }
+
+  private endpoint(e: Endpoint): Point {
+    switch (e.t) {
+      case 'edge': return ellipsePoint(this.w / 2, this.h / 2, this.w / 2, this.h / 2, 0, e.angle)
+      case 'core': return { x: this.cx, y: this.cy }
+      case 'ring': {
+        // Unlisted comets fade toward a random point on the outermost app ring.
+        const radii = this.ringRadii()
+        const outerR = (radii[radii.length - 1] ?? DISC * 0.92)
+        return this.project(outerR * 1.3, e.angle)
+      }
+      case 'node': {
+        const n = this.byKey.get(e.key)
+        return n ? { x: n.x, y: n.y } : { x: this.cx, y: this.cy }
+      }
+    }
   }
 
   private drawComets(now: number) {
-    if (this.reduced) return
+    if (this.reduced || this.paused) return
     const { ctx } = this
     const live: Comet[] = []
     const pills: Array<{ c: Comet; head: Point }> = []
     const heavy = this.comets.length > 150
-    const pts = heavy ? 12 : TRAIL_POINTS
-    const dp = 0.018 * (TRAIL_POINTS / pts)
+    const q = this.quality
     ctx.lineCap = 'round'
-    ctx.globalCompositeOperation = 'lighter'
+    // level 2: use normal compositing (no 'lighter') to avoid GPU overdraw in Safari
+    if (q < 2) ctx.globalCompositeOperation = 'lighter'
     for (const c of this.comets) {
       const p = (now - c.start) / c.life
       if (p < 0) { live.push(c); continue }
-      const target = c.planetId ? this.byId.get(c.planetId) : undefined
-      const to: Point = target ? { x: target.x, y: target.y } : c.fixed
       if (p >= 1) {
-        if (!c.flashed && p < 1.15) this.flashes.set(c.flashKey, now)
+        if (!c.flashed) this.flashes.set(c.flashKey, now)
         continue
       }
       if (p >= 0.92 && !c.flashed) { c.flashed = true; this.flashes.set(c.flashKey, now) }
       live.push(c)
-      const ctrl = cometPath(c.from, to, c.seed)
-      const fade = p < 0.8 ? 1 : (1 - p) / 0.2
-      const trail: Point[] = []
-      for (let k = 0; k < pts; k++) trail.push(pointOnBezier(c.from, ctrl, to, easeInOut(Math.max(0, p - k * dp))))
-      ctx.strokeStyle = c.color
-      for (let k = 0; k < pts - 1; k++) {
-        const q = 1 - k / pts
-        ctx.globalAlpha = fade * q * q * 0.9
-        ctx.lineWidth = 0.6 + 2.6 * q
-        ctx.beginPath()
-        ctx.moveTo(trail[k].x, trail[k].y)
-        ctx.lineTo(trail[k + 1].x, trail[k + 1].y)
-        ctx.stroke()
-      }
-      const head = trail[0]
-      ctx.globalAlpha = fade
-      ctx.fillStyle = '#ffffff'
-      ctx.beginPath()
-      ctx.arc(head.x, head.y, 2.2, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.globalAlpha = fade * 0.35
-      ctx.fillStyle = c.color
-      ctx.beginPath()
-      ctx.arc(head.x, head.y, 6, 0, Math.PI * 2)
-      ctx.fill()
-
-      if (c.pill && p < 0.95) this.keepTopPills(pills, { c, head })
+      const cctp = c.kind !== 'tx'
+      const base = cctp ? CCTP_TRAIL_POINTS : TX_TRAIL_POINTS
+      // Trail point count by quality level
+      const maxPts = q === 2 ? (cctp ? 8 : 8) : q === 1 ? (cctp ? 14 : 12) : (heavy && !cctp ? 12 : base)
+      const pts = Math.min(base, maxPts)
+      const trail = trailOf(c, this.endpoint(c.from), this.endpoint(c.to), p, pts, (cctp ? 0.014 : 0.018) * (base / pts))
+      paintComet(ctx, c, trail, p < 0.8 ? 1 : (1 - p) / 0.2, q)
+      if (c.pill && p < 0.95) pills.push({ c, head: trail[0] })
     }
-    ctx.globalCompositeOperation = 'source-over'
+    if (q < 2) ctx.globalCompositeOperation = 'source-over'
     ctx.globalAlpha = 1
     this.comets = live
-    for (const { c, head } of pills) this.drawPill(c, head)
+    pills.sort((a, b) => Number(b.c.kind !== 'tx') * 1e15 + (b.c.usdc ?? 0) - (Number(a.c.kind !== 'tx') * 1e15 + (a.c.usdc ?? 0)))
+    for (const { c, head } of pills.slice(0, this.narrow ? 1 : 4)) paintPill(ctx, c, head, this.w, this.h, '#eaf1fb')
   }
 
-  private keepTopPills(list: Array<{ c: Comet; head: Point }>, item: { c: Comet; head: Point }) {
-    list.push(item)
-    list.sort((a, b) => (b.c.usdc ?? 0) - (a.c.usdc ?? 0))
-    const maxPills = this.w < NARROW ? 1 : 3
-    if (list.length > maxPills) list.length = maxPills
-  }
-
-  private drawPill(c: Comet, head: Point) {
-    if (!c.pill) return
+  /** Expanding rings where a comet lands: on the core, a planet or a port. */
+  private drawFlashes(now: number) {
     const { ctx } = this
-    ctx.font = '11px "Geist Mono", ui-monospace, monospace'
-    const tw = ctx.measureText(c.pill).width
-    const pw = tw + 16
-    const ph = 20
-    const x = Math.min(this.w - pw - 8, Math.max(8, head.x + 12))
-    // Pill box must end above (h − reservedBottom); add an 8 px gap above that boundary.
-    const maxY = this.h - this.reservedBottom - ph - 8
-    const y = Math.min(maxY, Math.max(8, head.y - 28))
-    ctx.beginPath()
-    ctx.roundRect(x, y, pw, ph, 10)
-    ctx.fillStyle = 'rgba(8,17,31,0.88)'
-    ctx.fill()
-    ctx.strokeStyle = c.color
-    ctx.globalAlpha = 0.7
-    ctx.lineWidth = 1
-    ctx.stroke()
+    for (const [key, at] of this.flashes) {
+      const f = 1 - (now - at) / FLASH_MS
+      if (f <= 0) { this.flashes.delete(key); continue }
+      if (key === 'ring') continue
+      const node = this.byKey.get(key)
+      const core = key === 'core'
+      if (!core && (!node || node.hidden)) continue
+      const x = core ? this.cx : node!.x
+      const y = core ? this.cy : node!.y
+      const base = core ? 50 * Math.max(0.6, this.zoom) * CORE_SCALE : (node!.size / 2) * node!.scale
+      ctx.globalAlpha = 0.75 * f
+      ctx.strokeStyle = core ? CCTP_COLOR : node!.color
+      ctx.lineWidth = core ? 2.4 : 1.5
+      ctx.beginPath()
+      ctx.arc(x, y, base + 3 + (1 - f) * (core ? 46 : 14), 0, Math.PI * 2)
+      ctx.stroke()
+    }
     ctx.globalAlpha = 1
-    ctx.fillStyle = this.text
-    ctx.textAlign = 'left'
-    ctx.fillText(c.pill, x + 8, y + 14)
   }
+
+  // ── Fix 5: zoom fitted to shifted centre ──────────────────────────────────
+
+  /**
+   * Zoom so the outer app ring (DISC × 0.92) fits nicely in the stage.
+   *
+   * Wide (≥ 900 px):
+   *   Target: outer ring's horizontal half-extent = 0.24 · w.
+   *   Constraint: vertical half-extent ≤ 0.36 · h (with tilt 0.42).
+   *   Clamped to [0.45, 1.5].
+   *
+   * Narrow (< 900 px):
+   *   Fit symmetrically with small gutters; clamped to [0.28, 0.6].
+   */
+  private computeZoom(): number {
+    const { w, h } = this
+    const { halfW, halfH } = ellipseExtent(DISC * 0.92, FIELD_TILT, FIELD_ROLL)
+    if (!halfW || !halfH) return 1
+    if (w >= 900) {
+      const zByWidth  = (0.24 * w) / halfW
+      const zByHeight = (0.36 * h) / halfH
+      return Math.max(0.45, Math.min(1.5, Math.min(zByWidth, zByHeight)))
+    }
+    return Math.max(0.28, Math.min(0.6, (w / 2 - 20) / halfW))
+  }
+
+  // ── Fix 3: ring index of the hovered/selected node ────────────────────────
+
+  /** Ring index of the currently hovered or selected app node, or -1 if none. */
+  private activeRingIndex(): number {
+    const key = this.hover ?? this.selected
+    if (!key) return -1
+    const node = this.byKey.get(key)
+    if (!node || node.kind !== 'app') return -1
+    return node.ring
+  }
+
+  /**
+   * Fix 3: draw the active ring's label at the ring's right-end point, on the canvas.
+   * Only drawn on wide stages and when zoom is sufficient to read the label.
+   */
+  private drawActiveRingLabel(wide: boolean) {
+    const ri = this.activeRingIndex()
+    if (ri < 0 || !wide || this.zoom < 0.55) return
+    const ring = this.data.rings[ri]
+    if (!ring) return
+    const { ctx, excite } = this
+    const radii = this.ringRadii()
+    const r = radii[ri]
+    if (!r) return
+    // Right end of the ellipse in screen coordinates: angle = 0 puts us at the positive-x side
+    // of the orbit ellipse after roll. For the rolled ellipse the rightmost screen point is at
+    // angle 0 (since roll is small). A more exact approach would find the extremum, but at the
+    // label size this is visually equivalent.
+    const at = this.project(r, 0)
+    const label = `${ring.label.toUpperCase()}`
+    ctx.save()
+    ctx.font = '10px "Geist Mono", ui-monospace, monospace'
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = `rgba(169,196,234,${0.82 + excite * 0.18})`
+    ctx.fillText(label, at.x + 10, at.y)
+    ctx.restore()
+  }
+
+  // ── Fix 4: greedy per-frame DOM label pass ────────────────────────────────
+
+  /** Lazily get the .om-label child of a node element, or null if absent/not yet mounted. */
+  private getLabelEl(key: string): HTMLElement | null {
+    if (this.labelCache.has(key)) return this.labelCache.get(key) ?? null
+    const nodeEl = this.dom.nodes.get(key)
+    const raw = nodeEl ? nodeEl.querySelector('.om-label') : null
+    const el = raw instanceof HTMLElement ? raw : null
+    this.labelCache.set(key, el)
+    return el
+  }
+
+  /**
+   * Fix 4: greedy overlap pass on DOM label spans each frame.
+   * Estimates label bounding boxes from node coordinates and sizes (no DOM layout reads).
+   * Priority = 24h tx (from Node.size as proxy; app nodes have tx encoded in size).
+   * The hovered/selected node's label is always shown.
+   * Labels that would overlap a higher-priority label or the core disc are hidden.
+   */
+  private placeNodeLabels() {
+    const activeKey = this.hover ?? this.selected
+    // Core blocker: a circle approximated as a square.
+    const coreR = 50 * Math.max(0.6, this.zoom) * CORE_SCALE + 8
+    const blockers: Blocker[] = [
+      { x: this.cx - coreR, y: this.cy - coreR, w: coreR * 2, h: coreR * 2 },
+    ]
+
+    const items: LabelItem[] = []
+    for (const n of this.nodes) {
+      if (n.hidden) continue
+      // Only app nodes have labels in the galaxy (port labels are inside om-port-body).
+      if (n.kind !== 'app') continue
+      const el = this.getLabelEl(n.key)
+      if (!el) continue
+      // Face height (half): for apps the face can be rectangular (kind === 'app' tiles have h = size * 0.65)
+      // We use n.size as the face height proxy for simplicity (conservative).
+      const faceHalf = (n.size / 2) * n.scale
+      // Label estimated width from character count.
+      const appData = this.data.apps.find(a => appKey(a.id) === n.key)
+      const charCount = appData ? appData.name.length : 8
+      const lw = charCount * LABEL_PX_PER_CHAR
+      const lh = LABEL_H
+      const lx = n.x - lw / 2
+      const ly = n.y + faceHalf + LABEL_GAP
+      items.push({ id: n.key, x: lx, y: ly, w: lw, h: lh, priority: n.size }) // size ∝ tx on log scale
+    }
+
+    // Always-visible: force the active label into the shown set (it overrides overlap).
+    const shown = placeLabels(items, blockers)
+
+    for (const n of this.nodes) {
+      if (n.kind !== 'app' || n.hidden) continue
+      const el = this.getLabelEl(n.key)
+      if (!el) continue
+      const alwaysShow = n.key === activeKey
+      const visible = alwaysShow || shown.has(n.key)
+      el.style.opacity = visible ? '' : '0'
+    }
+  }
+
 }

@@ -42,6 +42,8 @@ function Layout() {
   useEffect(() => startSmoothScroll(), [])
   // the home hero runs edge to edge, so the sidebar starts underneath it
   const home = useLocation().pathname === '/'
+  // full-bleed immersive stages (no sidebar, no sidebar breakout)
+  const immersive = useLocation().pathname === '/map'
 
   return (
     <div className="min-h-dvh">
@@ -92,15 +94,15 @@ function Layout() {
             </PageTransition>
           </div>
 
-          {/* Sidebar — hidden on mobile/tablet */}
-          <aside className="hidden xl:block w-64 shrink-0" style={home ? { paddingTop: 'calc(var(--hero-h) + 2rem)' } : undefined}>
+          {/* Sidebar — hidden on mobile/tablet, and never on immersive full-bleed pages */}
+          {!immersive && <aside className="hidden xl:block w-64 shrink-0" style={home ? { paddingTop: 'calc(var(--hero-h) + 2rem)' } : undefined}>
             <div className="sticky top-[104px] space-y-4">
               <GmButton variant="hero" />
               <EcosystemDominance />
               <NewAndRising />
               <TipBox />
             </div>
-          </aside>
+          </aside>}
         </div>
       </main>
 
