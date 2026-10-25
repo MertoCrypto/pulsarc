@@ -9,6 +9,7 @@ import {
   PORT_COUNT_NARROW,
   PORT_RING_FACTOR,
   QualityGovernor,
+  isWebKitSafari,
   appPlanetSize,
   appRingRadii,
   canvasDpr,
@@ -454,6 +455,36 @@ assert.ok(canvasDpr(800, 0, 2) >= 1, 'zero height → >=1')
   // avg ~25 ms: should stay at 1 (too high to recover, borderline to go to 2)
   // At minimum should not have dropped back to 0 (no false recovery)
   assert.ok(g.getLevel() >= levelsBefore, 'no false recovery on alternating 10/40 ms')
+}
+{
+  // startLevel sets the initial level
+  assert.equal(new QualityGovernor(45, 90, 180).getLevel(), 0, 'default start level is 0')
+  const g = new QualityGovernor(45, 90, 180, 1)
+  assert.equal(g.getLevel(), 1, 'startLevel 1 is honoured')
+  for (let i = 0; i < 200; i++) g.feed(40)
+  assert.equal(g.getLevel(), 2, 'a started-at-1 governor still degrades on slow frames')
+  const h = new QualityGovernor(45, 90, 180, 1)
+  for (let i = 0; i < 90 + 180; i++) h.feed(12)
+  assert.equal(h.getLevel(), 0, 'a started-at-1 governor still recovers on fast frames')
+}
+
+// ── isWebKitSafari ───────────────────────────────────────────────────────────
+{
+  const safariMac = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15'
+  const safariIos = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1'
+  const chrome = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+  const chromeIos = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/124.0.6367.111 Mobile/15E148 Safari/604.1'
+  const edge = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0'
+  const firefox = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:125.0) Gecko/20100101 Firefox/125.0'
+  const androidChrome = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36'
+  assert.equal(isWebKitSafari(safariMac), true, 'Safari macOS')
+  assert.equal(isWebKitSafari(safariIos), true, 'Safari iOS')
+  assert.equal(isWebKitSafari(chrome), false, 'Chrome')
+  assert.equal(isWebKitSafari(chromeIos), false, 'Chrome iOS')
+  assert.equal(isWebKitSafari(edge), false, 'Edge')
+  assert.equal(isWebKitSafari(firefox), false, 'Firefox')
+  assert.equal(isWebKitSafari(androidChrome), false, 'Android Chrome')
+  assert.equal(isWebKitSafari(''), false, 'empty UA')
 }
 
 console.log('orbitMap.test.ts: all assertions passed')

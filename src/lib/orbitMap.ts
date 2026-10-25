@@ -542,6 +542,16 @@ export function canvasDpr(w: number, h: number, deviceDpr: number, budget = 2_40
   return Math.max(1, dpr)
 }
 
+/**
+ * True for Safari / WebKit browsers (macOS Safari and every iOS browser, which all use WebKit).
+ * False for Chromium-based (Chrome, Chromium, Edge, CriOS), Android and Firefox user agents.
+ * Note: Firefox on iOS ("FxiOS") is WebKit too and is reported as true.
+ */
+export function isWebKitSafari(ua: string): boolean {
+  if (!ua.includes('AppleWebKit')) return false
+  return !/Chrome|Chromium|CriOS|Edg|EdgA|EdgiOS|OPR|Android/.test(ua)
+}
+
 // ── Safari perf: adaptive quality governor ───────────────────────────────────
 
 /** Quality level: 0 = full, 1 = reduced, 2 = minimal. */
@@ -567,10 +577,11 @@ export class QualityGovernor {
   private framesSinceChange = 0
   private consecutiveFastFrames = 0
 
-  constructor(windowSize = 45, cooldownFrames = 90, recoveryFrames = 180) {
+  constructor(windowSize = 45, cooldownFrames = 90, recoveryFrames = 180, startLevel: QualityLevel = 0) {
     this.windowSize = windowSize
     this.cooldownFrames = cooldownFrames
     this.recoveryFrames = recoveryFrames
+    this.level = startLevel
   }
 
   /** Feed a frame duration in ms. Returns the current quality level. */

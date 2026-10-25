@@ -58,6 +58,12 @@ export const STAGE_CSS = `
     0 0 calc(12px + var(--port-weight, 0.5) * 24px) rgba(169,196,234,calc(0.15 + var(--port-weight, 0.5) * 0.35)),
     inset 0 1px 0 rgba(255,255,255,0.12);
 }
+/* Lite mode (set by the scene at quality level >= 1): drop the glow shadows, which WebKit re-rasterises
+   per layer. Border colours for lit / hover / active keep working; only box-shadow and its transition go. */
+.om-stage[data-lite='true'] .om-face,
+.om-stage[data-lite='true'] .om-port .om-face {
+  box-shadow: none; transition: border-color .3s;
+}
 .om-badge {
   position: absolute; right: -6px; top: -6px; min-width: 16px; border-radius: 999px; padding: 0 4px;
   background: #a9c4ea; color: #0a1424; text-align: center; line-height: 16px;

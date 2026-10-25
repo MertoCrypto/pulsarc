@@ -15,7 +15,7 @@
 import { DISC, makeDust, type Dust } from '@/lib/arcFieldMath'
 import {
   CATEGORY_COLORS, FIELD_ROLL, FIELD_TILT, PORT_COUNT_NARROW,
-  QualityGovernor,
+  QualityGovernor, isWebKitSafari, type QualityLevel,
   appRingRadii, bridgePill, canvasDpr, cctpPill, ellipseExtent, ellipsePoint, mulberry32, pillAmount, projectPoint, ringSpeed,
   scatterNodes, seedFromString, placeLabels, type BridgeColorKey, type LabelItem, type Blocker, type OrbitKey, type Point,
 } from '@/lib/orbitMap'
@@ -70,10 +70,23 @@ export class SceneDom {
   setHalo(el: HTMLElement | null) { this.halo = el }
 }
 
+/** Last values written to a node's element; DOM is only touched when a quantised value changes. */
+interface NodeStyleCache { el: HTMLElement | null; transform: string; opacity: string; zIndex: string; pointerEvents: string }
+
 interface Node {
   key: string; kind: 'app' | 'port'; ring: number; angle: number; size: number; color: string
   hidden: boolean; lift: number; active: boolean; x: number; y: number; scale: number
+  css: NodeStyleCache
 }
+
+const newStyleCache = (): NodeStyleCache => ({ el: null, transform: '', opacity: '', zIndex: '', pointerEvents: '' })
+
+/** Snap to a step and format with fixed decimals (no float noise), for DOM style strings only. */
+const snap = (v: number, step: number, digits: number): string => (Math.round(v / step) * step).toFixed(digits)
+const snapPx = (v: number) => snap(v, 0.5, 1)
+const snapUnit = (v: number) => snap(v, 0.02, 2)
+const nodeTransform = (x: number, y: number, scale: number) =>
+  `translate3d(${snapPx(x)}px, ${snapPx(y)}px, 0) translate(-50%, -50%) scale(${snapUnit(scale)})`
 
 export class OrbitScene {
   private ctx: CanvasRenderingContext2D
@@ -126,9 +139,17 @@ export class OrbitScene {
   private coreGlowExcite = -1
 
   // ── Quality governor (Safari perf) ───────────────────────────────────────
-  private governor = new QualityGovernor()
-  private quality = 0
-  private frameStart = 0
+  private governor = new QualityGovernor(45, 90, 180, typeof navigator !== 'undefined' && isWebKitSafari(navigator.userAgent) ? 1 : 0)
+  private quality: QualityLevel = this.governor.getLevel()
+  /** Previous rAF timestamp; the interval between callbacks is what the governor measures. */
+  private prevNow = 0
+  /** Cached .om-stage root and the lite flag last written to it (null = never written). */
+  private stageEl: HTMLElement | null = null
+  private liteApplied: boolean | null = null
+
+  // ── Cached core / halo style writes ──────────────────────────────────────
+  private coreCache = { el: null as HTMLElement | null, transform: '' }
+  private haloCache = { el: null as HTMLElement | null, transform: '', opacity: '' }
 
   constructor(private canvas: HTMLCanvasElement, private dom: SceneDom) {
     const ctx = canvas.getContext('2d', { alpha: true })
@@ -168,7 +189,7 @@ export class OrbitScene {
 
   setActive(active: boolean) {
     this.active = active
-    if (active && !this.raf) { this.last = 0; this.raf = requestAnimationFrame(this.loop) }
+    if (active && !this.raf) { this.last = 0; this.prevNow = 0; this.raf = requestAnimationFrame(this.loop) }
     if (!active && this.raf) { cancelAnimationFrame(this.raf); this.raf = 0 }
   }
 
@@ -254,7 +275,7 @@ export class OrbitScene {
       next.push({
         key, kind: 'app', ring: a.ring, angle: keep(key, a.slot * Math.PI * 2), size: a.size,
         color: CATEGORY_COLORS[a.category as OrbitKey] ?? CATEGORY_COLORS.Unlisted,
-        hidden: false, lift: prev.get(key)?.lift ?? 0, active: false, x: 0, y: 0, scale: 1,
+        hidden: false, lift: prev.get(key)?.lift ?? 0, active: false, x: 0, y: 0, scale: 1, css: newStyleCache(),
       })
     }
     this.data.ports.forEach((p, i) => {
@@ -262,6 +283,7 @@ export class OrbitScene {
       next.push({
         key, kind: 'port', ring: -1, angle: 0, size: p.size, color: PORT_COLOR,
         hidden: this.narrow && i >= PORT_COUNT_NARROW, lift: prev.get(key)?.lift ?? 0, active: false, x: 0, y: 0, scale: 1,
+        css: newStyleCache(),
       })
     })
     this.nodes = next
@@ -294,17 +316,19 @@ export class OrbitScene {
   private loop = (now: number) => {
     this.raf = 0
     if (!this.active) return
-    this.frameStart = now
+    // Frame interval between rAF callbacks: includes paint/composite cost that happens after our callback.
+    const dt = this.prevNow ? now - this.prevNow : 0
+    this.prevNow = now
     this.frame(now)
-    // Feed frame duration to governor
-    const dt = performance.now() - this.frameStart
-    this.quality = this.governor.feed(dt)
+    // Skip the first sample and samples from a hidden tab.
+    if (dt > 0 && dt <= 250) this.quality = this.governor.feed(dt)
     this.raf = requestAnimationFrame(this.loop)
   }
 
   private frame(now: number) {
     const { ctx, w, h } = this
     if (!w || !h) return
+    this.syncLite()
     const f = this.last ? Math.min(3, Math.max(0, (now - this.last) / FRAME_MS)) : 1
     this.last = now
     const frozen = this.reduced || this.paused
@@ -332,6 +356,17 @@ export class OrbitScene {
     this.drawComets(now)
     this.drawFlashes(now)
     this.placeCore(now)
+  }
+
+  /** Mirror quality >= 1 onto the stage root as data-lite; touches the DOM only when the flag changes. */
+  private syncLite() {
+    const lite = this.quality >= 1
+    if (lite === this.liteApplied) return
+    if (!this.stageEl) this.stageEl = this.canvas.closest<HTMLElement>('.om-stage')
+    if (!this.stageEl) return
+    if (lite) this.stageEl.setAttribute('data-lite', 'true')
+    else this.stageEl.removeAttribute('data-lite')
+    this.liteApplied = lite
   }
 
   private project(r: number, a: number) {
@@ -567,7 +602,7 @@ export class OrbitScene {
         const scatter = this.portPositions.get(n.key)
         const el = this.dom.nodes.get(n.key)
         if (n.hidden || !scatter) {
-          if (el) { el.style.opacity = '0'; el.style.pointerEvents = 'none' }
+          if (el) this.writeNode(n, el, null, '0', null, 'none')
           continue
         }
         n.lift += ((hot || this.selected === n.key ? 1 : 0) - n.lift) * 0.14
@@ -580,10 +615,7 @@ export class OrbitScene {
         n.y = scatter.y + floatY
         n.scale = 1 + n.lift * 0.22
         if (el) {
-          el.style.transform = `translate3d(${n.x}px, ${n.y}px, 0) translate(-50%, -50%) scale(${n.scale})`
-          el.style.opacity = String(Math.min(1, 0.7 + n.lift * 0.3))
-          el.style.zIndex = hot ? '60' : '20'
-          el.style.pointerEvents = 'auto'
+          this.writeNode(n, el, nodeTransform(n.x, n.y, n.scale), snapUnit(Math.min(1, 0.7 + n.lift * 0.3)), hot ? '60' : '20', 'auto')
           const on = hot || this.selected === n.key
           if (on !== n.active) { n.active = on; el.dataset.active = String(on) }
         }
@@ -600,26 +632,47 @@ export class OrbitScene {
       n.scale = iconScale * (0.86 + 0.2 * p.depth) * (1 + n.lift * 0.42)
       const el = this.dom.nodes.get(n.key)
       if (!el) continue
-      if (n.hidden) { el.style.opacity = '0'; el.style.pointerEvents = 'none'; continue }
-      el.style.transform = `translate3d(${p.x}px, ${p.y}px, 0) translate(-50%, -50%) scale(${n.scale})`
-      el.style.opacity = String(Math.min(1, 0.62 + (0.38 * (p.depth + 1)) / 2 + this.excite * 0.12 + n.lift * 0.5))
-      el.style.zIndex = hot ? '60' : p.depth > 0 ? '30' : '10'
-      el.style.pointerEvents = 'auto'
+      if (n.hidden) { this.writeNode(n, el, null, '0', null, 'none'); continue }
+      const opacity = Math.min(1, 0.62 + (0.38 * (p.depth + 1)) / 2 + this.excite * 0.12 + n.lift * 0.5)
+      this.writeNode(n, el, nodeTransform(p.x, p.y, n.scale), snapUnit(opacity), hot ? '60' : p.depth > 0 ? '30' : '10', 'auto')
       const on = hot || this.selected === n.key
       if (on !== n.active) { n.active = on; el.dataset.active = String(on) }
     }
+  }
+
+  /**
+   * Assigns quantised style values to a node element, skipping every property whose string is unchanged.
+   * A null transform / zIndex leaves that property untouched (hidden nodes only fade and drop pointer events).
+   * The cache is reset when React hands the scene a different element for the same key.
+   */
+  private writeNode(n: Node, el: HTMLElement, transform: string | null, opacity: string, zIndex: string | null, pointerEvents: string): void {
+    const c = n.css
+    if (c.el !== el) {
+      c.el = el; c.transform = ''; c.opacity = ''; c.zIndex = ''; c.pointerEvents = ''
+    }
+    if (transform !== null && transform !== c.transform) { c.transform = transform; el.style.transform = transform }
+    if (opacity !== c.opacity) { c.opacity = opacity; el.style.opacity = opacity }
+    if (zIndex !== null && zIndex !== c.zIndex) { c.zIndex = zIndex; el.style.zIndex = zIndex }
+    if (pointerEvents !== c.pointerEvents) { c.pointerEvents = pointerEvents; el.style.pointerEvents = pointerEvents }
   }
 
   private placeCore(now: number) {
     const { core, halo } = this.dom
     const boost = this.flashLevel('core', now)
     if (core) {
-      core.style.transform = `translate3d(${this.cx}px, ${this.cy}px, 0) translate(-50%, -50%) scale(${Math.max(0.6, this.zoom) * CORE_SCALE})`
+      const cc = this.coreCache
+      if (cc.el !== core) { cc.el = core; cc.transform = '' }
+      const transform = nodeTransform(this.cx, this.cy, Math.max(0.6, this.zoom) * CORE_SCALE)
+      if (transform !== cc.transform) { cc.transform = transform; core.style.transform = transform }
     }
     if (halo) {
+      const hc = this.haloCache
+      if (hc.el !== halo) { hc.el = halo; hc.transform = ''; hc.opacity = '' }
       const beat = this.reduced || this.paused ? 0 : (Math.sin(this.t * 0.045) + 1) / 2
-      halo.style.opacity = String(Math.min(1, 0.55 + beat * 0.3 + this.excite * 0.15 + boost * 0.3))
-      halo.style.transform = `scale(${1 + beat * 0.09 + this.excite * 0.12 + boost * 0.18})`
+      const opacity = snapUnit(Math.min(1, 0.55 + beat * 0.3 + this.excite * 0.15 + boost * 0.3))
+      const transform = `scale(${snapUnit(1 + beat * 0.09 + this.excite * 0.12 + boost * 0.18)})`
+      if (opacity !== hc.opacity) { hc.opacity = opacity; halo.style.opacity = opacity }
+      if (transform !== hc.transform) { hc.transform = transform; halo.style.transform = transform }
     }
   }
 
