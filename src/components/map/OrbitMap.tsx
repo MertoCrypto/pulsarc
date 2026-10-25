@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type
 import { ARC_APPS, CATEGORIES } from '@/data/apps'
 import { ArcLogo } from '@/components/brand/ArcLogo'
 import type { RankedApp } from '@/hooks/useAllMetrics'
-import { useLiveBlocks } from '@/hooks/useLiveBlocks'
+import type { LiveBlocksState } from '@/hooks/useLiveBlocks'
 import { useChainSizes } from '@/hooks/useLlama'
 import { domainName } from '@/lib/bridgeFlow'
-import { PORT_DOMAINS } from '@/lib/chainPorts'
+import { EXTRA_CHAIN_NAMES, PORT_DOMAINS } from '@/lib/chainPorts'
 
 import { buildAddressIndex, trackedShare } from '@/lib/liveTx'
 import { PORT_COUNT_NARROW, appPlanetSize, orbitOrder, ringSlot } from '@/lib/orbitMap'
+import type { CctpStats } from '@/lib/cctpLive'
 import { CctpPanel, CounterPanel, Legend, usdcLabel } from './OrbitHud'
 import { OrbitPanel, type Selection } from './OrbitPanel'
 import { OrbitTable, type AppRow } from './OrbitTable'
@@ -19,6 +20,9 @@ import { useOrbitFeed } from './useOrbitFeed'
 
 const fmt = (n: number) => n.toLocaleString('en-US')
 const CORE_RING = 'absolute -inset-3 rounded-full border border-[rgba(169,196,234,0.3)]'
+
+/** Display name for a port domain: CCTP name, extra-chain override, or "Domain N" fallback. */
+const portName = (d: number) => EXTRA_CHAIN_NAMES[d] ?? domainName(d)
 
 function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
@@ -33,12 +37,15 @@ function usePrefersReducedMotion(): boolean {
 
 interface Props {
   items: RankedApp[]
+  /** Live block state — provided by the parent so there is only one poller. */
+  live: LiveBlocksState
+  /** Accumulated session CCTP stats — provided by the parent alongside live. */
+  stats: CctpStats
   /** Rendered under the table (loading note, footnote). */
   footer?: ReactNode
 }
 
-export function OrbitMap({ items, footer }: Props) {
-  const live = useLiveBlocks()
+export function OrbitMap({ items, live, stats, footer }: Props) {
   const reduced = usePrefersReducedMotion()
   const [paused, setPaused] = useState(false)
   const motionOn = !reduced && !paused
@@ -79,7 +86,7 @@ export function OrbitMap({ items, footer }: Props) {
       const sz = sizeByDomain?.get(domain)
       const size = sz ? Math.round(sz.radius * 2) : 32
       const weight = sz?.weight ?? 0.5
-      return { domain, name: domainName(domain), size, weight }
+      return { domain, name: portName(domain), size, weight }
     })
     const sceneData: SceneData = {
       rings: order.map(c => ({ key: c, label: sum > 0 ? `${c} · ${Math.round((100 * (totals[c] ?? 0)) / sum)}%` : c })),
@@ -134,7 +141,7 @@ export function OrbitMap({ items, footer }: Props) {
     sceneRef.current?.setSelected(key)
   }, [selection])
 
-  const { liveCounts, seen, stats, pulses } = useOrbitFeed(live, sceneRef, index, motionOn)
+  const { liveCounts, seen, pulses } = useOrbitFeed(live, sceneRef, index, motionOn)
 
   // ── Panel: Esc closes, focus moves in and returns ─────────────────────────
   const close = useCallback(() => {
@@ -283,7 +290,7 @@ export function OrbitMap({ items, footer }: Props) {
                 aria-hidden
                 data-active="false"
                 data-lit={total > 0}
-                title={domainName(d)}
+                title={portName(d)}
                 onMouseEnter={() => hover(portKey(d))}
                 onMouseLeave={() => hover(null)}
                 onClick={() => open({ kind: 'port', domain: d })}
@@ -299,7 +306,7 @@ export function OrbitMap({ items, footer }: Props) {
                     <span className="om-face rounded-full" style={{ width: portSize, height: portSize }} />
                     {total > 0 && s && <span className="om-badge" title={`${s.inCount} in, ${s.outCount} out`}>{total}</span>}
                   </span>
-                  {!narrow && <span className="om-label">{domainName(d)}</span>}
+                  {!narrow && <span className="om-label">{portName(d)}</span>}
                 </span>
                 <span className="om-note">{`CCTP domain ${d}${total > 0 && s ? ` · ${s.inCount} in, ${s.outCount} out` : ''}${sz ? ` · ${sz.assets !== null ? `$${(sz.assets / 1e9).toFixed(1)}B in DeFi apps` : ''}` : ''}`}</span>
               </button>
@@ -332,7 +339,7 @@ export function OrbitMap({ items, footer }: Props) {
                     onBlur={() => hover(null)}
                     onClick={() => open({ kind: 'port', domain: d })}
                   >
-                    {`${domainName(d)}, CCTP domain ${d}, ${usdcLabel(s?.inUsdc ?? 0)} USDC in and ${usdcLabel(s?.outUsdc ?? 0)} out since you opened this page. Open details.`}
+                    {`${portName(d)}, domain ${d}, ${usdcLabel(s?.inUsdc ?? 0)} USDC in and ${usdcLabel(s?.outUsdc ?? 0)} out since you opened this page. Open details.`}
                   </button>
                 </li>
               )

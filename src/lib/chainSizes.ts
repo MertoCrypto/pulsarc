@@ -49,6 +49,11 @@ export const LLAMA_BY_DOMAIN: Record<number, LlamaEntry> = {
   32: { chain: 'Cronos',          meta: 'cronos' },
   33: { chain: 'Plasma',          meta: 'plasma' },
   37: { chain: 'X Layer',         meta: 'x-layer' },
+  // Non-CCTP chains added for bridge coverage
+  4663: { chain: '',              meta: '' },   // Robinhood Chain — not in DefiLlama yet
+  1868: { chain: 'Soneium',       meta: 'soneium' },
+  // Synthetic "Other networks" body — no DefiLlama data
+  [-99]: { chain: '', meta: '' },
 }
 
 // ── Parsers ───────────────────────────────────────────────────────────────────
@@ -173,6 +178,18 @@ export function buildChainSizes(
   }
 
   return PORT_DOMAINS.map(domain => {
+    // Synthetic "Other networks" body: always shown at a small fixed weight.
+    if (domain < 0) {
+      const weight = 0.3
+      return {
+        domain,
+        assets: null,
+        dex24h: null,
+        weight,
+        radius: bodyRadius(weight, false),
+        radiusMobile: bodyRadius(weight, true),
+      }
+    }
     const entry = LLAMA_BY_DOMAIN[domain]
     const assets = entry?.chain ? (assetsMap.get(entry.chain) ?? null) : null
     const dex24h = entry?.meta ? (dexMap.get(entry.meta) ?? null) : null

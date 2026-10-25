@@ -4,6 +4,7 @@ import { X } from 'lucide-react'
 import type { ArcApp } from '@/data/apps'
 import type { RankedApp } from '@/hooks/useAllMetrics'
 import { domainName } from '@/lib/bridgeFlow'
+import { EXTRA_CHAIN_NAMES } from '@/lib/chainPorts'
 import type { PortStat } from '@/lib/cctpLive'
 import type { ChainSize } from '@/lib/chainSizes'
 import { CATEGORY_COLORS } from '@/lib/orbitMap'
@@ -45,7 +46,9 @@ export const OrbitPanel = forwardRef<HTMLButtonElement, Props>(function OrbitPan
   { selection, app, metrics, liveSeen, port, portSize, onClose }, closeRef,
 ) {
   const stat: PortStat = port ?? { inCount: 0, outCount: 0, inUsdc: 0, outUsdc: 0 }
-  const label = selection.kind === 'app' ? app?.name ?? 'App' : domainName(selection.domain)
+  const label = selection.kind === 'app'
+    ? app?.name ?? 'App'
+    : (EXTRA_CHAIN_NAMES[selection.domain] ?? domainName(selection.domain))
   return (
     <aside
       aria-label={`${label} details`}
@@ -88,7 +91,7 @@ export const OrbitPanel = forwardRef<HTMLButtonElement, Props>(function OrbitPan
             </span>
             <div className="min-w-0">
               <h2 className="truncate text-2xl font-light text-white">{label}</h2>
-              <p className="font-['Geist_Mono'] text-[11px] text-[var(--muted)]">{`CCTP domain ${selection.domain}`}</p>
+              <p className="font-['Geist_Mono'] text-[11px] text-[var(--muted)]">{selection.domain > 0 ? `Domain ${selection.domain}` : label}</p>
             </div>
           </div>
           {portSize && (portSize.assets !== null || portSize.dex24h !== null) && (

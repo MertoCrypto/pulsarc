@@ -1,11 +1,11 @@
 import { useRef, useEffect, useReducer } from 'react'
 import { useAllMetrics } from '@/hooks/useAllMetrics'
-import { useLiveBlocks } from '@/hooks/useLiveBlocks'
+import { useLiveBlocks, type LiveBlocksState } from '@/hooks/useLiveBlocks'
 import { useChainSizes } from '@/hooks/useLlama'
 import { Reveal } from '@/components/shared/Reveal'
 import { SplitLines } from '@/components/shared/SplitLines'
 import { NETWORK } from '@/lib/chain'
-import { EMPTY_CCTP_STATS, addMoves, type CctpMove } from '@/lib/cctpLive'
+import { EMPTY_CCTP_STATS, addMoves, type CctpStats, type CctpMove } from '@/lib/cctpLive'
 import { OrbitMap } from '@/components/map/OrbitMap'
 import { CapitalSection } from '@/components/map/CapitalSection'
 
@@ -16,6 +16,27 @@ export function MapPage() {
   const stillLoading = loaded < total
   const { data: chainSizesData } = useChainSizes()
   const chainSizesLive = chainSizesData?.live ?? false
+
+  // Single useLiveBlocks call — shared by OrbitMap and CapitalSection.
+  const live = useLiveBlocks()
+
+  // Session CCTP stats accumulated from live.moves (CCTP-only subset).
+  const [stats, addStats] = useReducer(
+    (s: CctpStats, moves: readonly CctpMove[]) => addMoves(s, moves),
+    EMPTY_CCTP_STATS,
+  )
+  const lastMoves = useRef(live.moves)
+
+  useEffect(() => {
+    if (live.moves === lastMoves.current) return
+    lastMoves.current = live.moves
+    if (live.moves.length === 0) return
+    // toCctpMove is defined inside useOrbitFeed; re-implement the CCTP filter inline.
+    const cctpMoves: CctpMove[] = live.moves
+      .filter(m => m.bridge === 'cctp')
+      .map(m => ({ txHash: m.txHash, direction: m.direction, domain: -1, usdc: m.usdc }))
+    if (cctpMoves.length > 0) addStats(cctpMoves)
+  }, [live.moves])
 
   return (
     <div className="space-y-0">
@@ -40,6 +61,8 @@ export function MapPage() {
       {/* The galaxy stage — full viewport width, nothing beside it */}
       <OrbitMap
         items={items}
+        live={live}
+        stats={stats}
         footer={
           <>
             {stillLoading && (
@@ -48,7 +71,7 @@ export function MapPage() {
               </p>
             )}
             <p className="mt-3 max-w-[680px] text-sm leading-relaxed text-[var(--faint)]">
-              Comets are transactions in Arc blocks as they arrive, read directly from the Arc RPC. Planet size follows transactions in the last 24 hours. Amounts are shown only when a transaction moves USDC. Cross-chain moves are CCTP v2 burns and mints read from Arc logs; other bridges are not shown yet.
+              Comets are transactions in Arc blocks as they arrive, read directly from the Arc RPC. Planet size follows transactions in the last 24 hours. Amounts are shown only when a transaction moves USDC. Cross-chain moves are read from Arc logs: CCTP (Circle's Bridge Kit settles through CCTP), Circle Gateway, Across, Hyperlane warp routes, LI.FI and deBridge. Transfers started from Arc Portal cannot be told apart. LayerZero, Relay and Wormhole are not included yet.
             </p>
           </>
         }
@@ -56,30 +79,11 @@ export function MapPage() {
 
       {/* Capital & flows section */}
       <div className="mt-16 space-y-6">
-        <CapitalSectionWrapper chainSizesLive={chainSizesLive} />
+        <CapitalSection stats={stats} chainSizesLive={chainSizesLive} />
       </div>
     </div>
   )
 }
 
-/**
- * Wrapper to get the live CCTP stats from the shared useLiveBlocks state that
- * OrbitMap already has. We re-use the same hook — React's hook deduplication
- * means there is only one subscription, so no duplicate RPC calls.
- */
-function CapitalSectionWrapper({ chainSizesLive }: { chainSizesLive: boolean }) {
-  const live = useLiveBlocks()
-  const [stats, addStats] = useReducer(
-    (s: typeof EMPTY_CCTP_STATS, moves: readonly CctpMove[]) => addMoves(s, moves),
-    EMPTY_CCTP_STATS,
-  )
-  const lastCctp = useRef(live.cctp)
-
-  useEffect(() => {
-    if (live.cctp === lastCctp.current) return
-    lastCctp.current = live.cctp
-    if (live.cctp.length > 0) addStats(live.cctp)
-  }, [live.cctp])
-
-  return <CapitalSection stats={stats} chainSizesLive={chainSizesLive} />
-}
+/** Re-exported for any consumer that needs the live state type without importing the hook. */
+export type { LiveBlocksState }

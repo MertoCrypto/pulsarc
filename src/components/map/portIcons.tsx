@@ -8,7 +8,7 @@ import {
 } from '@web3icons/react'
 import type { ArcApp } from '@/data/apps'
 import { domainName } from '@/lib/bridgeFlow'
-import { portIconKey, portInitials } from '@/lib/chainPorts'
+import { portIconKey, portInitials, EXTRA_CHAIN_NAMES } from '@/lib/chainPorts'
 
 type IconProps = { variant?: 'branded' | 'mono' | 'background'; size?: number | string; className?: string }
 type Icon = ComponentType<IconProps>
@@ -29,7 +29,9 @@ export function PortFace({ domain, size }: { domain: number; size: number }) {
   const key = portIconKey(domain)
   const Icon = key ? ICONS[key] : undefined
   if (Icon) return <Icon variant="branded" size={Math.round(size * 0.72)} />
-  return <span className={MONO} style={{ fontSize: Math.max(8, size * 0.3) }}>{portInitials(domainName(domain))}</span>
+  // For extra chains and "Other networks", use EXTRA_CHAIN_NAMES for initials
+  const name = EXTRA_CHAIN_NAMES[domain] ?? domainName(domain)
+  return <span className={MONO} style={{ fontSize: Math.max(8, size * 0.3) }}>{portInitials(name)}</span>
 }
 
 /** An app's face: branded token icon, portal logo, or three-letter initials. */

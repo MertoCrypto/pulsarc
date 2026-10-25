@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { clientFor, withRetry } from '@/lib/arcRpc'
 import { NETWORK } from '@/lib/chain'
-import { CCTP_TOPICS, cctpAddresses, decodeCctpLogs, type CctpMove } from '@/lib/cctpLive'
+import { BRIDGE_ADDRESSES, decodeBridgeLogs, type BridgeMove } from '@/lib/bridgeLive'
 import { logRange } from '@/lib/orbitMap'
 
 export const POLL_MS = 2500
@@ -32,8 +32,8 @@ export interface LiveBlocksState {
   error: string | null
   /** Blocks that were never fetched because the page fell more than 8 behind. */
   skipped: number
-  /** CCTP v2 moves between Arc and other networks seen in the latest tick's blocks (empty when the log read failed). */
-  cctp: CctpMove[]
+  /** All bridge moves (CCTP, Gateway, Across, Hyperlane, LI.FI, deBridge) seen in the latest tick (empty when the log read failed). */
+  moves: BridgeMove[]
 }
 
 const net = NETWORK.id === 5042 ? 'mainnet' : 'testnet'
@@ -49,7 +49,7 @@ export function useLiveBlocks(): LiveBlocksState {
     seenTxs: 0,
     error: null,
     skipped: 0,
-    cctp: [],
+    moves: [],
   })
 
   // Mutable bookkeeping that must not trigger renders.
@@ -101,24 +101,23 @@ export function useLiveBlocks(): LiveBlocksState {
         )
         if (!alive) return
 
-        // CCTP log range covers EVERY block since the last seen one (up to 9000 back from head),
+        // Bridge log range covers EVERY block since the last seen one (up to 9000 back from head),
         // regardless of how many blocks the tx fetch was limited to. On the first tick use head only.
         const logR = logRange(prev, head)
-        let cctp: CctpMove[] = []
+        let moves: BridgeMove[] = []
         if (logR.from <= logR.to) {
           try {
             const logs = await withRetry(() => client.request({
               method: 'eth_getLogs',
               params: [{
-                address: cctpAddresses(net).map(a => a as `0x${string}`),
+                address: BRIDGE_ADDRESSES.map(a => a as `0x${string}`),
                 fromBlock: hex(logR.from),
                 toBlock: hex(logR.to),
-                topics: [CCTP_TOPICS.map(t => t as `0x${string}`)],
               }],
             }))
-            cctp = decodeCctpLogs(logs, net)
+            moves = decodeBridgeLogs(logs, net)
           } catch {
-            cctp = []
+            moves = []
           }
         }
         if (!alive) return
@@ -141,7 +140,7 @@ export function useLiveBlocks(): LiveBlocksState {
           seenTxs: totals.current.txs,
           error: null,
           skipped: totals.current.skipped,
-          cctp,
+          moves,
         })
       } catch (e) {
         if (alive) setState(s => ({ ...s, error: e instanceof Error ? e.message : 'Could not read Arc blocks' }))

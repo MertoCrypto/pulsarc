@@ -1,8 +1,9 @@
-import { useEffect, useReducer, useRef, useState, type MutableRefObject } from 'react'
+import { useEffect, useRef, useState, type MutableRefObject } from 'react'
 import type { LiveBlocksState } from '@/hooks/useLiveBlocks'
 import { domainName } from '@/lib/bridgeFlow'
-import { EMPTY_CCTP_STATS, addMoves, type CctpMove } from '@/lib/cctpLive'
+import { DOMAIN_TO_CHAIN, type BridgeMove } from '@/lib/bridgeLive'
 import { classifyTx, type AddressOwner } from '@/lib/liveTx'
+import { BRIDGE_COLORS, type BridgeColorKey } from '@/lib/orbitMap'
 import type { OrbitScene, SceneTx } from './orbitScene'
 
 const PULSE_MS = 2000
@@ -11,7 +12,43 @@ const MAX_PULSES = 8
 export interface Pulse { id: number; delay: number }
 
 /**
- * Takes each live block and each CCTP move exactly once: feeds the canvas, keeps the counters for the
+ * Resolve a bridge move's counterpart chain to a display name for the pill.
+ * Uses CCTP domain names for CCTP/Gateway moves, generic "chain <id>" for others.
+ */
+function moveName(move: BridgeMove): string {
+  if (move.chainId === null) return 'Other networks'
+  // For CCTP and Gateway, look up a friendly name by reverting chain id → CCTP domain
+  if (move.bridge === 'cctp' || move.bridge === 'gateway') {
+    // Find domain from chain id
+    for (const [dom, cid] of Object.entries(DOMAIN_TO_CHAIN)) {
+      if (cid === move.chainId) return domainName(Number(dom))
+    }
+  }
+  // For all bridges, fall back to common chain names via CCTP domain lookup (chain ids overlap)
+  for (const [dom, cid] of Object.entries(DOMAIN_TO_CHAIN)) {
+    if (cid === move.chainId) return domainName(Number(dom))
+  }
+  // Robinhood Chain and Soneium
+  if (move.chainId === 4663) return 'Robinhood Chain'
+  if (move.chainId === 1868) return 'Soneium'
+  return `Chain ${move.chainId}`
+}
+
+/**
+ * Resolve a BridgeMove's chainId to the CCTP domain used by portKey, or null when
+ * the chain is not a CCTP port (e.g. Robinhood 4663, Soneium 1868).
+ */
+function moveDomain(move: BridgeMove): number | null {
+  if (move.chainId === null) return null
+  for (const [dom, cid] of Object.entries(DOMAIN_TO_CHAIN)) {
+    if (cid === move.chainId) return Number(dom)
+  }
+  // Non-CCTP chains: use chainId directly as domain for portKey lookup
+  return move.chainId
+}
+
+/**
+ * Takes each live block and each bridge move exactly once: feeds the canvas, keeps the counters for the
  * panels, and hands out one core pulse per new block.
  */
 export function useOrbitFeed(
@@ -21,14 +58,13 @@ export function useOrbitFeed(
   pulsesOn: boolean,
 ) {
   const lastSeq = useRef(0)
-  const lastCctp = useRef<CctpMove[] | null>(null)
+  const lastMoves = useRef<BridgeMove[] | null>(null)
   const pulseId = useRef(0)
   const timers = useRef<number[]>([])
   const pulsesOnRef = useRef(pulsesOn)
   useEffect(() => { pulsesOnRef.current = pulsesOn }, [pulsesOn])
   const [liveCounts, setLiveCounts] = useState<Record<string, number>>({})
   const [seen, setSeen] = useState({ tracked: 0, total: 0 })
-  const [stats, addStats] = useReducer(addMoves, EMPTY_CCTP_STATS)
   const [pulses, setPulses] = useState<Pulse[]>([])
 
   useEffect(() => () => { timers.current.forEach(t => window.clearTimeout(t)) }, [])
@@ -64,18 +100,30 @@ export function useOrbitFeed(
   }, [live.blocks, index, sceneRef])
 
   useEffect(() => {
-    if (live.cctp === lastCctp.current) return
-    lastCctp.current = live.cctp
-    if (live.cctp.length === 0) return
-    live.cctp.forEach((m, i) => {
-      sceneRef.current?.addCctp(
-        { direction: m.direction, domain: m.domain, usdc: m.usdc, name: m.domain === -1 ? 'Unknown source' : domainName(m.domain) },
+    if (live.moves === lastMoves.current) return
+    lastMoves.current = live.moves
+    if (live.moves.length === 0) return
+
+    live.moves.forEach((m, i) => {
+      const name = moveName(m)
+      const domain = moveDomain(m) ?? -99
+      const color = BRIDGE_COLORS[m.bridge] ?? BRIDGE_COLORS.cctp
+
+      sceneRef.current?.addBridgeMove(
+        {
+          direction: m.direction,
+          domain,
+          usdc: m.usdc,
+          name,
+          bridge: m.bridge,
+          color,
+        },
         i,
         m.txHash,
       )
     })
-    addStats(live.cctp)
-  }, [live.cctp, sceneRef])
 
-  return { liveCounts, seen, stats, pulses }
+  }, [live.moves, sceneRef])
+
+  return { liveCounts, seen, pulses }
 }

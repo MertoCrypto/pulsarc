@@ -103,7 +103,7 @@ export function Legend({ motionOn, reduced, onToggle, className = '' }: LegendPr
       <span className="om-chip"><span className="h-2.5 w-3 rounded-[3px] border border-[rgba(169,196,234,0.7)]" aria-hidden />Apps</span>
       <span className="om-chip"><span className="h-2.5 w-2.5 rounded-full border border-dashed border-[rgba(169,196,234,0.8)]" aria-hidden />Other networks</span>
       <span className="om-chip"><span className="h-2.5 w-2.5 rounded-full border border-[rgba(169,196,234,0.7)]" aria-hidden />Pulse = new block</span>
-      <span className="om-chip"><span className="h-0.5 w-4 rounded-full bg-[linear-gradient(90deg,transparent,#dfeaff)]" aria-hidden />Comet = transaction</span>
+      <span className="om-chip"><span className="h-0.5 w-4 rounded-full bg-[linear-gradient(90deg,transparent,#dfeaff)]" aria-hidden />Bright comet = bridge move</span>
       <button type="button" className="om-chip" aria-pressed={motionOn} onClick={onToggle} disabled={reduced}>
         {reduced ? 'Motion reduced' : `Motion ${motionOn ? 'on' : 'off'}`}
       </button>

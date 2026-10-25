@@ -16,13 +16,12 @@ import { DISC, makeDust, type Dust } from '@/lib/arcFieldMath'
 import {
   CATEGORY_COLORS, FIELD_ROLL, FIELD_TILT, PORT_COUNT_NARROW,
   QualityGovernor,
-  appRingRadii, canvasDpr, cctpPill, ellipseExtent, ellipsePoint, mulberry32, pillAmount, projectPoint, ringSpeed,
-  scatterNodes, seedFromString, placeLabels, type LabelItem, type Blocker, type OrbitKey, type Point,
+  appRingRadii, bridgePill, canvasDpr, cctpPill, ellipseExtent, ellipsePoint, mulberry32, pillAmount, projectPoint, ringSpeed,
+  scatterNodes, seedFromString, placeLabels, type BridgeColorKey, type LabelItem, type Blocker, type OrbitKey, type Point,
 } from '@/lib/orbitMap'
 import {
   CCTP_COLOR, CCTP_TRAIL_POINTS, TX_TRAIL_POINTS, paintComet, paintPill, trailOf, type Comet, type Endpoint,
 } from './cometDraw'
-
 export const MAX_COMETS = 400
 export const NARROW = 640
 
@@ -53,7 +52,14 @@ export interface SceneApp { id: string; name: string; category: string; ring: nu
 export interface ScenePort { domain: number; name: string; size: number; weight: number }
 export interface SceneData { rings: SceneRing[]; apps: SceneApp[]; ports: ScenePort[] }
 export interface SceneTx { appId: string | null; category: string | null; usdc: number | null }
-export interface SceneMove { direction: 'in' | 'out'; domain: number; usdc: number | null; name: string }
+export interface SceneMove {
+  direction: 'in' | 'out'
+  domain: number
+  usdc: number | null
+  name: string
+  bridge?: BridgeColorKey
+  color?: string
+}
 /** DOM the scene moves each frame; React fills it through callback refs. */
 export class SceneDom {
   readonly nodes = new Map<string, HTMLElement>()
@@ -196,18 +202,27 @@ export class OrbitScene {
 
   /** One bright comet per CCTP move: port → core when USDC arrives, core → port when it leaves. */
   addCctp(move: SceneMove, index: number, salt: string) {
+    this.addBridgeMove(move, index, salt)
+  }
+
+  /** One bright comet per bridge move: port ↔ core, coloured per bridge protocol. */
+  addBridgeMove(move: SceneMove, index: number, salt: string) {
     const now = performance.now()
     const node = this.byKey.get(portKey(move.domain))
     const rng = mulberry32(seedFromString(`${salt}:${index}`))
     const port: Endpoint = node && !node.hidden ? { t: 'node', key: node.key } : { t: 'ring', angle: rng() * Math.PI * 2 }
     const inbound = move.direction === 'in'
     const flashKey = inbound ? 'core' : port.t === 'node' ? port.key : 'ring'
+    const color = move.color ?? CCTP_COLOR
     if (this.reduced || this.paused) { this.flashes.set(flashKey, now); return }
+    const pill = move.bridge && move.bridge !== 'cctp'
+      ? bridgePill(move.direction, move.name, move.usdc, move.bridge)
+      : cctpPill(move.direction, move.name, move.usdc)
     this.push({
       kind: move.direction, start: now + index * 350 + rng() * 500, life: 2400 + rng() * 700,
-      seed: seedFromString(`${salt}:${index}:path`), color: CCTP_COLOR,
+      seed: seedFromString(`${salt}:${index}:path`), color,
       from: inbound ? port : { t: 'core' }, to: inbound ? { t: 'core' } : port, flashKey,
-      usdc: move.usdc, pill: cctpPill(move.direction, move.name, move.usdc), flashed: false,
+      usdc: move.usdc, pill, flashed: false,
     })
   }
 

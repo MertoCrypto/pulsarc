@@ -9,12 +9,14 @@ import {
 
 import { useLatest, isLatestFresh } from '@/hooks/useLatest'
 import { useStablecoins, useDexs, useChainSizes } from '@/hooks/useLlama'
+import { useBridgeHour } from '@/hooks/useBridgeHour'
 import { NETWORK } from '@/lib/chain'
 import { domainName } from '@/lib/bridgeFlow'
 import { PORT_DOMAINS } from '@/lib/chainPorts'
 import type { CctpStats } from '@/lib/cctpLive'
 import { bridgeSummary, type ExtendedWindow } from '@/lib/activityMix'
 import { lastFullDay, latestAndChange, venueShares } from '@/lib/llama'
+import { BRIDGE_COLORS, pillAmount } from '@/lib/orbitMap'
 import { PortFace } from './portIcons'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -500,6 +502,105 @@ function NetworksTableCard({ stats }: { stats: CctpStats }) {
   )
 }
 
+// ── e) All bridges · last hour ────────────────────────────────────────────────
+
+const BRIDGE_LABELS: Record<string, string> = {
+  cctp: 'CCTP',
+  gateway: 'Circle Gateway',
+  across: 'Across',
+  hyperlane: 'Hyperlane warp routes',
+  lifi: 'LI.FI',
+  debridge: 'deBridge',
+}
+const BRIDGE_ORDER = ['cctp', 'gateway', 'across', 'hyperlane', 'lifi', 'debridge'] as const
+
+const FOOTNOTE_TEXT =
+  'Read from Arc logs: CCTP, Circle Gateway, Across, Hyperlane warp routes, LI.FI and deBridge. ' +
+  'LayerZero, Relay and Wormhole are not included yet. ' +
+  'Amounts count USDC only; transfers of other tokens are counted without an amount. ' +
+  'A transfer is counted once even when several bridges touch it.'
+
+function AllBridgesCard() {
+  const { moves, summary, loading, error, lastUpdated } = useBridgeHour()
+
+  const total = moves.length
+  const totalUsdc = BRIDGE_ORDER.reduce((sum, b) => {
+    const s = summary.byBridge[b]
+    return sum + (s ? s.in.usdc + s.out.usdc : 0)
+  }, 0)
+
+  const maxCount = BRIDGE_ORDER.reduce((m, b) => {
+    const s = summary.byBridge[b]
+    return Math.max(m, s ? s.in.count + s.out.count : 0)
+  }, 1)
+
+  return (
+    <div className="arc-card p-5">
+      <p className="arc-eyebrow mb-1">All bridges · last hour</p>
+      {loading && <div className="h-32 animate-pulse rounded bg-white/5" />}
+      {error && <p className="mt-3 text-sm text-[var(--negative)]">{error}</p>}
+      {!loading && (
+        <>
+          <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div>
+              <p className="font-['Geist_Mono'] text-[10px] uppercase tracking-[0.14em] text-[var(--faint)]">Transfers</p>
+              <p className="mt-1 font-['Geist_Mono'] text-[22px] font-light tabular-nums text-white">{total.toLocaleString('en-US')}</p>
+            </div>
+            {totalUsdc > 0 && (
+              <div>
+                <p className="font-['Geist_Mono'] text-[10px] uppercase tracking-[0.14em] text-[var(--faint)]">USDC moved</p>
+                <p className="mt-1 font-['Geist_Mono'] text-[22px] font-light tabular-nums text-white">{pillAmount(totalUsdc)}</p>
+              </div>
+            )}
+            {lastUpdated && (
+              <div className="col-span-full sm:col-span-1">
+                <p className="font-['Geist_Mono'] text-[10px] uppercase tracking-[0.14em] text-[var(--faint)]">Updated</p>
+                <p className="mt-1 text-xs text-[var(--muted)]">{new Date(lastUpdated).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+              </div>
+            )}
+          </div>
+
+          <ul className="space-y-2">
+            {BRIDGE_ORDER.map(bridge => {
+              const s = summary.byBridge[bridge]
+              const count = s ? s.in.count + s.out.count : 0
+              const usdc = s ? s.in.usdc + s.out.usdc : 0
+              const barW = count > 0 ? `${Math.round((count / maxCount) * 100)}%` : '0%'
+              return (
+                <li key={bridge} className="flex items-center gap-3">
+                  <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ background: BRIDGE_COLORS[bridge] }}
+                    aria-hidden
+                  />
+                  <span className="w-[130px] shrink-0 text-sm text-white">{BRIDGE_LABELS[bridge]}</span>
+                  <div className="relative flex-1">
+                    <div className="h-1 w-full rounded-full bg-white/10">
+                      <div
+                        className="h-1 rounded-full transition-all duration-500"
+                        style={{ width: barW, background: BRIDGE_COLORS[bridge] }}
+                      />
+                    </div>
+                  </div>
+                  <span className="w-16 text-right font-['Geist_Mono'] text-[12px] text-[var(--muted)]">
+                    {count > 0 ? count.toLocaleString('en-US') : '—'}
+                  </span>
+                  {usdc > 0 && (
+                    <span className="w-16 text-right font-['Geist_Mono'] text-[12px] text-[var(--periwinkle)]">
+                      {pillAmount(usdc)}
+                    </span>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+          <p className="mt-4 text-xs leading-relaxed text-[var(--faint)]">{FOOTNOTE_TEXT}</p>
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── Page section ──────────────────────────────────────────────────────────────
 
 interface Props {
@@ -528,12 +629,13 @@ export function CapitalSection({ stats, chainSizesLive }: Props) {
         <CctpFlowCard stats={stats} />
         <StablecoinCard />
         <DexVenueCard />
+        <AllBridgesCard />
       </div>
 
       <NetworksTableCard stats={stats} />
 
       <p className="text-xs leading-relaxed text-[var(--faint)]">
-        Flows are CCTP v2 burns and mints read from Arc. Network sizes come from DefiLlama (assets in DeFi apps and 24h DEX volume). Other bridges are not shown yet.
+        CCTP flows are v2 burns and mints read from Arc. Network sizes come from DefiLlama (assets in DeFi apps and 24h DEX volume). Bridge coverage: CCTP, Circle Gateway, Across, Hyperlane, LI.FI, deBridge.
       </p>
     </div>
   )

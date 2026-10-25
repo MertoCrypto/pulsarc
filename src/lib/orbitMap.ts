@@ -487,6 +487,37 @@ export function cctpPill(direction: 'in' | 'out', chain: string, usdc: number | 
   return `${pillAmount(usdc)} USDC · ${route}`
 }
 
+/** Bridge id used in BridgeMove (mirrors BridgeId in bridgeLive.ts). */
+export type BridgeColorKey = 'cctp' | 'gateway' | 'across' | 'hyperlane' | 'lifi' | 'debridge'
+
+/** One colour per bridge — tuned for the #08111f scene background. */
+export const BRIDGE_COLORS: Record<BridgeColorKey, string> = {
+  cctp:      '#a9c4ea', // periwinkle
+  gateway:   '#5ee6a8', // mint
+  across:    '#f0997b', // coral
+  hyperlane: '#c3a6ff', // violet
+  lifi:      '#f5c451', // amber
+  debridge:  '#6fd3e8', // sky
+}
+
+/**
+ * Pill for any bridge move: "$5.2K USDC · Base → Arc · Across"
+ * Format: `<amount> USDC · <from> → <to> · <bridge>`
+ * Returns null when the amount is unknown — never invents a number.
+ */
+export function bridgePill(
+  direction: 'in' | 'out',
+  chain: string,
+  usdc: number | null,
+  bridge: BridgeColorKey,
+): string | null {
+  if (usdc === null) return null
+  const from = direction === 'in' ? chain : 'Arc'
+  const to   = direction === 'in' ? 'Arc' : chain
+  const label = bridge.charAt(0).toUpperCase() + bridge.slice(1)
+  return `${pillAmount(usdc)} USDC · ${from} → ${to} · ${label}`
+}
+
 // ── Safari perf: canvas resolution budget ───────────────────────────────────
 
 /**
