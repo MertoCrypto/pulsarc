@@ -2,8 +2,28 @@ import type { ReactNode } from 'react'
 import { useCountUp } from '@/hooks/useCountUp'
 import { domainName } from '@/lib/bridgeFlow'
 import { topChains, type CctpStats } from '@/lib/cctpLive'
-import { pillAmount } from '@/lib/orbitMap'
+import { BRIDGE_COLORS, pillAmount } from '@/lib/orbitMap'
+import type { BridgeId } from '@/lib/bridgeLive'
 import { PortFace } from './portIcons'
+
+// ── Per-bridge accumulator types ─────────────────────────────────────────────
+
+export interface BridgeTally {
+  [bridge: string]: { inCount: number; outCount: number; usdc: number }
+}
+
+/** Zero-value tally — use as useReducer initial state. */
+export const EMPTY_BRIDGE_TALLY: BridgeTally = {}
+
+/** Display order and labels for the per-bridge rows. */
+const BRIDGE_ROWS: { id: BridgeId; label: string }[] = [
+  { id: 'cctp',      label: 'CCTP' },
+  { id: 'gateway',   label: 'Circle Gateway' },
+  { id: 'across',    label: 'Across' },
+  { id: 'hyperlane', label: 'Hyperlane warp routes' },
+  { id: 'lifi',      label: 'LI.FI' },
+  { id: 'debridge',  label: 'deBridge' },
+]
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US')
 /** "$0" for nothing, otherwise a short amount such as "$5.2K". */
@@ -55,15 +75,31 @@ export function CounterPanel({ blocks, txs, latest, share, skipped, error, class
   )
 }
 
-/** Bottom-right glass panel: USDC crossing between Arc and other networks since the page opened. */
-export function CctpPanel({ stats, className = '' }: { stats: CctpStats; className?: string }) {
-  const moved = stats.inCount + stats.outCount
+/** Bottom-right glass panel: bridge activity since the page opened. */
+export function CctpPanel({
+  stats,
+  bridgeTally,
+  className = '',
+}: {
+  stats: CctpStats
+  bridgeTally?: BridgeTally
+  className?: string
+}) {
+  const tally = bridgeTally ?? EMPTY_BRIDGE_TALLY
+
+  // Total moves across ALL bridges (used for the empty-state gate).
+  const totalMoved = Object.values(tally).reduce((s, b) => s + b.inCount + b.outCount, 0)
+
   const top = topChains(stats, 3)
+
+  // Whether at least one bridge row has any data (for showing the list).
+  const anyBridgeMoved = totalMoved > 0
+
   return (
     <div className={`om-glass p-4 ${className}`}>
-      <p className="font-['Geist_Mono'] text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">Crossing into Arc since you opened</p>
-      {moved === 0 ? (
-        <p className="mt-3 text-[13px] leading-relaxed text-[var(--faint)]">Waiting for the first CCTP transfer…</p>
+      <p className="font-['Geist_Mono'] text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">Bridges since you opened</p>
+      {totalMoved === 0 ? (
+        <p className="mt-3 text-[13px] leading-relaxed text-[var(--faint)]">Waiting for the first bridge transfer…</p>
       ) : (
         <>
           <dl className="mt-3 grid grid-cols-2 gap-x-6">
@@ -81,6 +117,31 @@ export function CctpPanel({ stats, className = '' }: { stats: CctpStats; classNa
                   <span className="font-['Geist_Mono'] text-[12px] text-[var(--periwinkle)]">{usdcLabel(c.usdc)}</span>
                 </li>
               ))}
+            </ol>
+          )}
+          {anyBridgeMoved && (
+            <ol className="mt-3 space-y-1.5 border-t border-[rgba(169,196,234,0.12)] pt-3">
+              {BRIDGE_ROWS.map(({ id, label }) => {
+                const b = tally[id]
+                const count = b ? b.inCount + b.outCount : 0
+                const usdc = b ? b.usdc : 0
+                return (
+                  <li key={id} className="flex items-center gap-2 text-[13px] text-[var(--text)]">
+                    <span
+                      className="h-2 w-2 flex-shrink-0 rounded-full"
+                      style={{ background: BRIDGE_COLORS[id] ?? 'rgba(169,196,234,0.5)' }}
+                      aria-hidden
+                    />
+                    <span className="min-w-0 flex-1 truncate">{label}</span>
+                    <span className="font-['Geist_Mono'] text-[12px] text-[var(--faint)]">
+                      {count === 0 ? '—' : count}
+                    </span>
+                    <span className="font-['Geist_Mono'] text-[12px] text-[var(--periwinkle)]">
+                      {count === 0 ? '—' : usdcLabel(usdc)}
+                    </span>
+                  </li>
+                )
+              })}
             </ol>
           )}
         </>

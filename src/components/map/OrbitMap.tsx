@@ -10,7 +10,7 @@ import { EXTRA_CHAIN_NAMES, PORT_DOMAINS } from '@/lib/chainPorts'
 import { buildAddressIndex, trackedShare } from '@/lib/liveTx'
 import { PORT_COUNT_NARROW, appPlanetSize, orbitOrder, ringSlot } from '@/lib/orbitMap'
 import type { CctpStats } from '@/lib/cctpLive'
-import { CctpPanel, CounterPanel, Legend, usdcLabel } from './OrbitHud'
+import { CctpPanel, CounterPanel, Legend, usdcLabel, type BridgeTally } from './OrbitHud'
 import { OrbitPanel, type Selection } from './OrbitPanel'
 import { OrbitTable, type AppRow } from './OrbitTable'
 import { OrbitScene, SceneDom, appKey, portKey, type SceneApp, type SceneData } from './orbitScene'
@@ -41,11 +41,13 @@ interface Props {
   live: LiveBlocksState
   /** Accumulated session CCTP stats — provided by the parent alongside live. */
   stats: CctpStats
+  /** Per-bridge move tallies accumulated since the page opened. */
+  bridgeTally?: BridgeTally
   /** Rendered under the table (loading note, footnote). */
   footer?: ReactNode
 }
 
-export function OrbitMap({ items, live, stats, footer }: Props) {
+export function OrbitMap({ items, live, stats, bridgeTally, footer }: Props) {
   const reduced = usePrefersReducedMotion()
   const [paused, setPaused] = useState(false)
   const motionOn = !reduced && !paused
@@ -364,7 +366,7 @@ export function OrbitMap({ items, live, stats, footer }: Props) {
       {/* Below-stage strip: counters + CCTP panel */}
       <div className="mt-4 grid grid-cols-1 gap-3 min-[900px]:grid-cols-2">
         {counters}
-        <CctpPanel stats={stats} />
+        <CctpPanel stats={stats} bridgeTally={bridgeTally} />
       </div>
 
       {/* Legend + motion toggle */}

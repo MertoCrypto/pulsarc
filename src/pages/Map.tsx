@@ -6,6 +6,8 @@ import { Reveal } from '@/components/shared/Reveal'
 import { SplitLines } from '@/components/shared/SplitLines'
 import { NETWORK } from '@/lib/chain'
 import { EMPTY_CCTP_STATS, addMoves, type CctpStats, type CctpMove } from '@/lib/cctpLive'
+import type { BridgeId } from '@/lib/bridgeLive'
+import { EMPTY_BRIDGE_TALLY, type BridgeTally } from '@/components/map/OrbitHud'
 import { OrbitMap } from '@/components/map/OrbitMap'
 import { CapitalSection } from '@/components/map/CapitalSection'
 
@@ -25,6 +27,25 @@ export function MapPage() {
     (s: CctpStats, moves: readonly CctpMove[]) => addMoves(s, moves),
     EMPTY_CCTP_STATS,
   )
+
+  // Per-bridge tally accumulated from ALL bridges in live.moves.
+  const [bridgeTally, addBridgeTally] = useReducer(
+    (s: BridgeTally, moves: { bridge: BridgeId; direction: 'in' | 'out'; usdc: number | null }[]) => {
+      if (moves.length === 0) return s
+      const next = { ...s }
+      for (const m of moves) {
+        const prev = next[m.bridge] ?? { inCount: 0, outCount: 0, usdc: 0 }
+        next[m.bridge] = {
+          inCount:  prev.inCount  + (m.direction === 'in'  ? 1 : 0),
+          outCount: prev.outCount + (m.direction === 'out' ? 1 : 0),
+          usdc:     prev.usdc     + (m.usdc ?? 0),
+        }
+      }
+      return next
+    },
+    EMPTY_BRIDGE_TALLY,
+  )
+
   const lastMoves = useRef(live.moves)
 
   useEffect(() => {
@@ -36,6 +57,10 @@ export function MapPage() {
       .filter(m => m.bridge === 'cctp')
       .map(m => ({ txHash: m.txHash, direction: m.direction, domain: -1, usdc: m.usdc }))
     if (cctpMoves.length > 0) addStats(cctpMoves)
+    // Accumulate all bridges.
+    addBridgeTally(
+      live.moves.map(m => ({ bridge: m.bridge, direction: m.direction, usdc: m.usdc }))
+    )
   }, [live.moves])
 
   return (
@@ -63,6 +88,7 @@ export function MapPage() {
         items={items}
         live={live}
         stats={stats}
+        bridgeTally={bridgeTally}
         footer={
           <>
             {stillLoading && (

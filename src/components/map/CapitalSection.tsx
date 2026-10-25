@@ -152,7 +152,7 @@ function CctpFlowCard({ stats }: CctpFlowCardProps) {
   return (
     <div className="arc-card col-span-full p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="arc-eyebrow">Follow the flow — CCTP USDC</p>
+        <p className="arc-eyebrow">Follow the flow — CCTP v2 USDC</p>
         {snapFresh && <WindowToggle win={win} setWin={setWin} />}
       </div>
 
@@ -505,7 +505,7 @@ function NetworksTableCard({ stats }: { stats: CctpStats }) {
 // ── e) All bridges · last hour ────────────────────────────────────────────────
 
 const BRIDGE_LABELS: Record<string, string> = {
-  cctp: 'CCTP',
+  cctp: 'CCTP v2 · Circle',
   gateway: 'Circle Gateway',
   across: 'Across',
   hyperlane: 'Hyperlane warp routes',
