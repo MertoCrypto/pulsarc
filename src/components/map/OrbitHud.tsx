@@ -23,6 +23,8 @@ const BRIDGE_ROWS: { id: BridgeId; label: string }[] = [
   { id: 'hyperlane', label: 'Hyperlane warp routes' },
   { id: 'lifi',      label: 'LI.FI' },
   { id: 'debridge',  label: 'deBridge' },
+  { id: 'relay',     label: 'Relay (departures)' },
+  { id: 'rhino',     label: 'Rhino.fi' },
 ]
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US')

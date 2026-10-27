@@ -511,12 +511,15 @@ const BRIDGE_LABELS: Record<string, string> = {
   hyperlane: 'Hyperlane warp routes',
   lifi: 'LI.FI',
   debridge: 'deBridge',
+  relay: 'Relay (departures)',
+  rhino: 'Rhino.fi',
 }
-const BRIDGE_ORDER = ['cctp', 'gateway', 'across', 'hyperlane', 'lifi', 'debridge'] as const
+const BRIDGE_ORDER = ['cctp', 'gateway', 'across', 'hyperlane', 'lifi', 'debridge', 'relay', 'rhino'] as const
 
 const FOOTNOTE_TEXT =
-  'Read from Arc logs: CCTP, Circle Gateway, Across, Hyperlane warp routes, LI.FI and deBridge. ' +
-  'LayerZero, Relay and Wormhole are not included yet. ' +
+  'Read from Arc logs: CCTP, Circle Gateway, Across, Hyperlane warp routes, LI.FI, deBridge, Relay departures and Rhino.fi. ' +
+  'LayerZero and Wormhole are not included yet. ' +
+  'Relay arrivals cannot be told apart on-chain, Relay counts include same-chain swaps, and Rhino.fi does not name the other network. ' +
   'Amounts count USDC only; transfers of other tokens are counted without an amount. ' +
   'A transfer is counted once even when several bridges touch it.'
 

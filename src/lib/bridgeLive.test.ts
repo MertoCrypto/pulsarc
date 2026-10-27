@@ -284,4 +284,81 @@ assert.equal(new Set(BRIDGE_ADDRESSES).size, BRIDGE_ADDRESSES.length, 'no duplic
   assert.equal(s.byChain[null as unknown as number], undefined, 'null chainId not in byChain')
 }
 
+// ── 18. rhino-deposit → out, chainId null, ~10.625 USDC, exactly one rhino move from 43 logs ──
+
+{
+  const raw = fixture('rhino-deposit')
+  const moves = decodeBridgeLogs(raw, 'mainnet')
+  const rh = moves.filter(m => m.bridge === 'rhino')
+  assert.equal(rh.length, 1, 'rhino-deposit: exactly ONE rhino move (39-log tx must not produce duplicates)')
+  assert.equal(rh[0].direction, 'out')
+  assert.equal(rh[0].chainId, null, 'rhino: chainId is null')
+  // amount = 0x0a21fe80 = 170_000_000 sub-units / 1e6 = 170.0 USDC
+  close(rh[0].usdc, 170.0, 0.01)
+}
+
+// ── 19. rhino-withdrawal-data → in, chainId null, ~14998.99 USDC ─────────────
+
+{
+  const moves = decodeBridgeLogs(fixture('rhino-withdrawal-data'), 'mainnet')
+  const rh = moves.filter(m => m.bridge === 'rhino')
+  assert.equal(rh.length, 1, 'rhino-withdrawal-data: one rhino move')
+  assert.equal(rh[0].direction, 'in')
+  assert.equal(rh[0].chainId, null)
+  close(rh[0].usdc, 14998.989997, 0.01)
+}
+
+// ── 20. rhino-withdrawal → in, chainId null, ~20278.49 USDC ──────────────────
+
+{
+  const moves = decodeBridgeLogs(fixture('rhino-withdrawal'), 'mainnet')
+  const rh = moves.filter(m => m.bridge === 'rhino')
+  assert.equal(rh.length, 1, 'rhino-withdrawal: one rhino move')
+  assert.equal(rh[0].direction, 'in')
+  assert.equal(rh[0].chainId, null)
+  close(rh[0].usdc, 20278.489997, 0.01)
+}
+
+// ── 21. relay-deposit-solana → out, chainId null, ~116.969084 USDC ───────────
+
+{
+  const moves = decodeBridgeLogs(fixture('relay-deposit-solana'), 'mainnet')
+  const re = moves.filter(m => m.bridge === 'relay')
+  assert.equal(re.length, 1, 'relay-deposit-solana: one relay move')
+  assert.equal(re[0].direction, 'out')
+  assert.equal(re[0].chainId, null)
+  close(re[0].usdc, 116.969084, 0.01)
+}
+
+// ── 22. dedupe: relay + lifi in same tx → relay wins, via='LI.FI' ────────────
+
+{
+  const tx = '0x' + 'ee'.repeat(32)
+  const moves = dedupeMoves([
+    { txHash: tx, bridge: 'relay', direction: 'out', chainId: null, usdc: 50 },
+    { txHash: tx, bridge: 'lifi', direction: 'out', chainId: null, usdc: 50, via: 'relay' },
+  ])
+  assert.equal(moves.length, 1, 'dedupe: relay+lifi → one move')
+  assert.equal(moves[0].bridge, 'relay', 'relay wins over lifi')
+  assert.equal(moves[0].via, 'LI.FI', 'via set to LI.FI')
+}
+
+// ── 23. summarise counts relay and rhino ──────────────────────────────────────
+
+{
+  const tx1 = '0x' + 'aa'.repeat(32)
+  const tx2 = '0x' + 'bb'.repeat(32)
+  const moves = [
+    { txHash: tx1, bridge: 'relay' as const, direction: 'out' as const, chainId: null, usdc: 116 },
+    { txHash: tx2, bridge: 'rhino' as const, direction: 'in' as const,  chainId: null, usdc: 10 },
+  ]
+  const s = summarise(moves)
+  assert.equal(s.byBridge.relay.out.count, 1)
+  assert.equal(s.byBridge.relay.out.usdc, 116)
+  assert.equal(s.byBridge.rhino.in.count, 1)
+  assert.equal(s.byBridge.rhino.in.usdc, 10)
+  // chainId null → not in byChain
+  assert.equal(Object.keys(s.byChain).length, 0, 'null chainIds produce no byChain entries')
+}
+
 console.log('bridgeLive.test.ts: all assertions passed')

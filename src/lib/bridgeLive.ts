@@ -9,7 +9,7 @@ import { decodeCctpLogs, type CctpNet, type CctpLogLike } from './cctpLive.ts'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type BridgeId = 'cctp' | 'gateway' | 'across' | 'hyperlane' | 'lifi' | 'debridge'
+export type BridgeId = 'cctp' | 'gateway' | 'across' | 'hyperlane' | 'lifi' | 'debridge' | 'relay' | 'rhino'
 
 export interface BridgeMove {
   txHash: string
@@ -103,6 +103,12 @@ const LIFI_DIAMOND    = '0xa4072583658fae592a3506a42431cb6316a8d40b'
 const DEBRIDGE_SRC    = '0xef4fb24ad0916217251f553c0596f8edc630eb66'
 const DEBRIDGE_DST    = '0xe7351fd770a37282b91d153ee690b63579d6dd7f'
 
+// Rhino.fi
+const RHINO_CONTRACT  = '0x5e023c31e1d3dcd08a1b3e8c96f6ef8aa8fcacd1'
+
+// Relay depository
+const RELAY_DEPOSITORY = '0x4cd00e387622c35bddb9b4c962c136462338bc31'
+
 // Hyperlane warp routers (EvmHypCollateral/CrossCollateral USDC)
 const HYPERLANE_ROUTERS: readonly string[] = [
   '0x56a255a080584de4433d0fe6587f4c0105715589',
@@ -132,6 +138,10 @@ export const BRIDGE_ADDRESSES: string[] = [
   // deBridge
   DEBRIDGE_SRC,
   DEBRIDGE_DST,
+  // Rhino.fi
+  RHINO_CONTRACT,
+  // Relay
+  RELAY_DEPOSITORY,
 ]
 
 // Topic0 constants
@@ -147,6 +157,12 @@ const HL_RECEIVED_REMOTE = '0xba20947a325f450d232530e5f5fce293e7963499d5309a07ce
 const LIFI_STARTED       = '0xcba69f43792f9f399347222505213b55af8e0b0b54b893085c2e27ecbe1644f1'
 const DEBRIDGE_CREATED   = '0xfc8703fd57380f9dd234a89dce51333782d49c5902f307b02f03e014d18fe471'
 const DEBRIDGE_FULFILLED = '0xc164aca37b9805a1c9027b6f32260a069723a82926f6e9ece4926e4dd3ea8ecf'
+// Rhino.fi
+const RHINO_DEPOSIT_ID   = '0x1655dc426ee0145d9436d28cfb463fb0e0717ae145566e5e534da64b735e49f3'
+const RHINO_WITHDRAWAL_D = '0x446598b3c3f0d9f39b89eb111ba2796b4fcbbf3bb39d64d5fd98c3045218cb31'
+const RHINO_WITHDRAWAL   = '0xe4f4f1fb3534fe80225d336f6e5a73007dc992e5f6740152bf13ed2a08f3851a'
+// Relay
+const RELAY_ERC20_DEPOSIT = '0x49fed1d0b752ce30eee63c7a81133f3363b532fec5d4d7dd1ccfd005de4555e1'
 
 /** All topic0 values (unique, lower-case) for one eth_getLogs call. */
 export const BRIDGE_TOPICS: string[] = [
@@ -163,6 +179,10 @@ export const BRIDGE_TOPICS: string[] = [
     LIFI_STARTED,
     DEBRIDGE_CREATED,
     DEBRIDGE_FULFILLED,
+    RHINO_DEPOSIT_ID,
+    RHINO_WITHDRAWAL_D,
+    RHINO_WITHDRAWAL,
+    RELAY_ERC20_DEPOSIT,
   ]),
 ]
 
@@ -554,16 +574,111 @@ function decodeDebridgeLogs(logs: readonly BridgeLogLike[]): BridgeMove[] {
   return moves
 }
 
+// ── Rhino.fi adapter ──────────────────────────────────────────────────────────
+
+/**
+ * Rhino.fi contract 0x5e023c31e1d3dcd08a1b3e8c96f6ef8aa8fcacd1.
+ * chainId is always null (destination network is not in the event).
+ *
+ * BridgedDepositWithId(address user, address other, address token, uint256 amount, bytes32 id)
+ *   topic0 RHINO_DEPOSIT_ID — data words: w0 user, w1 other, w2 token, w3 amount, w4 id
+ *   direction 'out'.
+ *
+ * BridgedWithdrawalWithData(address token, uint256 amount, ...) — all data, no indexed args
+ *   topic0 RHINO_WITHDRAWAL_D — data words: w0 token, w1 amount, then dynamic bytes
+ *   direction 'in'.
+ *
+ * BridgedWithdrawal(address user, address token, uint256 amount, ...) — all data, no indexed args
+ *   topic0 RHINO_WITHDRAWAL — data words: w0 user, w1 token, w2 amount, then dynamic string
+ *   direction 'in'.
+ *
+ * usdc = amount / 1e6 only when token is ARC_USDC; otherwise null.
+ */
+function decodeRhinoLogs(logs: readonly BridgeLogLike[]): BridgeMove[] {
+  const moves: BridgeMove[] = []
+  for (const log of logs) {
+    if (!log.transactionHash || log.topics.length === 0) continue
+    const addr = log.address.toLowerCase()
+    if (addr !== RHINO_CONTRACT) continue
+    const t0 = log.topics[0].toLowerCase()
+
+    if (t0 === RHINO_DEPOSIT_ID) {
+      // data words: w0 user (address), w1 other (address), w2 token (address), w3 amount, w4 id
+      const w = readWords(log.data, 5)
+      if (!w) continue
+      const token = w[2]
+      const amount = w[3]
+      const usdc = isArcUsdc(token) ? toUsdc6(amount) : null
+      moves.push({ txHash: log.transactionHash, bridge: 'rhino', direction: 'out', chainId: null, usdc })
+
+    } else if (t0 === RHINO_WITHDRAWAL_D) {
+      // data words: w0 token (address), w1 amount, then dynamic bytes (ignored)
+      const w = readWords(log.data, 2)
+      if (!w) continue
+      const token = w[0]
+      const amount = w[1]
+      const usdc = isArcUsdc(token) ? toUsdc6(amount) : null
+      moves.push({ txHash: log.transactionHash, bridge: 'rhino', direction: 'in', chainId: null, usdc })
+
+    } else if (t0 === RHINO_WITHDRAWAL) {
+      // data words: w0 user (address), w1 token (address), w2 amount, then dynamic string (ignored)
+      const w = readWords(log.data, 3)
+      if (!w) continue
+      const token = w[1]
+      const amount = w[2]
+      const usdc = isArcUsdc(token) ? toUsdc6(amount) : null
+      moves.push({ txHash: log.transactionHash, bridge: 'rhino', direction: 'in', chainId: null, usdc })
+    }
+  }
+  return moves
+}
+
+// ── Relay adapter ─────────────────────────────────────────────────────────────
+
+/**
+ * Relay depository 0x4cd00e387622c35bddb9b4c962c136462338bc31.
+ * Only RelayErc20Deposit is decoded (outbound). Inbound fills are plain USDC
+ * transfers and cannot be identified — do not decode them.
+ * chainId is always null (destination is not in the event).
+ *
+ * RelayErc20Deposit(address from, address token, uint256 amount, bytes32 id)
+ *   topic0 RELAY_ERC20_DEPOSIT — data words: w0 from, w1 token, w2 amount, w3 id
+ *   direction 'out'.
+ *
+ * Note: this event is also emitted by same-chain swaps; counts are an upper bound
+ * of real bridge departures.
+ */
+function decodeRelayLogs(logs: readonly BridgeLogLike[]): BridgeMove[] {
+  const moves: BridgeMove[] = []
+  for (const log of logs) {
+    if (!log.transactionHash || log.topics.length === 0) continue
+    const addr = log.address.toLowerCase()
+    if (addr !== RELAY_DEPOSITORY) continue
+    const t0 = log.topics[0].toLowerCase()
+
+    if (t0 === RELAY_ERC20_DEPOSIT) {
+      // data words: w0 from (address), w1 token (address), w2 amount, w3 id (bytes32)
+      const w = readWords(log.data, 4)
+      if (!w) continue
+      const token = w[1]
+      const amount = w[2]
+      const usdc = isArcUsdc(token) ? toUsdc6(amount) : null
+      moves.push({ txHash: log.transactionHash, bridge: 'relay', direction: 'out', chainId: null, usdc })
+    }
+  }
+  return moves
+}
+
 // ── Combined decoder ──────────────────────────────────────────────────────────
 
 /**
- * Deduplicate moves: key by txHash; priority cctp > gateway > debridge > hyperlane > across > lifi.
+ * Deduplicate moves: key by txHash; priority cctp > gateway > debridge > hyperlane > across > relay > rhino > lifi.
  * If a lifi move shares a tx with another bridge's move, absorb it (set via='LI.FI' on the kept move)
- * and drop the lifi move.
+ * and drop the lifi move. This also applies when LI.FI routes through the Relay depository.
  */
 export function dedupeMoves(moves: BridgeMove[]): BridgeMove[] {
   const PRIORITY: Record<BridgeId, number> = {
-    cctp: 6, gateway: 5, debridge: 4, hyperlane: 3, across: 2, lifi: 1,
+    cctp: 8, gateway: 7, debridge: 6, hyperlane: 5, across: 4, relay: 3, rhino: 2, lifi: 1,
   }
   // Group by txHash
   const byHash = new Map<string, BridgeMove[]>()
@@ -635,6 +750,8 @@ export function decodeBridgeLogs(logs: readonly BridgeLogLike[], net: CctpNet): 
     ...decodeHyperlaneLogs(logs),
     ...decodeLifiLogs(logs),
     ...decodeDebridgeLogs(logs),
+    ...decodeRhinoLogs(logs),
+    ...decodeRelayLogs(logs),
   ]
 
   return dedupeMoves(all)
@@ -659,7 +776,7 @@ export type BridgeSummary = {
   byChain: Record<number, { in: BridgeDirectionStat; out: BridgeDirectionStat }>
 }
 
-const BRIDGE_IDS: readonly BridgeId[] = ['cctp', 'gateway', 'across', 'hyperlane', 'lifi', 'debridge']
+const BRIDGE_IDS: readonly BridgeId[] = ['cctp', 'gateway', 'across', 'hyperlane', 'lifi', 'debridge', 'relay', 'rhino']
 
 function emptyBridgeStat(): BridgeStat {
   return { in: { count: 0, usdc: 0 }, out: { count: 0, usdc: 0 }, usdcUnknownCount: 0 }

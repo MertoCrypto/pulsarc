@@ -97,7 +97,7 @@ export function MapPage() {
               </p>
             )}
             <p className="mt-3 max-w-[680px] text-sm leading-relaxed text-[var(--faint)]">
-              Comets are transactions in Arc blocks as they arrive, read directly from the Arc RPC. Planet size follows transactions in the last 24 hours. Amounts are shown only when a transaction moves USDC. Cross-chain moves are read from Arc logs: CCTP (Circle's Bridge Kit settles through CCTP), Circle Gateway, Across, Hyperlane warp routes, LI.FI and deBridge. Transfers started from Arc Portal cannot be told apart. LayerZero, Relay and Wormhole are not included yet.
+              Comets are transactions in Arc blocks as they arrive, read directly from the Arc RPC. Planet size follows transactions in the last 24 hours. Amounts are shown only when a transaction moves USDC. Cross-chain moves are read from Arc logs: CCTP (Circle's Bridge Kit settles through CCTP), Circle Gateway, Across, Hyperlane warp routes, LI.FI, deBridge, Relay departures and Rhino.fi. Transfers started from Arc Portal cannot be told apart. LayerZero and Wormhole are not included yet.
             </p>
           </>
         }
