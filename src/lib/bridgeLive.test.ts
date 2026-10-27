@@ -7,6 +7,7 @@ import {
   BRIDGE_ADDRESSES,
   BRIDGE_TOPICS,
   NON_EVM,
+  LZ_EID_TO_CHAIN,
   decodeBridgeLogs,
   dedupeMoves,
   summarise,
@@ -359,6 +360,69 @@ assert.equal(new Set(BRIDGE_ADDRESSES).size, BRIDGE_ADDRESSES.length, 'no duplic
   assert.equal(s.byBridge.rhino.in.usdc, 10)
   // chainId null → not in byChain
   assert.equal(Object.keys(s.byChain).length, 0, 'null chainIds produce no byChain entries')
+}
+
+// ── 24. layerzero-packet-sent → out, bridge 'layerzero', chainId 4663, usdc null ──
+
+{
+  const moves = decodeBridgeLogs(fixture('layerzero-packet-sent'), 'mainnet')
+  const lz = moves.filter(m => m.bridge === 'layerzero')
+  assert.equal(lz.length, 1, 'layerzero-packet-sent: one layerzero move')
+  assert.equal(lz[0].direction, 'out')
+  assert.equal(lz[0].chainId, 4663, 'layerzero-packet-sent: dstEid 30416 → chainId 4663')
+  assert.equal(lz[0].usdc, null, 'layerzero-packet-sent: usdc is null')
+}
+
+// ── 25. layerzero-packet-delivered → in, bridge 'layerzero', chainId 1, usdc null ──
+
+{
+  const moves = decodeBridgeLogs(fixture('layerzero-packet-delivered'), 'mainnet')
+  const lz = moves.filter(m => m.bridge === 'layerzero')
+  assert.equal(lz.length, 1, 'layerzero-packet-delivered: one layerzero move')
+  assert.equal(lz[0].direction, 'in')
+  assert.equal(lz[0].chainId, 1, 'layerzero-packet-delivered: srcEid 0x7595=30101 → chainId 1')
+  assert.equal(lz[0].usdc, null, 'layerzero-packet-delivered: usdc is null')
+}
+
+// ── 26. LZ_EID_TO_CHAIN spot checks ──────────────────────────────────────────
+
+assert.equal(LZ_EID_TO_CHAIN[30101], 1,      'LZ_EID_TO_CHAIN: 30101 → Ethereum')
+assert.equal(LZ_EID_TO_CHAIN[30102], 56,     'LZ_EID_TO_CHAIN: 30102 → BNB')
+assert.equal(LZ_EID_TO_CHAIN[30184], 8453,   'LZ_EID_TO_CHAIN: 30184 → Base')
+assert.equal(LZ_EID_TO_CHAIN[30416], 4663,   'LZ_EID_TO_CHAIN: 30416 → Robinhood Chain')
+assert.equal(LZ_EID_TO_CHAIN[30110], 42161,  'LZ_EID_TO_CHAIN: 30110 → Arbitrum One')
+
+// ── 27. Truncated PacketSent data → no move, no throw ────────────────────────
+
+{
+  // Only 3 words (192 hex chars) — shorter than the minimum needed for payload extraction
+  const shortLog: BridgeLogLike = {
+    address: '0x6f475642a6e85809b1c36fa62763669b1b48dd5b',
+    topics: ['0x1ab700d4ced0c005b164c0f789fd09fcbb0156d4c2041b8a3bfbcd961cd1567f'],
+    data: '0x' + '00'.repeat(3 * 32),
+    transactionHash: '0x' + 'ff'.repeat(32),
+  }
+  let threw = false
+  let lzMoves: ReturnType<typeof decodeBridgeLogs> = []
+  try {
+    lzMoves = decodeBridgeLogs([shortLog], 'mainnet')
+  } catch {
+    threw = true
+  }
+  assert.equal(threw, false, 'truncated PacketSent: no throw')
+  assert.equal(lzMoves.filter(m => m.bridge === 'layerzero').length, 0, 'truncated PacketSent: no move')
+}
+
+// ── 28. Dedupe: layerzero + rhino in same tx → layerzero wins (priority 3 > 2) ──
+
+{
+  const tx = '0x' + '77'.repeat(32)
+  const moves = dedupeMoves([
+    { txHash: tx, bridge: 'rhino',      direction: 'out', chainId: null, usdc: 10 },
+    { txHash: tx, bridge: 'layerzero',  direction: 'out', chainId: 4663, usdc: null },
+  ])
+  assert.equal(moves.length, 1, 'dedupe: layerzero+rhino → one move')
+  assert.equal(moves[0].bridge, 'layerzero', 'layerzero wins over rhino')
 }
 
 console.log('bridgeLive.test.ts: all assertions passed')

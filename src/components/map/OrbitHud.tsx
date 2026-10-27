@@ -23,8 +23,9 @@ const BRIDGE_ROWS: { id: BridgeId; label: string }[] = [
   { id: 'hyperlane', label: 'Hyperlane warp routes' },
   { id: 'lifi',      label: 'LI.FI' },
   { id: 'debridge',  label: 'deBridge' },
-  { id: 'relay',     label: 'Relay (departures)' },
-  { id: 'rhino',     label: 'Rhino.fi' },
+  { id: 'relay',      label: 'Relay (departures)' },
+  { id: 'layerzero',  label: 'LayerZero (messages)' },
+  { id: 'rhino',      label: 'Rhino.fi' },
 ]
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US')
@@ -139,7 +140,7 @@ export function CctpPanel({
                       {count === 0 ? '—' : count}
                     </span>
                     <span className="font-['Geist_Mono'] text-[12px] text-[var(--periwinkle)]">
-                      {count === 0 ? '—' : usdcLabel(usdc)}
+                      {count === 0 || usdc === 0 ? '—' : usdcLabel(usdc)}
                     </span>
                   </li>
                 )

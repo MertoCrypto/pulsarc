@@ -488,18 +488,19 @@ export function cctpPill(direction: 'in' | 'out', chain: string, usdc: number | 
 }
 
 /** Bridge id used in BridgeMove (mirrors BridgeId in bridgeLive.ts). */
-export type BridgeColorKey = 'cctp' | 'gateway' | 'across' | 'hyperlane' | 'lifi' | 'debridge' | 'relay' | 'rhino'
+export type BridgeColorKey = 'cctp' | 'gateway' | 'across' | 'hyperlane' | 'lifi' | 'debridge' | 'relay' | 'rhino' | 'layerzero'
 
 /** One colour per bridge — tuned for the #08111f scene background. */
 export const BRIDGE_COLORS: Record<BridgeColorKey, string> = {
-  cctp:      '#a9c4ea', // periwinkle
-  gateway:   '#5ee6a8', // mint
-  across:    '#f0997b', // coral
-  hyperlane: '#c3a6ff', // violet
-  lifi:      '#f5c451', // amber
-  debridge:  '#6fd3e8', // sky
-  relay:     '#ff8fb8', // pink
-  rhino:     '#b7e86a', // lime-green
+  cctp:       '#a9c4ea', // periwinkle
+  gateway:    '#5ee6a8', // mint
+  across:     '#f0997b', // coral
+  hyperlane:  '#c3a6ff', // violet
+  lifi:       '#f5c451', // amber
+  debridge:   '#6fd3e8', // sky
+  relay:      '#ff8fb8', // pink
+  rhino:      '#b7e86a', // lime-green
+  layerzero:  '#7f8cff', // indigo
 }
 
 /**

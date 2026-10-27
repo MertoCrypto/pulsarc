@@ -513,13 +513,14 @@ const BRIDGE_LABELS: Record<string, string> = {
   debridge: 'deBridge',
   relay: 'Relay (departures)',
   rhino: 'Rhino.fi',
+  layerzero: 'LayerZero (messages)',
 }
-const BRIDGE_ORDER = ['cctp', 'gateway', 'across', 'hyperlane', 'lifi', 'debridge', 'relay', 'rhino'] as const
+const BRIDGE_ORDER = ['cctp', 'gateway', 'across', 'hyperlane', 'lifi', 'debridge', 'relay', 'rhino', 'layerzero'] as const
 
 const FOOTNOTE_TEXT =
-  'Read from Arc logs: CCTP, Circle Gateway, Across, Hyperlane warp routes, LI.FI, deBridge, Relay departures and Rhino.fi. ' +
-  'LayerZero and Wormhole are not included yet. ' +
-  'Relay arrivals cannot be told apart on-chain, Relay counts include same-chain swaps, and Rhino.fi does not name the other network. ' +
+  'Read from Arc logs: CCTP, Circle Gateway, Across, Hyperlane warp routes, LI.FI, deBridge, Relay departures, Rhino.fi and LayerZero messages. ' +
+  'Wormhole is not included yet. ' +
+  'LayerZero messages carry no USDC amount here; Relay arrivals cannot be told apart on-chain, Relay counts include same-chain swaps, and Rhino.fi does not name the other network. ' +
   'Amounts count USDC only; transfers of other tokens are counted without an amount. ' +
   'A transfer is counted once even when several bridges touch it.'
 
@@ -588,11 +589,9 @@ function AllBridgesCard() {
                   <span className="w-16 text-right font-['Geist_Mono'] text-[12px] text-[var(--muted)]">
                     {count > 0 ? count.toLocaleString('en-US') : '—'}
                   </span>
-                  {usdc > 0 && (
-                    <span className="w-16 text-right font-['Geist_Mono'] text-[12px] text-[var(--periwinkle)]">
-                      {pillAmount(usdc)}
-                    </span>
-                  )}
+                  <span className="w-16 text-right font-['Geist_Mono'] text-[12px] text-[var(--periwinkle)]">
+                    {count > 0 && usdc > 0 ? pillAmount(usdc) : '—'}
+                  </span>
                 </li>
               )
             })}

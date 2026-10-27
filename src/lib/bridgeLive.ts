@@ -9,7 +9,7 @@ import { decodeCctpLogs, type CctpNet, type CctpLogLike } from './cctpLive.ts'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type BridgeId = 'cctp' | 'gateway' | 'across' | 'hyperlane' | 'lifi' | 'debridge' | 'relay' | 'rhino'
+export type BridgeId = 'cctp' | 'gateway' | 'across' | 'hyperlane' | 'lifi' | 'debridge' | 'relay' | 'rhino' | 'layerzero'
 
 export interface BridgeMove {
   txHash: string
@@ -87,6 +87,22 @@ function domainToChain(domain: number): number | null {
 /** USDC ERC-20 on Arc (6 decimals). */
 export const ARC_USDC = '0x3600000000000000000000000000000000000000'
 
+/**
+ * LayerZero v2 eid → EVM chain id map.
+ * Only the eids listed here are resolved; anything else returns null.
+ */
+export const LZ_EID_TO_CHAIN: Readonly<Record<number, number>> = {
+  30101: 1,      // Ethereum
+  30102: 56,     // BNB Smart Chain
+  30106: 43114,  // Avalanche
+  30109: 137,    // Polygon
+  30110: 42161,  // Arbitrum One
+  30111: 10,     // OP Mainnet
+  30183: 59144,  // Linea
+  30184: 8453,   // Base
+  30416: 4663,   // Robinhood Chain
+}
+
 // ── Contract addresses (mainnet only) ────────────────────────────────────────
 
 // Circle Gateway
@@ -108,6 +124,11 @@ const RHINO_CONTRACT  = '0x5e023c31e1d3dcd08a1b3e8c96f6ef8aa8fcacd1'
 
 // Relay depository
 const RELAY_DEPOSITORY = '0x4cd00e387622c35bddb9b4c962c136462338bc31'
+
+// LayerZero v2 EndpointV2 on Arc
+const LZ_ENDPOINT = '0x6f475642a6e85809b1c36fa62763669b1b48dd5b'
+/** Arc's LayerZero eid (30417). Used to validate that PacketSent originates from Arc. */
+const LZ_ARC_EID = 30417
 
 // Hyperlane warp routers (EvmHypCollateral/CrossCollateral USDC)
 const HYPERLANE_ROUTERS: readonly string[] = [
@@ -142,6 +163,8 @@ export const BRIDGE_ADDRESSES: string[] = [
   RHINO_CONTRACT,
   // Relay
   RELAY_DEPOSITORY,
+  // LayerZero v2
+  LZ_ENDPOINT,
 ]
 
 // Topic0 constants
@@ -163,6 +186,9 @@ const RHINO_WITHDRAWAL_D = '0x446598b3c3f0d9f39b89eb111ba2796b4fcbbf3bb39d64d5fd
 const RHINO_WITHDRAWAL   = '0xe4f4f1fb3534fe80225d336f6e5a73007dc992e5f6740152bf13ed2a08f3851a'
 // Relay
 const RELAY_ERC20_DEPOSIT = '0x49fed1d0b752ce30eee63c7a81133f3363b532fec5d4d7dd1ccfd005de4555e1'
+// LayerZero v2
+const LZ_PACKET_SENT      = '0x1ab700d4ced0c005b164c0f789fd09fcbb0156d4c2041b8a3bfbcd961cd1567f'
+const LZ_PACKET_DELIVERED = '0x3cd5e48f9730b129dc7550f0fcea9c767b7be37837cd10e55eb35f734f4bca04'
 
 /** All topic0 values (unique, lower-case) for one eth_getLogs call. */
 export const BRIDGE_TOPICS: string[] = [
@@ -183,6 +209,8 @@ export const BRIDGE_TOPICS: string[] = [
     RHINO_WITHDRAWAL_D,
     RHINO_WITHDRAWAL,
     RELAY_ERC20_DEPOSIT,
+    LZ_PACKET_SENT,
+    LZ_PACKET_DELIVERED,
   ]),
 ]
 
@@ -669,16 +697,95 @@ function decodeRelayLogs(logs: readonly BridgeLogLike[]): BridgeMove[] {
   return moves
 }
 
+// ── LayerZero v2 adapter ──────────────────────────────────────────────────────
+
+/**
+ * Resolve a LayerZero eid to an EVM chain id. Returns null for unknown eids.
+ */
+function lzEidToChain(eid: number): number | null {
+  return Object.prototype.hasOwnProperty.call(LZ_EID_TO_CHAIN, eid) ? LZ_EID_TO_CHAIN[eid] : null
+}
+
+/**
+ * Decode LayerZero v2 PacketSent and PacketDelivered events from the EndpointV2 contract.
+ *
+ * PacketSent — direction 'out':
+ *   data ABI-encoding: word0 = offset of encodedPayload (0x60), word1 = offset of options,
+ *   word2 = sendLibrary address, then at offset 0x60: word length L, then payload bytes.
+ *   Payload layout (byte offsets into the bytes value, after the length word):
+ *     0     version (1 byte)
+ *     1..8  nonce (8 bytes)
+ *     9..12 srcEid (uint32, 4 bytes)
+ *     13..44 sender (32 bytes)
+ *     45..48 dstEid (uint32, 4 bytes)
+ *     ...
+ *   We read srcEid at bytes [9..12] and dstEid at bytes [45..48] of the payload hex.
+ *   srcEid must equal LZ_ARC_EID (30417); skip otherwise (defensive).
+ *   Counterpart = dstEid.
+ *
+ * PacketDelivered — direction 'in':
+ *   data (no indexed args): word0 = srcEid (uint32), word1 = sender (bytes32),
+ *   word2 = nonce (uint64), word3 = receiver (address).
+ *   Counterpart = srcEid.
+ *
+ * usdc is always null (LayerZero endpoint events carry no token amount).
+ */
+function decodeLayerZeroLogs(logs: readonly BridgeLogLike[]): BridgeMove[] {
+  const moves: BridgeMove[] = []
+  for (const log of logs) {
+    if (!log.transactionHash || log.topics.length === 0) continue
+    const addr = log.address.toLowerCase()
+    if (addr !== LZ_ENDPOINT) continue
+    const t0 = log.topics[0].toLowerCase()
+
+    if (t0 === LZ_PACKET_SENT) {
+      // data: word0=payloadOffset(0x60), word1=optionsOffset, word2=sendLibrary, then at 0x60: length + payload
+      const raw = log.data.startsWith('0x') ? log.data.slice(2) : log.data
+      // Minimum: 3 fixed words (0x60 chars) + 1 length word (0x40) = 4 words = 256 hex chars
+      if (raw.length < 4 * WORD) continue
+      // word0 = offset to payload in bytes
+      const payloadOffsetBytes = Number(BigInt(`0x${raw.slice(0, WORD)}`))
+      // convert byte offset to hex-char offset in raw
+      const lengthHexOffset = payloadOffsetBytes * 2
+      if (lengthHexOffset + WORD > raw.length) continue
+      const payloadLen = Number(BigInt(`0x${raw.slice(lengthHexOffset, lengthHexOffset + WORD)}`))
+      // payload starts after the length word
+      const payloadHexOffset = lengthHexOffset + WORD
+      // We need at least 49 bytes of payload (srcEid ends at byte 12, dstEid ends at byte 48)
+      if (payloadLen < 49) continue
+      if (payloadHexOffset + payloadLen * 2 > raw.length) continue
+      const payload = raw.slice(payloadHexOffset, payloadHexOffset + payloadLen * 2)
+      // srcEid: bytes 9..12 → hex chars 18..25 (4 bytes = 8 hex chars)
+      if (payload.length < 50) continue  // 49 bytes * 2 = 98 hex chars minimum
+      const srcEid = parseInt(payload.slice(18, 26), 16)
+      if (srcEid !== LZ_ARC_EID) continue  // not from Arc — skip
+      // dstEid: bytes 45..48 → hex chars 90..97
+      const dstEid = parseInt(payload.slice(90, 98), 16)
+      const chainId = lzEidToChain(dstEid)
+      moves.push({ txHash: log.transactionHash, bridge: 'layerzero', direction: 'out', chainId, usdc: null })
+
+    } else if (t0 === LZ_PACKET_DELIVERED) {
+      // data: word0=srcEid(uint32), word1=sender(bytes32), word2=nonce(uint64), word3=receiver
+      const raw = log.data.startsWith('0x') ? log.data.slice(2) : log.data
+      if (raw.length < 4 * WORD) continue
+      const srcEid = Number(BigInt(`0x${raw.slice(0, WORD)}`))
+      const chainId = lzEidToChain(srcEid)
+      moves.push({ txHash: log.transactionHash, bridge: 'layerzero', direction: 'in', chainId, usdc: null })
+    }
+  }
+  return moves
+}
+
 // ── Combined decoder ──────────────────────────────────────────────────────────
 
 /**
- * Deduplicate moves: key by txHash; priority cctp > gateway > debridge > hyperlane > across > relay > rhino > lifi.
+ * Deduplicate moves: key by txHash; priority cctp > gateway > debridge > hyperlane > across > relay > layerzero > rhino > lifi.
  * If a lifi move shares a tx with another bridge's move, absorb it (set via='LI.FI' on the kept move)
  * and drop the lifi move. This also applies when LI.FI routes through the Relay depository.
  */
 export function dedupeMoves(moves: BridgeMove[]): BridgeMove[] {
   const PRIORITY: Record<BridgeId, number> = {
-    cctp: 8, gateway: 7, debridge: 6, hyperlane: 5, across: 4, relay: 3, rhino: 2, lifi: 1,
+    cctp: 9, gateway: 8, debridge: 7, hyperlane: 6, across: 5, relay: 4, layerzero: 3, rhino: 2, lifi: 1,
   }
   // Group by txHash
   const byHash = new Map<string, BridgeMove[]>()
@@ -752,6 +859,7 @@ export function decodeBridgeLogs(logs: readonly BridgeLogLike[], net: CctpNet): 
     ...decodeDebridgeLogs(logs),
     ...decodeRhinoLogs(logs),
     ...decodeRelayLogs(logs),
+    ...decodeLayerZeroLogs(logs),
   ]
 
   return dedupeMoves(all)
@@ -776,7 +884,7 @@ export type BridgeSummary = {
   byChain: Record<number, { in: BridgeDirectionStat; out: BridgeDirectionStat }>
 }
 
-const BRIDGE_IDS: readonly BridgeId[] = ['cctp', 'gateway', 'across', 'hyperlane', 'lifi', 'debridge', 'relay', 'rhino']
+const BRIDGE_IDS: readonly BridgeId[] = ['cctp', 'gateway', 'across', 'hyperlane', 'lifi', 'debridge', 'relay', 'rhino', 'layerzero']
 
 function emptyBridgeStat(): BridgeStat {
   return { in: { count: 0, usdc: 0 }, out: { count: 0, usdc: 0 }, usdcUnknownCount: 0 }
